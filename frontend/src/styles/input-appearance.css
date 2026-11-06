@@ -1,0 +1,68 @@
+:is(.qterm-shell, .qterm-dialog).has-page-background.is-dark
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']):not(
+        [type='button']
+      ):not([type='submit']):not([type='file']),
+    textarea:not(.xterm-helper-textarea):not([data-ai-composer-input]),
+    select,
+    [data-slot='select-trigger'],
+    .path-bar
+  ):not(.qterm-combobox input):not([data-ai-composer-input]) {
+  border: 1px solid var(--qt-reference-input-border) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+:is(.qterm-shell, .qterm-dialog).has-page-background.is-dark
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']):not(
+        [type='button']
+      ):not([type='submit']):not([type='file']),
+    textarea:not(.xterm-helper-textarea):not([data-ai-composer-input]),
+    select,
+    [data-slot='select-trigger'],
+    .path-bar
+  ):not(.qterm-combobox input):not([data-ai-composer-input]):is(:focus, :focus-visible, :focus-within) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-reference-ring) 16%, transparent) !important;
+}
+
+.qterm-shell.has-page-background.is-dark .path-bar.is-editing #sftp-path,
+.qterm-shell.has-page-background.is-dark .path-bar.is-editing #sftp-path:is(:focus, :focus-visible) {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.qterm-shell.has-page-background.is-dark .path-bar.is-editing:focus-within {
+  border-color: var(--qt-reference-input-border) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-reference-ring) 16%, transparent) !important;
+}
+
+.session-overlay input:not([type='checkbox']):not([type='radio']),
+.session-overlay textarea,
+.session-overlay [data-slot='select-trigger'] {
+  border: 1px solid var(--qt-overlay-border);
+  background: var(--qt-overlay-hover);
+  color: var(--qt-overlay-fg);
+}
+
+.session-overlay input::placeholder,
+.session-overlay textarea::placeholder {
+  color: var(--qt-overlay-muted);
+  opacity: 1;
+}
+
+:is(.qterm-shell, .qterm-dialog)
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']):not(
+        [type='button']
+      ):not([type='submit']):not([type='file']),
+    textarea:not(.xterm-helper-textarea),
+    select,
+    [data-slot='input'],
+    [data-slot='select-trigger'],
+    [data-slot='textarea']
+  ):not(.qterm-combobox input):not([data-ai-composer-input]):is(:focus, :focus-visible) {
+  border-color: var(--qt-focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent) !important;
+}

@@ -1,0 +1,471 @@
+.qterm-shell.has-page-background .workspace,
+.qterm-shell.has-page-background .terminal-stage,
+.qterm-shell.has-page-background .terminal-session-pane,
+.qterm-shell.has-page-background .terminal-surface,
+.qterm-shell.has-page-background .xterm,
+.qterm-shell.has-page-background .xterm-viewport,
+.qterm-shell.has-page-background .xterm-screen {
+  background: transparent !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.qterm-shell.has-page-background .sidebar-footer,
+.qterm-shell.has-page-background .tool-panel {
+  background: color-mix(in srgb, var(--qt-panel) 30%, transparent);
+}
+.qterm-shell:not(.has-page-background)
+  :is(.topbar, .session-window-titlebar, .sidebar, .workspace, .tool-rail, .terminal-stage, .session-tabs) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.qterm-shell.has-page-background {
+  --qt-content-surface: transparent;
+}
+
+.qterm-shell .topbar,
+.qterm-shell .session-tabs {
+  border-bottom-color: var(--qt-divider);
+}
+
+.qterm-shell.has-page-background {
+  --qt-border: var(--qt-background-border);
+  --qt-muted: var(--qt-background-muted);
+}
+
+.qterm-shell.has-page-background :is(.topbar, .session-window-titlebar),
+.qterm-shell.has-page-background .sidebar,
+.qterm-shell.has-page-background .sidebar-header,
+.qterm-shell.has-page-background .sidebar-tools,
+.qterm-shell.has-page-background .sidebar-footer,
+.qterm-shell.has-page-background .workspace,
+.qterm-shell.has-page-background .session-tabs,
+.qterm-shell.has-page-background .pane-titlebar,
+.qterm-shell.has-page-background .terminal-stage,
+.qterm-shell.has-page-background .terminal-session-pane,
+.qterm-shell.has-page-background .tool-rail,
+.qterm-shell.has-page-background .tool-panel,
+.qterm-shell.has-page-background .tool-panel-header,
+.qterm-shell.has-page-background .qterm-empty-state,
+.qterm-shell.has-page-background .workspace-empty,
+.qterm-shell.has-page-background .terminal-placeholder,
+.qterm-shell.has-page-background .asset-list,
+.qterm-shell.has-page-background .asset-list-scroll,
+.qterm-shell.has-page-background .asset-scroll-content,
+.qterm-shell.has-page-background .asset-root-groups,
+.qterm-shell.has-page-background .asset-host-list,
+.qterm-shell.has-page-background .qterm-terminal,
+.qterm-shell.has-page-background .qterm-terminal .xterm,
+.qterm-shell.has-page-background .qterm-terminal .xterm-viewport,
+.qterm-shell.has-page-background .qterm-terminal .xterm-screen {
+  background: transparent !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.qterm-shell.has-page-background
+  :is(.topbar, .session-window-titlebar, .sidebar, .session-tabs, .pane-titlebar, .tool-rail, .tool-panel) {
+  text-shadow: var(--qt-background-text-shadow);
+}
+
+.qterm-shell.has-page-background
+  :is(.topbar, .session-window-titlebar, .sidebar, .session-tabs, .pane-titlebar, .tool-rail, .tool-panel)
+  svg {
+  filter: var(--qt-background-icon-shadow);
+}
+
+.qterm-shell.has-page-background :is(.topbar, .session-window-titlebar),
+.qterm-shell.has-page-background .session-tabs {
+  box-shadow: 0 1px 0 var(--qt-background-separator-shadow);
+}
+
+.qterm-shell.has-page-background .sidebar {
+  box-shadow: 1px 0 0 var(--qt-background-separator-shadow);
+}
+
+.qterm-shell.has-page-background .tool-rail,
+.qterm-shell.has-page-background .tool-panel {
+  box-shadow: -1px 0 0 var(--qt-background-separator-shadow);
+}
+
+.qterm-shell.has-page-background .search-field,
+.qterm-shell.has-page-background .session-tab,
+.qterm-shell.has-page-background .resource-card,
+.qterm-shell.has-page-background .sftp-function-bar {
+  background-color: var(--qt-background-control) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.qterm-shell.has-page-background
+  :is(
+    .text-action:hover:not(:disabled),
+    .icon-button:hover:not(:disabled),
+    .asset-empty button:hover,
+    .asset-action:hover,
+    .asset-group-title:hover,
+    .host-row:hover,
+    .sftp-breadcrumbs button:hover:not(:disabled),
+    .snippet-panel-row:hover,
+    .snippet-panel-row:focus-visible
+  ) {
+  background-color: var(--qt-background-hover) !important;
+}
+
+.qterm-shell.has-page-background .session-tab:hover {
+  border-color: var(--qt-theme-border);
+  background-color: var(--qt-background-hover) !important;
+  box-shadow: 0 1px 2px rgb(24 24 27 / 8%);
+}
+
+.qterm-shell.has-page-background .host-row.is-selected,
+.qterm-shell.has-page-background [data-asset-drop-inside],
+.qterm-shell.has-page-background .icon-button.is-active {
+  background-color: var(--qt-background-selected) !important;
+  box-shadow: inset 0 0 0 1px var(--qt-background-border);
+}
+
+.qterm-shell.has-page-background .session-tab.is-active,
+.qterm-shell.has-page-background .session-tab.is-split-group.is-split-active {
+  border-color: var(--qt-theme-border);
+  background-color: var(--qt-background-selected) !important;
+  box-shadow: 0 1px 2px rgb(24 24 27 / 8%);
+}
+
+.qterm-shell.has-page-background
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+.qterm-shell.has-page-background select,
+.qterm-shell.has-page-background textarea,
+.qterm-shell.has-page-background [data-slot='input'],
+.qterm-shell.has-page-background [data-slot='select-trigger'],
+.qterm-shell.has-page-background [data-slot='textarea'] {
+  background-color: var(--qt-background-control) !important;
+  border-color: var(--qt-background-border);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.qterm-shell.has-page-background
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):focus,
+.qterm-shell.has-page-background select:focus,
+.qterm-shell.has-page-background textarea:focus,
+.qterm-shell.has-page-background [data-slot='input']:focus,
+.qterm-shell.has-page-background [data-slot='select-trigger']:focus,
+.qterm-shell.has-page-background [data-slot='textarea']:focus {
+  background-color: var(--qt-background-hover) !important;
+  border-color: var(--qt-focus);
+
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent);
+}
+
+.qterm-shell.has-page-background .path-bar [data-slot='input'],
+.qterm-shell.has-page-background .settings-color-field input[type='color'] {
+  background-color: var(--qt-background-control) !important;
+}
+
+.qterm-shell.has-page-background .path-bar {
+  border-color: var(--qt-background-border);
+  background-color: var(--qt-background-control) !important;
+  box-shadow: inset 0 1px 0 var(--qt-background-separator-shadow);
+}
+
+.path-bar.is-editing,
+.qterm-shell.has-page-background .path-bar.is-editing {
+  padding: 0;
+}
+.path-bar.is-editing #sftp-path {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+.qterm-shell.has-page-background .path-bar.is-editing:focus-within {
+  border-color: var(--qt-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent);
+}
+
+.qterm-shell.has-page-background [data-slot='checkbox'],
+.settings-dialog [data-slot='checkbox'] {
+  border-color: color-mix(in srgb, var(--qt-text) 48%, transparent) !important;
+  background: color-mix(in srgb, var(--qt-panel) 18%, transparent) !important;
+}
+
+.qterm-shell.has-page-background [data-slot='checkbox'][data-state='checked'],
+.qterm-shell.has-page-background [data-slot='checkbox'][data-checked],
+.settings-dialog [data-slot='checkbox'][data-state='checked'],
+.settings-dialog [data-slot='checkbox'][data-checked] {
+  border-color: var(--qt-accent) !important;
+  color: var(--qt-accent-text) !important;
+  background: var(--qt-accent) !important;
+}
+
+.qterm-shell.has-page-background [data-slot='checkbox']:hover,
+.settings-dialog [data-slot='checkbox']:hover {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-text) 12%, transparent);
+}
+
+.qterm-shell.has-page-background [data-slot='switch'][data-state='unchecked'],
+.qterm-dialog.has-page-background [data-slot='switch'][data-state='unchecked'] {
+  border-color: var(--qt-border) !important;
+  background: transparent !important;
+}
+
+.qterm-dialog [data-slot='input'],
+.qterm-dialog [data-slot='select-trigger'],
+.qterm-dialog [data-slot='textarea'],
+.qterm-dialog [data-slot='input-group'],
+.qterm-dialog .tags-input-shell,
+.qterm-dialog input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+.qterm-dialog select,
+.qterm-dialog textarea {
+  background-color: color-mix(in srgb, var(--qt-panel) 16%, transparent) !important;
+  border-color: var(--qt-control-border);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.qterm-dialog [data-slot='input']:focus,
+.qterm-dialog [data-slot='select-trigger']:focus,
+.qterm-dialog [data-slot='textarea']:focus,
+.qterm-dialog input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):focus,
+.qterm-dialog select:focus,
+.qterm-dialog textarea:focus {
+  background-color: color-mix(in srgb, var(--qt-panel) 25%, transparent) !important;
+  border-color: var(--qt-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent);
+}
+
+.settings-dialog .settings-nav,
+.settings-dialog .settings-main,
+.settings-dialog .settings-main-header,
+.settings-dialog .settings-main-body {
+  background: transparent;
+}
+
+.settings-dialog,
+.settings-dialog.has-page-background {
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  box-shadow:
+    0 18px 56px rgb(24 24 27 / 22%),
+    inset 0 1px 0 rgb(255 255 255 / 18%);
+}
+
+.settings-dialog.has-page-background {
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+}
+
+.terminal-typography-action[data-slot='button'] {
+  height: 32px;
+}
+
+.settings-dialog :is(.terminal-font-picker, .security-file-input, .security-password-form) > [data-slot='button'] {
+  height: 32px;
+}
+
+.settings-dialog :is(.settings-card, .security-status-card, .security-option-row) {
+  background: color-mix(in srgb, var(--qt-panel) 20%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.settings-dialog .settings-nav-item:hover:not(:disabled) {
+  color: var(--qt-text);
+  background: color-mix(in srgb, var(--qt-panel) 46%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--qt-text) 18%, transparent);
+}
+
+.settings-dialog .settings-nav-item.is-active,
+.settings-dialog .settings-nav-item.is-active:hover:not(:disabled) {
+  color: var(--qt-text);
+  background: color-mix(in srgb, var(--qt-panel) 46%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--qt-text) 18%, transparent);
+}
+
+.terminal-theme-background-scope > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.terminal-theme-background-scope small {
+  color: var(--qt-muted);
+}
+.terminal-theme-list {
+  min-height: 0;
+  height: var(--qt-terminal-theme-list-height-even, 560px);
+}
+.terminal-theme-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--qt-border);
+  border-radius: 8px;
+  color: var(--qt-text);
+  text-align: left;
+  background: color-mix(in srgb, var(--qt-panel) 55%, transparent);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.terminal-theme-card:hover {
+  border-color: var(--qt-border);
+}
+.terminal-theme-card.is-selected {
+  border-color: var(--qt-accent);
+}
+.terminal-theme-card-title svg {
+  color: var(--qt-accent);
+}
+.terminal-theme-preview {
+  display: grid;
+  gap: 3px;
+  min-height: 72px;
+  padding: 9px;
+  border-radius: 6px;
+  color: var(--theme-fg);
+  background: var(--theme-bg);
+  line-height: 1.35;
+  font-family: var(--qt-font-mono);
+}
+.terminal-theme-preview b {
+  color: var(--theme-fg);
+  font-weight: 500;
+}
+.terminal-theme-preview i,
+.terminal-theme-preview em {
+  font-style: normal;
+}
+.qterm-dialog.terminal-theme-editor {
+  width: min(800px, calc(100vw - 32px));
+  max-width: min(800px, calc(100vw - 32px)) !important;
+  height: var(--qt-terminal-theme-editor-height-even, 660px);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  background: var(--background);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.terminal-theme-editor-header [data-slot='dialog-title'] {
+  font-weight: 600;
+}
+.terminal-theme-editor-header [data-slot='dialog-description'] {
+  color: var(--qt-muted);
+}
+.terminal-theme-editor-form > :nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+.terminal-theme-editor-form > .qterm-segmented-tabs {
+  justify-self: start;
+}
+.terminal-theme-colors h4 {
+  color: var(--qt-muted);
+  margin: 4px 0 10px;
+  font-weight: 500;
+}
+.terminal-theme-colors section + section {
+  margin-top: 18px;
+}
+.terminal-theme-color-input input[type='color'] {
+  width: 32px;
+  height: 32px;
+  padding: 2px;
+  flex: 0 0 32px;
+  border: 1px solid var(--qt-border);
+  border-radius: 5px;
+  background: var(--qt-subtle);
+  cursor: pointer;
+}
+.terminal-theme-color-input [data-slot='input'] {
+  font-family: var(--qt-font-mono);
+}
+.terminal-theme-editor .terminal-theme-json {
+  height: 100%;
+  min-height: 0;
+  resize: none;
+  field-sizing: fixed;
+  line-height: 1.6;
+  font-family: var(--qt-font-mono);
+}
+.terminal-theme-preview-large {
+  min-height: 210px;
+  align-content: start;
+  padding: 12px;
+  gap: 8px;
+  line-height: 1.6;
+  font-family: var(--qt-font-mono);
+  border: 1px solid var(--qt-border);
+  overflow-wrap: anywhere;
+}
+.terminal-theme-editor-preview > small {
+  color: var(--qt-muted);
+  overflow-wrap: anywhere;
+}
+.terminal-theme-editor .dialog-error {
+  color: var(--qt-danger);
+  padding: 0 16px 8px;
+}
+.terminal-theme-editor [data-slot='dialog-footer'] {
+  margin: 0;
+  padding: 12px 16px;
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  .terminal-theme-columns {
+    grid-template-columns: 1fr;
+  }
+  .terminal-theme-list {
+    height: 360px;
+  }
+  .terminal-theme-background-scope {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .terminal-theme-editor-grid {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+  .terminal-theme-editor-form {
+    min-height: 380px;
+  }
+}
+
+.settings-dialog [data-slot='scroll-area-scrollbar'] {
+  background: transparent !important;
+}
+
+.settings-dialog [data-slot='scroll-area-thumb'] {
+  background: color-mix(in srgb, var(--qt-text) 32%, transparent) !important;
+}
+
+.settings-dialog [data-slot='scroll-area-scrollbar']:hover [data-slot='scroll-area-thumb'],
+.settings-dialog [data-slot='scroll-area-thumb']:hover {
+  background: color-mix(in srgb, var(--qt-text) 52%, transparent) !important;
+}
+
+.terminal-metrics-separator {
+  position: absolute;
+  inset: auto 12px 34px;
+  z-index: 2;
+  background: var(--qt-border);
+}
+.terminal-metrics {
+  position: absolute;
+  inset: auto 12px 6px;
+  z-index: 2;
+  display: flex;
+
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 8px;
+  height: 22px;
+  align-items: center;
+  align-content: flex-start;
+  padding: 0 2px;
+  overflow: hidden;
+  color: var(--qt-muted);
+  font-family: var(--qt-font-mono);
+  white-space: nowrap;
+}

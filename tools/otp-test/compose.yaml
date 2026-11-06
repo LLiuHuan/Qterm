@@ -1,0 +1,8 @@
+services:
+  otp-server:
+    build:
+      context: .
+    container_name: qterm-otp-test
+    restart: "no"
+    ports:
+      - "127.0.0.1:22232:22"

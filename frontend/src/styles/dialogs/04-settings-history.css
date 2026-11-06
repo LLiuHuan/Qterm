@@ -1,0 +1,242 @@
+.qterm-dialog.delete-confirm-dialog {
+  background: var(--background);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.delete-confirm-dialog [data-slot='dialog-header'],
+.delete-confirm-dialog [data-slot='dialog-footer'] {
+  min-height: 48px;
+  padding: 0;
+}
+
+.delete-confirm-dialog .dialog-body {
+  padding-block: 16px;
+
+  scrollbar-width: none;
+}
+
+.delete-confirm-dialog .dialog-body::-webkit-scrollbar {
+  display: none;
+}
+
+.delete-confirm-actions > [data-slot='button'] {
+  min-width: 52px;
+  height: 30px;
+}
+
+.qterm-host-dialog .dialog-footer {
+  justify-content: space-between;
+}
+.settings-section-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border: 1px solid var(--qt-border);
+  border-radius: 0.5rem;
+  background: var(--qt-surface);
+}
+.settings-section-heading strong {
+  color: var(--qt-text);
+  font-weight: 600;
+}
+.settings-section-heading small {
+  color: var(--qt-muted);
+  line-height: 1.45;
+}
+.settings-inline-input > :first-child {
+  min-width: 0;
+  flex: 1;
+}
+.settings-toggle-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--qt-border);
+  border-radius: 0.375rem;
+  background: var(--qt-panel);
+}
+
+.settings-toggle-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.settings-toggle-row > span {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+.settings-toggle-row strong {
+  color: var(--qt-text);
+  font-weight: 600;
+}
+.settings-toggle-row small {
+  color: var(--qt-muted);
+  line-height: 1.4;
+}
+
+.settings-main-scroll.is-inner-scroll > [data-slot='scroll-area-viewport'] {
+  height: 100%;
+  overflow: hidden !important;
+}
+
+.settings-main-scroll.is-inner-scroll > [data-slot='scroll-area-viewport'] > * {
+  height: 100%;
+  min-height: 0;
+}
+.settings-main-body.is-inner-scroll,
+.settings-history-panel.is-inner-scroll {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.settings-history-panel.is-inner-scroll {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-history-panel > .settings-history-head-area,
+.settings-history-panel > .settings-history-toolbar,
+.settings-history-panel > .settings-history-pagination {
+  flex: 0 0 auto;
+}
+
+.settings-history-list-area,
+.settings-history-recording-area {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.settings-list-scroll-gutter {
+  width: calc(100% + 6px);
+  margin-right: -6px;
+}
+
+.settings-history-head strong {
+  overflow: hidden;
+  color: var(--qt-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-history-type {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid var(--qt-border);
+  border-radius: 4px;
+  color: var(--qt-muted);
+  letter-spacing: 0.02em;
+}
+
+.settings-history-toolbar > .qterm-segmented-tabs {
+  width: auto;
+  min-width: 0;
+}
+.settings-history-toolbar > .qterm-segmented-tabs .qterm-segmented-tabs__list {
+  width: auto;
+}
+
+.settings-history-toolbar [data-slot='input'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-batch-bar [data-slot='button'] {
+  box-sizing: border-box;
+  height: var(--qt-button-height-sm, 28px);
+  min-height: var(--qt-button-height-sm, 28px);
+  min-width: var(--qt-button-height-sm, 28px);
+}
+
+.settings-batch-bar
+  .settings-batch-actions
+  > .qterm-button[data-variant='destructive']:not(:hover):not(:focus-visible) {
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--qt-control-danger, var(--destructive));
+}
+
+.settings-recording-toolbar [data-slot='input'] {
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-recording-toolbar .settings-recording-batch-actions > [data-slot='button'] {
+  height: 2rem;
+}
+.settings-recording-batch-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.settings-history-recordings > strong {
+  color: var(--qt-text);
+}
+
+.settings-history-item.is-selected {
+  border-color: color-mix(in srgb, var(--qt-accent) 72%, var(--qt-border));
+  background: color-mix(in srgb, var(--qt-accent) 10%, var(--qt-panel));
+}
+
+.settings-history-item.is-selectable {
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+.settings-history-item.is-selectable:hover,
+.settings-history-item.is-selectable:focus-visible {
+  border-color: color-mix(in srgb, var(--qt-accent) 42%, var(--qt-border));
+  background: color-mix(in srgb, var(--qt-accent) 5%, var(--qt-panel));
+  outline: none;
+}
+
+.qterm-dialog .password-input-group [data-slot='button'][data-variant='ghost']:hover:not(:disabled),
+.qterm-dialog .password-input-group [data-slot='button'][data-variant='ghost']:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--qt-accent, var(--qt-text));
+}
+
+.credential-editor-dialog {
+  line-height: 16px;
+}
+
+.credential-editor-dialog [data-slot='label'] {
+  line-height: 16px;
+}
+
+.credential-editor-dialog [data-slot='radio-group-item'] {
+  border-color: var(--qt-text, var(--foreground));
+  background-color: var(--qt-panel, var(--background));
+  color: var(--qt-text, var(--foreground));
+  box-shadow: none;
+}
+
+.credential-editor-dialog [data-slot='radio-group-item']:focus-visible {
+  border-color: var(--qt-text, var(--foreground));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-text, var(--foreground)) 18%, transparent);
+}
+
+.credential-editor-dialog label:has(> [data-slot='radio-group-item'][data-state='checked']) {
+  border-color: var(--qt-text, var(--foreground));
+  background-color: color-mix(in srgb, var(--qt-text, var(--foreground)) 8%, var(--qt-panel, var(--background)));
+}
+
+.credential-editor-dialog .field-help,
+.credential-editor-dialog .form-error {
+  line-height: 14px;
+}
+
+.qterm-app-lock__card {
+  padding: 24px 22px 18px;
+  border: 1px solid var(--qt-theme-8, var(--qt-border));
+  border-radius: 12px;
+  background: var(--qt-theme-6, var(--qt-panel));
+  box-shadow: 0 18px 48px rgb(24 24 27 / 22%);
+}

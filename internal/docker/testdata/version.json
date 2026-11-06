@@ -1,0 +1,23 @@
+{
+  "Client": {
+    "Version": "29.3.1",
+    "ApiVersion": "1.54",
+    "DefaultAPIVersion": "1.54",
+    "GitCommit": "c2be9cc",
+    "GoVersion": "go1.25.8",
+    "Os": "darwin",
+    "Arch": "arm64",
+    "Context": "desktop-linux"
+  },
+  "Server": {
+    "Platform": {
+      "Name": "Docker Desktop 4.68.0 (223695)"
+    },
+    "Version": "29.3.1",
+    "ApiVersion": "1.54",
+    "MinAPIVersion": "1.40",
+    "Os": "linux",
+    "Arch": "arm64",
+    "GitCommit": "f78c987"
+  }
+}

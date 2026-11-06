@@ -1,0 +1,2 @@
+-- 兼容已执行旧版 023 的数据库：旧版 023 没有 password_source 列。
+-- SQLite 不支持 ALTER TABLE ... ADD COLUMN IF NOT EXISTS，因此由迁移代码在执行前检查结构。

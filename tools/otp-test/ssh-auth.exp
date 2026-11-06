@@ -1,0 +1,76 @@
+#!/usr/bin/expect -f
+
+set timeout 15
+set mode [lindex $argv 0]
+if {$mode ne "correct" && $mode ne "wrong-otp" && $mode ne "wrong-password"} {
+    puts stderr "usage: ssh-auth.exp correct|wrong-otp|wrong-password"
+    exit 2
+}
+
+set password "qterm-otp-password"
+set otpMode "correct"
+if {$mode eq "wrong-otp"} {
+    set otpMode "wrong"
+}
+if {$mode eq "wrong-password"} {
+    set password "qterm-otp-wrong-password"
+}
+set otp [exec docker exec qterm-otp-test python3 /opt/otp-test/totp.py $otpMode]
+set known "/tmp/qterm-otp-known-hosts-[pid]"
+exec sh -c "ssh-keyscan -p 22232 127.0.0.1 > '$known' 2>/dev/null"
+
+set authenticated 0
+set rejected 0
+set password_prompt_seen 0
+set otp_prompt_seen 0
+set password_sent 0
+log_user 0
+spawn ssh \
+    -p 22232 \
+    -o BatchMode=no \
+    -o PreferredAuthentications=keyboard-interactive \
+    -o PubkeyAuthentication=no \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=$known \
+    qtermotp@127.0.0.1 \
+    printf otp-ready
+
+expect {
+    -nocase -re {password:} {
+        set password_prompt_seen 1
+        if {$password_sent == 0} {
+            send "$password\r"
+            set password_sent 1
+        } else {
+            send "$otp\r"
+            set otp_prompt_seen 1
+        }
+        exp_continue
+    }
+    -nocase -re {(verification|one-time|authentication).*(code|password).*:} {
+        send "$otp\r"
+        set otp_prompt_seen 1
+        exp_continue
+    }
+    -exact {otp-ready} {
+        set authenticated 1
+        exp_continue
+    }
+    -nocase -re {permission denied} {
+        set rejected 1
+        exp_continue
+    }
+    eof {}
+    timeout { exit 3 }
+}
+
+catch {wait}
+file delete $known
+
+if {$mode eq "correct"} {
+    if {$authenticated && !$rejected} { exit 0 }
+    exit 1
+}
+
+if {$rejected && ($password_prompt_seen || $otp_prompt_seen) && !$authenticated} { exit 0 }
+exit 1

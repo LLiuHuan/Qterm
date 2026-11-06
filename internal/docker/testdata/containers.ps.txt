@@ -1,0 +1,19 @@
+3e7ece12ef99	bookworm-vnc	pushpenderindia/bookworm-vnc:latest	running	Up 2 days	0.0.0.0:5902->5901/tcp, [::]:5902->5901/tcp, 0.0.0.0:6081->6080/tcp, [::]:6081->6080/tcp	2026-10-16 22:55:25 +0800 CST			
+cf50082b371b	kasmvnc-desktop	kasmweb/core-ubuntu-noble:1.16.0	running	Up 2 days	0.0.0.0:6902->6901/tcp, [::]:6902->6901/tcp	2026-10-16 18:19:28 +0800 CST			
+58ee964a8597	qterm-vnc	alpine:3.20	running	Up 2 days	127.0.0.1:5901->5901/tcp	2026-10-16 14:26:18 +0800 CST			
+f374a112fa6c	qterm-telnetd	alpine:3.20	running	Up 2 days	127.0.0.1:2323->23/tcp	2026-10-16 14:03:25 +0800 CST			
+0bd322fceadc	x11	x11:v1	exited	Exited (0) 2 days ago		2026-10-13 14:41:47 +0800 CST			
+5e10bde41cd3	buildx_buildkit_nginx-http-flv-multiarch0	moby/buildkit:buildx-stable-1	running	Up 2 days		2026-08-10 17:39:55 +0800 CST			
+56a8807b8f6d	file-upload-interceptor-nginx-1	heartexlabs/label-studio:latest	exited	Exited (0) 5 months ago		2026-05-20 03:42:46 +0800 CST	file-upload-interceptor	nginx	/Users/liuhuan/Downloads/file-upload-interceptor
+ab2233619228	file-upload-interceptor-app-1	heartexlabs/label-studio:latest	exited	Exited (137) 5 months ago		2026-05-20 03:42:45 +0800 CST	file-upload-interceptor	app	/Users/liuhuan/Downloads/file-upload-interceptor
+d4bf054b7ec9	file-upload-interceptor-db-1	pgautoupgrade/pgautoupgrade:17-alpine	exited	Exited (130) 5 months ago		2026-05-20 03:42:45 +0800 CST	file-upload-interceptor	db	/Users/liuhuan/Downloads/file-upload-interceptor
+ef2488030885	trusting_gagarin	79b956055f02	created	Created		2026-05-18 23:03:00 +0800 CST			
+7ad66c442205	test_md_v1.0.0_vUmOVx	8affba36a872	created	Created		2026-05-18 22:51:25 +0800 CST			
+d62f397b02da	test_md_v1.0.0_tEwX1l	8affba36a872	created	Created		2026-05-18 22:51:18 +0800 CST			
+f14aa6dfce85	admiring_mayer	1ced6e0d3e3f	created	Created		2026-05-18 21:14:32 +0800 CST			
+4c88d702bed2	wizardly_carver	609028f2f88f	exited	Exited (0) 5 months ago		2026-05-18 21:14:04 +0800 CST			
+fd684014290a	gifted_diffie	97fef553e930	exited	Exited (0) 5 months ago		2026-05-18 21:13:49 +0800 CST			
+91abdfb30767	quizzical_ramanujan	97fef553e930	exited	Exited (100) 5 months ago		2026-05-18 21:08:12 +0800 CST			
+88426455e31a	optimistic_kalam	72f7ab959ef8	created	Created		2026-05-18 20:57:15 +0800 CST			
+9d3d62ab6ba2	musing_mendeleev	401f6e1a67da	created	Created		2026-05-18 20:57:15 +0800 CST			
+8c6fd32b8814	file-upload-interceptor-datasource-api-1	node:18-alpine	exited	Exited (255) 4 months ago	3001/tcp	2026-05-12 10:58:01 +0800 CST	file-upload-interceptor	datasource-api	/Users/liuhuan/LLiuHuan/file-upload-interceptor

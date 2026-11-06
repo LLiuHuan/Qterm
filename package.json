@@ -1,0 +1,19 @@
+{
+  "name": "qterm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Qterm 桌面连接管理工具的仓库级工具链（提交规范与 Git 钩子）",
+  "type": "module",
+  "scripts": {
+    "commit": "czg",
+    "commit:lint": "commitlint --edit",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.3",
+    "@commitlint/config-conventional": "^20.4.3",
+    "commitlint-plugin-function-rules": "^4.3.2",
+    "czg": "^1.12.0",
+    "husky": "^9.1.7"
+  }
+}

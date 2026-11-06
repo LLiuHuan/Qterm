@@ -1,0 +1,28 @@
+:is(.qterm-shell, .qterm-dialog) .snippet-row:not(.has-snippet-color):hover,
+:is(.qterm-shell, .qterm-dialog) .snippet-row:not(.has-snippet-color):focus-visible {
+  background-color: color-mix(in srgb, var(--qt-accent) 5%, transparent) !important;
+  box-shadow: none !important;
+}
+
+:is(.qterm-shell, .qterm-dialog) .snippet-panel-row:not(.has-snippet-color):hover,
+:is(.qterm-shell, .qterm-dialog) .snippet-panel-row:not(.has-snippet-color):focus-visible {
+  background-color: var(--qt-hover) !important;
+  box-shadow: none !important;
+}
+
+.qterm-list-row {
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.qterm-list-row:hover,
+.qterm-list-row:focus-within {
+  box-shadow: inset 0 0 0 1px var(--qt-accent);
+}
+
+:is(.qterm-shell, .qterm-dialog) .snippet-list-accordion .snippet-row:not(.has-snippet-color):hover,
+:is(.qterm-shell, .qterm-dialog) .snippet-list-accordion .snippet-row:not(.has-snippet-color):focus-visible {
+  background-color: color-mix(in srgb, var(--qt-accent) 5%, transparent) !important;
+  box-shadow: none !important;
+}

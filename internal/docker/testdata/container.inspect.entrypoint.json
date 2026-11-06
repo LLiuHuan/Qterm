@@ -1,0 +1,136 @@
+[
+  {
+    "Id": "5a5db7a42a671e3ca25832f68202fc9732d213aa98c7c4ca1251077afc06683f",
+    "Created": "2025-08-04T10:13:22.741305244Z",
+    "Path": "/docker-entrypoint.sh",
+    "Args": ["nginx", "-g", "daemon off;"],
+    "State": {
+      "Status": "running",
+      "Running": true,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 30596,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-05-19T21:39:26.506381042Z",
+      "FinishedAt": "2026-05-19T21:37:48.472411369Z"
+    },
+    "Image": "sha256:249f59e1dec7f7eacbeba4bb9215b8000e4bdbb672af523b3dacc89915b026ae",
+    "Name": "/nginx_server",
+    "RestartCount": 0,
+    "Driver": "overlay2",
+    "Platform": "linux",
+    "MountLabel": "",
+    "ProcessLabel": "",
+    "AppArmorProfile": "",
+    "ExecIDs": null,
+    "HostConfig": {
+      "Binds": ["/mnt/data/fairman/nginx/logs:/var/log/nginx/:rw"],
+      "NetworkMode": "default",
+      "PortBindings": {
+        "443/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "3443"
+          }
+        ],
+        "80/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "3380"
+          }
+        ]
+      },
+      "RestartPolicy": {
+        "Name": "always",
+        "MaximumRetryCount": 0
+      },
+      "Privileged": true,
+      "ReadonlyRootfs": false,
+      "SecurityOpt": ["label=disable"]
+    },
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/mnt/data/fairman/nginx/logs",
+        "Destination": "/var/log/nginx",
+        "Mode": "rw",
+        "RW": true,
+        "Propagation": "rprivate"
+      }
+    ],
+    "Config": {
+      "Hostname": "5a5db7a42a67",
+      "Domainname": "",
+      "User": "",
+      "ExposedPorts": {
+        "443/tcp": {},
+        "80/tcp": {}
+      },
+      "Env": [
+        "ACC_HOST=10.0.82.104",
+        "ACC_PORT=3380",
+        "CALL_MODELSURL=localhost:3201",
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "NGINX_VERSION=1.24.0",
+        "PKG_RELEASE=1",
+        "NJS_VERSION=0.7.12"
+      ],
+      "Cmd": ["nginx", "-g", "daemon off;"],
+      "Image": "nginx:1.24-alpine",
+      "Volumes": {
+        "/var/log/nginx/": {}
+      },
+      "WorkingDir": "",
+      "Entrypoint": ["/docker-entrypoint.sh"],
+      "OnBuild": null,
+      "Labels": {
+        "com.docker.compose.project": "nginx",
+        "com.docker.container.account": "casdc",
+        "com.docker.container.name": "server",
+        "com.docker.container.namespace": "nginx",
+        "com.docker.stack.namespace": "nginx",
+        "maintainer": "NGINX Docker Maintainers <docker-maint@nginx.com>"
+      },
+      "StopSignal": "SIGQUIT"
+    },
+    "NetworkSettings": {
+      "Bridge": "",
+      "SandboxID": "e707e1a4a69ce1f092d63396ac25d550662e3e3ae17f6f2aa8a7fb6dad66983c",
+      "HairpinMode": false,
+      "Ports": {
+        "443/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "3443"
+          }
+        ],
+        "80/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "3380"
+          }
+        ]
+      },
+      "SandboxKey": "/var/run/docker/netns/e707e1a4a69c",
+      "SecondaryIPAddresses": null,
+      "Gateway": "",
+      "IPAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "MacAddress": "",
+      "Networks": {
+        "fair_nginx": {
+          "IPAMConfig": null,
+          "Aliases": ["server", "5a5db7a42a67"],
+          "Gateway": "192.168.16.1",
+          "IPAddress": "192.168.16.2",
+          "IPPrefixLen": 20,
+          "MacAddress": "02:42:c0:a8:10:02"
+        }
+      }
+    }
+  }
+]

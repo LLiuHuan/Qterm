@@ -1,0 +1,6 @@
+aaa111bbb222	web-1	nginx:1.27	exited	Exited (0) 2 hours ago	80/tcp	2026-10-15 10:00:00 +0800 CST	demo-app	web	/opt/demo-app
+bbb222ccc333	db-1	postgres:16	running	Up 3 hours	0.0.0.0:5432->5432/tcp	2026-10-15 10:00:01 +0800 CST	demo-app	db	/opt/demo-app
+ccc333ddd444	redis	redis:7-alpine	running	Up 5 hours	6379/tcp	2026-10-14 09:00:00 +0800 CST			/opt/legacy-scratch
+ddd444eee555	tailing	busybox:latest	running	Up 1 hour		2026-10-13 08:00:00 +0800 CST	other-stack	worker	/tmp/other-stack
+e5e5e5e5e5e5	broken-row
+

@@ -1,0 +1,25 @@
+-- wss 传输下 RFB 层的口令档位（承接 036 的传输维度）。
+--
+-- 背景（ADR-018 的补充决策）：036 让 wss 传输成为可能之后，RFB 层的口令出现了两种
+-- 都真实存在的部署需求，而且互斥——只能由用户按服务端部署显式选择：
+--   ① KasmVNC 这类服务端：真实凭据在 HTTP Basic 层，RFB 的 VncAuth 只接受**空口令**
+--      （实测送非空口令一律 SecurityResult=1 "Authentication failure"）；
+--   ② 通用 websockify（Basic 层不做认证、或口令与 RFB 口令不同）：真正的 VncAuth 口令
+--      必须由 noVNC 在 RFB 层提交。
+-- 为什么不做自动探测：探测意味着"先拿真口令试一次"，而 KasmVNC 默认 5 次认证失败就把
+-- 来源 IP 封禁 10 秒（见 internal/app/vnc.go 的 classifyVncOpenError 注释）——
+-- 自动试错会把用户锁在门外，代价远大于让用户在主机选项里选一次。
+--
+-- rfb_password_mode：
+--   auto = 默认：RFB 层用**空口令**，真实口令只在 Go 侧的 HTTP Basic 头里使用，
+--          不进入 WebView（ADR-018 取消 ADR-013 例外的形态，因此是安全默认）。
+--   same = 显式取舍：把同一个真实口令**同时**作为 RFB 口令交给前端 noVNC
+--          （Basic 头仍用同一口令）；因此该模式下口令会进入 WebView，
+--          ADR-013 的"密码进入 WebView"例外在这个档位继续适用。
+-- 该列只在 transport='wss' 时有意义；tcp 传输下 RFB 认证本来就由 noVNC 用主机口令完成，
+-- 档位不参与决策（但照常持久化，方便用户先填后切传输方式而不丢设置）。
+--
+-- 用 CHECK 而不是自由文本：档位决定"口令会不会进入 WebView"这个安全语义，
+-- 写进一个实现不认识的取值只会变成"看起来设置了、行为却不明"。
+ALTER TABLE hosts ADD COLUMN vnc_rfb_password_mode TEXT NOT NULL DEFAULT 'auto'
+    CHECK (vnc_rfb_password_mode IN ('auto', 'same'));

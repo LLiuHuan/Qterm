@@ -1,0 +1,624 @@
+.qterm-shell .tool-rail .icon-button.is-active,
+.qterm-shell .tool-rail .icon-button.is-active:hover {
+  background: var(--qt-theme-selected) !important;
+  border-color: transparent;
+  box-shadow:
+    inset 2px 0 0 var(--qt-accent),
+    inset 0 0 0 1px var(--qt-theme-border) !important;
+}
+
+.qterm-shell .terminal-stage.is-split {
+  background: var(--qt-glass-surface, var(--qt-panel)) !important;
+}
+
+.qterm-shell .terminal-stage.is-split .terminal-session-pane {
+  background: var(--qt-glass-terminal, var(--qt-terminal)) !important;
+}
+
+.qterm-shell
+  :is(
+    .session-tab,
+    .session-tab.is-visible,
+    .session-tab.is-split-group,
+    .session-tab:hover,
+    .session-tab.is-active,
+    .session-tab.is-split-group.is-split-active,
+    .session-tab.is-split-group:not(.is-split-active):hover
+  ) {
+  border-color: var(--qt-theme-border);
+  box-shadow: none !important;
+}
+
+.qterm-dialog.has-terminal-theme {
+  --qt-panel: var(--qt-glass-surface);
+  --qt-subtle: var(--qt-theme-7);
+
+  --qt-hover: color-mix(in srgb, var(--qt-text) 10%, transparent);
+  --qt-active: var(--qt-theme-8);
+  --qt-border: color-mix(in srgb, var(--qt-theme-8) 72%, var(--qt-text) 28%);
+  --qt-divider: color-mix(in srgb, var(--qt-theme-8) 88%, var(--qt-text) 12%);
+  --qt-muted: color-mix(in srgb, var(--qt-text) 68%, transparent);
+
+  border-color: var(--qt-border);
+  background: var(--qt-panel) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.qterm-dialog.has-terminal-theme {
+  background-color: var(--qt-theme-6, var(--qt-panel, #ffffff)) !important;
+}
+
+.qterm-dialog.has-terminal-theme.is-dark {
+  --qt-border: color-mix(in srgb, var(--qt-theme-8) 82%, var(--qt-text) 18%);
+  --qt-divider: color-mix(in srgb, var(--qt-theme-8) 88%, var(--qt-text) 12%);
+  --qt-focus: var(--qt-text);
+}
+
+.qterm-dialog.has-terminal-theme
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    select,
+    textarea,
+    [data-slot='input'],
+    [data-slot='select-trigger'],
+    [data-slot='textarea'],
+    [data-slot='input-group'],
+    .tags-input-shell
+  ) {
+  border-color: var(--qt-control-border);
+  background: var(--qt-theme-7) !important;
+  box-shadow: none;
+}
+
+.qterm-dialog.has-terminal-theme
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    select,
+    textarea,
+    [data-slot='input'],
+    [data-slot='select-trigger'],
+    [data-slot='textarea']
+  ):is(:focus, :focus-visible) {
+  border-color: var(--qt-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent);
+}
+
+.qterm-dialog.has-terminal-theme [data-slot='input-group']:focus-within,
+.qterm-dialog.has-terminal-theme .tags-input-shell:focus-within {
+  border-color: var(--qt-focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent) !important;
+}
+
+.qterm-dialog.has-terminal-theme.settings-dialog,
+.qterm-dialog.has-terminal-theme :is([data-slot='dialog-footer'], .dialog-footer) {
+  background: var(--qt-panel) !important;
+}
+
+.qterm-dialog.has-terminal-theme:not(.has-page-background) :is([data-slot='dialog-footer'], .dialog-footer) {
+  background: var(--qt-theme-6, var(--qt-panel)) !important;
+}
+
+.qterm-shell > .toaster {
+  position: fixed;
+  z-index: 2147483647 !important;
+}
+
+.qterm-shell > section[aria-label^='Notifications'],
+.qterm-shell > .toaster,
+body [data-sonner-toaster] {
+  z-index: 2147483647 !important;
+}
+
+.qterm-shell .toaster [data-sonner-toast] {
+  color: var(--qt-text) !important;
+  border: 1px solid var(--qt-border) !important;
+  background: var(--qt-panel) !important;
+  box-shadow: var(--qt-shadow) !important;
+}
+
+.qterm-shell.has-page-background .toaster [data-sonner-toast] {
+  background: var(--qt-glass-surface, color-mix(in srgb, var(--qt-panel) 78%, transparent)) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+  backdrop-filter: blur(18px) saturate(1.08);
+  border-color: var(--qt-border) !important;
+}
+
+.qterm-shell .toaster [data-sonner-toast] [data-close-button] {
+  color: var(--qt-muted) !important;
+  border-color: var(--qt-border) !important;
+  background: var(--qt-subtle) !important;
+}
+
+.qterm-dialog.has-terminal-theme.settings-dialog:not(.has-page-background)
+  :is(.settings-card, .security-status-card, .security-option-row) {
+  background: var(--qt-theme-7) !important;
+}
+
+.qterm-dialog.has-terminal-theme
+  [data-slot='button'][data-variant='ghost']:not([data-size^='icon']):not(:where(.password-input-group *)):hover:not(
+    :disabled
+  ),
+.qterm-dialog.has-terminal-theme .settings-nav-item:hover:not(:disabled) {
+  background: var(--qt-hover) !important;
+}
+
+.qterm-dialog.has-terminal-theme .settings-nav-item:hover:not(:disabled) {
+  background: var(--qt-theme-8) !important;
+  box-shadow: inset 0 0 0 1px var(--qt-border);
+}
+
+.qterm-dialog.has-terminal-theme .settings-nav-item.is-active,
+.qterm-dialog.has-terminal-theme .settings-nav-item.is-active:hover:not(:disabled) {
+  background: var(--qt-theme-8) !important;
+  box-shadow: inset 0 0 0 1px var(--qt-border);
+}
+
+.qterm-dialog.has-page-background {
+  --qt-border: var(--qt-background-border, color-mix(in srgb, var(--qt-text) 28%, transparent));
+  --qt-divider: color-mix(in srgb, var(--qt-text) 14%, transparent);
+  --qt-hover: transparent;
+  --qt-active: transparent;
+}
+
+.qterm-dialog.has-page-background.is-dark {
+  --qt-border: color-mix(in srgb, var(--qt-text) 48%, transparent);
+  --qt-divider: color-mix(in srgb, var(--qt-text) 22%, transparent);
+  --qt-focus: var(--qt-text);
+}
+
+.qterm-dialog.has-page-background:is(.terminal-theme-background-shell, .terminal-theme-background-derived) {
+  --qt-panel: color-mix(in srgb, var(--qt-theme-outer) 58%, transparent);
+  --qt-subtle: transparent;
+  --qt-muted: var(--qt-background-muted);
+
+  border-color: var(--qt-border);
+  background: var(--qt-panel) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+.qterm-dialog.has-page-background.is-dark:is(.terminal-theme-background-shell, .terminal-theme-background-derived) {
+  --qt-panel: color-mix(in srgb, var(--qt-theme-outer) 64%, transparent);
+}
+
+.qterm-dialog.has-page-background
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    select,
+    textarea,
+    [data-slot='input'],
+    [data-slot='select-trigger'],
+    [data-slot='textarea'],
+    [data-slot='input-group'],
+    .tags-input-shell
+  ) {
+  border-color: var(--qt-control-border);
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.qterm-dialog.has-page-background
+  :is(
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    select,
+    textarea,
+    [data-slot='input'],
+    [data-slot='select-trigger'],
+    [data-slot='textarea']
+  ):is(:focus, :focus-visible) {
+  border-color: var(--qt-focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent);
+}
+
+.qterm-dialog.has-page-background [data-slot='input-group']:focus-within,
+.qterm-dialog.has-page-background .tags-input-shell:focus-within {
+  border-color: var(--qt-focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent) !important;
+}
+
+.qterm-dialog.has-page-background
+  :is(
+    [data-slot='dialog-footer'],
+    .dialog-footer,
+    .settings-card,
+    .security-status-card,
+    .security-option-row,
+    .terminal-theme-card,
+    .qterm-segmented-tabs__list,
+    [data-slot='button']:is([data-variant='outline'], [data-variant='secondary'])
+  ) {
+  background: transparent !important;
+}
+
+.qterm-dialog.has-page-background
+  :is(
+    [data-slot='button'][data-variant='ghost']:hover:not(:disabled),
+    [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']):hover:not(:disabled),
+    .settings-nav-item:hover:not(:disabled),
+    .settings-nav-item.is-active,
+    .settings-nav-item.is-active:hover:not(:disabled)
+  ) {
+  background: transparent !important;
+  border-color: var(--qt-border) !important;
+  box-shadow: none !important;
+}
+
+.qterm-dialog.has-page-background .qterm-segmented-tabs__trigger[data-state='active'] {
+  background: transparent !important;
+  border-color: var(--qt-border) !important;
+  box-shadow: none !important;
+}
+
+.qterm-dialog.has-page-background .qterm-segmented-tabs__trigger:focus-visible {
+  border-color: var(--qt-focus) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent) !important;
+}
+
+.qterm-dialog.has-page-background [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']) {
+  border-color: var(--qt-border) !important;
+  box-shadow: none !important;
+}
+
+.qterm-dialog.has-page-background
+  [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']):hover:not(:disabled),
+.qterm-dialog.has-page-background
+  [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']):focus-visible {
+  border-color: var(--qt-border) !important;
+  box-shadow: none !important;
+}
+
+.qterm-dialog.has-page-background [data-slot='checkbox'][data-state='unchecked'] {
+  border-color: var(--qt-border) !important;
+  background: transparent !important;
+}
+
+.qterm-dialog.has-page-background [data-slot='scroll-area-thumb'] {
+  background: var(--qt-border) !important;
+}
+
+.qterm-dialog.has-page-background.settings-dialog {
+  background: color-mix(in srgb, var(--background) 45%, transparent) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+}
+
+.qterm-dialog.has-page-background.settings-dialog:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ) {
+  --qt-panel: color-mix(in srgb, var(--qt-theme-outer) 45%, transparent);
+}
+
+.qterm-dialog.has-page-background.settings-dialog.is-dark:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ) {
+  --qt-panel: color-mix(in srgb, var(--qt-theme-outer) 50%, transparent);
+}
+
+.qterm-context-menu.has-page-background {
+  --qt-theme-border: var(--qt-background-border);
+  --qt-border: var(--qt-background-border);
+  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 58%, transparent);
+  border: 1px solid var(--qt-theme-border) !important;
+  background: var(--qt-menu-panel) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+.qterm-context-menu.has-page-background.is-dark {
+  --qt-border: color-mix(in srgb, var(--qt-text) 48%, transparent);
+  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 64%, transparent);
+}
+
+.qterm-context-menu.has-page-background [data-slot='context-menu-item'],
+.qterm-context-menu.has-page-background [data-slot='context-menu-sub-trigger'] {
+  border: 1px solid transparent;
+}
+
+.qterm-context-menu.has-page-background
+  :is([data-slot='context-menu-item'], [data-slot='context-menu-sub-trigger']):is(
+    :hover,
+    :focus,
+    [data-highlighted],
+    [data-open]
+  ):not([data-disabled]) {
+  background: transparent !important;
+  border-color: var(--qt-theme-border) !important;
+  box-shadow: none !important;
+}
+
+.qterm-context-menu.has-page-background [data-slot='context-menu-separator'] {
+  background: var(--qt-theme-border) !important;
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background,
+[data-slot='dropdown-menu-content'].has-page-background,
+[data-slot='dropdown-menu-sub-content'].has-page-background {
+  --qt-theme-border: var(--qt-background-border);
+  --qt-border: var(--qt-background-border);
+  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 58%, transparent);
+
+  --qt-panel: var(--qt-menu-panel);
+  border: 1px solid var(--qt-theme-border) !important;
+  background: var(--qt-menu-panel) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background.is-dark,
+[data-slot='dropdown-menu-content'].has-page-background.is-dark,
+[data-slot='dropdown-menu-sub-content'].has-page-background.is-dark {
+  --qt-theme-border: color-mix(in srgb, var(--qt-text) 48%, transparent);
+  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 64%, transparent);
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background
+  :is([data-slot='select-item'], [data-slot='combobox-item']) {
+  border: 1px solid transparent;
+  background: transparent !important;
+  color: inherit;
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background
+  :is([data-slot='select-item'], [data-slot='combobox-item']):is(
+    :hover,
+    :focus,
+    [data-highlighted],
+    [data-state='checked']
+  ):not([data-disabled]) {
+  background: transparent !important;
+  border-color: var(--qt-theme-border) !important;
+  box-shadow: none !important;
+  color: inherit !important;
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background
+  :is([data-slot='select-scroll-up-button'], [data-slot='select-scroll-down-button']) {
+  background: transparent !important;
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background
+  :is([data-slot='select-separator'], [data-slot='combobox-separator']),
+[data-slot='dropdown-menu-content'].has-page-background [data-slot='dropdown-menu-separator'],
+[data-slot='dropdown-menu-sub-content'].has-page-background [data-slot='dropdown-menu-separator'] {
+  background: var(--qt-theme-border) !important;
+}
+
+.qterm-context-menu.has-terminal-theme,
+:is(.qterm-select-content, .qterm-form-menu).has-terminal-theme,
+[data-slot='dropdown-menu-content'].has-terminal-theme,
+[data-slot='dropdown-menu-sub-content'].has-terminal-theme,
+.qterm-context-menu:is(.terminal-theme-background-shell, .terminal-theme-background-derived),
+:is(.qterm-select-content, .qterm-form-menu):is(.terminal-theme-background-shell, .terminal-theme-background-derived),
+[data-slot='dropdown-menu-content']:is(.terminal-theme-background-shell, .terminal-theme-background-derived),
+[data-slot='dropdown-menu-sub-content']:is(.terminal-theme-background-shell, .terminal-theme-background-derived) {
+  --qt-theme-border: color-mix(in srgb, var(--qt-theme-7) 72%, var(--qt-text) 28%);
+  --qt-menu-panel: var(--qt-theme-3, var(--qt-panel));
+  --qt-menu-hover: var(--qt-theme-5);
+
+  --qt-panel: var(--qt-theme-3, var(--card));
+  --qt-border: var(--qt-theme-border);
+  border: 1px solid var(--qt-theme-border) !important;
+  background: var(--qt-menu-panel) !important;
+  background-color: var(--qt-menu-panel) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.qterm-context-menu.has-terminal-theme,
+:is(.qterm-select-content, .qterm-form-menu).has-terminal-theme,
+[data-slot='dropdown-menu-content'].has-terminal-theme,
+[data-slot='dropdown-menu-sub-content'].has-terminal-theme,
+.qterm-context-menu:is(.terminal-theme-background-shell, .terminal-theme-background-derived),
+:is(.qterm-select-content, .qterm-form-menu):is(.terminal-theme-background-shell, .terminal-theme-background-derived),
+[data-slot='dropdown-menu-content']:is(.terminal-theme-background-shell, .terminal-theme-background-derived),
+[data-slot='dropdown-menu-sub-content']:is(.terminal-theme-background-shell, .terminal-theme-background-derived) {
+  background-color: var(--qt-theme-3, var(--qt-panel, #ffffff)) !important;
+}
+
+.qterm-context-menu.has-terminal-theme.is-dark,
+:is(.qterm-select-content, .qterm-form-menu).has-terminal-theme.is-dark,
+[data-slot='dropdown-menu-content'].has-terminal-theme.is-dark,
+[data-slot='dropdown-menu-sub-content'].has-terminal-theme.is-dark,
+.qterm-context-menu:is(.terminal-theme-background-shell, .terminal-theme-background-derived).is-dark,
+:is(.qterm-select-content, .qterm-form-menu):is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ).is-dark,
+[data-slot='dropdown-menu-content']:is(.terminal-theme-background-shell, .terminal-theme-background-derived).is-dark,
+[data-slot='dropdown-menu-sub-content']:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ).is-dark {
+  --qt-theme-border: color-mix(in srgb, var(--qt-theme-7) 82%, var(--qt-text) 18%);
+}
+
+.qterm-context-menu.has-terminal-theme [data-slot='context-menu-item'],
+.qterm-context-menu.has-terminal-theme [data-slot='context-menu-sub-trigger'],
+:is(.qterm-select-content, .qterm-form-menu).has-terminal-theme
+  :is([data-slot='select-item'], [data-slot='combobox-item']) {
+  border: 1px solid transparent;
+  background: transparent !important;
+}
+
+.qterm-context-menu.has-terminal-theme
+  :is([data-slot='context-menu-item'], [data-slot='context-menu-sub-trigger']):is(
+    :hover,
+    :focus,
+    [data-highlighted],
+    [data-open]
+  ):not([data-disabled]),
+:is(.qterm-select-content, .qterm-form-menu).has-terminal-theme
+  :is([data-slot='select-item'], [data-slot='combobox-item']):is(
+    :hover,
+    :focus,
+    [data-highlighted],
+    [data-state='checked']
+  ):not([data-disabled]) {
+  background: transparent !important;
+  border-color: var(--qt-theme-border) !important;
+  box-shadow: none !important;
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-terminal-theme
+  :is([data-slot='select-scroll-up-button'], [data-slot='select-scroll-down-button']) {
+  background: transparent !important;
+}
+
+:is(.qterm-shell, .qterm-dialog) .snippet-row:hover,
+:is(.qterm-shell, .qterm-dialog) .snippet-panel-row:hover {
+  background-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  position: relative;
+  z-index: 1;
+}
+
+.qterm-context-menu.has-terminal-theme [data-slot='context-menu-separator'],
+:is(.qterm-select-content, .qterm-form-menu).has-terminal-theme
+  :is([data-slot='select-separator'], [data-slot='combobox-separator']),
+[data-slot='dropdown-menu-content'].has-terminal-theme [data-slot='dropdown-menu-separator'],
+[data-slot='dropdown-menu-sub-content'].has-terminal-theme [data-slot='dropdown-menu-separator'] {
+  background: var(--qt-theme-border) !important;
+}
+
+:is(.qterm-shell, .qterm-dialog) :is(.snippet-row, .snippet-panel-row).has-snippet-color {
+  background-color: color-mix(in srgb, var(--snippet-color) 10%, transparent) !important;
+}
+
+.qterm-shell[data-host-color='block'] .host-color-tag {
+  background-color: var(--tag-color) !important;
+}
+
+.qterm-shell[data-host-color='block'] .host-color-card.has-host-color {
+  border-color: var(--tag-color) !important;
+}
+
+.qterm-shell[data-host-color='background'] .host-color-tag {
+  display: none !important;
+}
+
+.qterm-shell[data-host-color='background'] :is(.host-row, .host-color-card).has-host-color {
+  background-color: color-mix(in srgb, var(--tag-color) 14%, transparent) !important;
+}
+
+.qterm-shell[data-host-color='background'] .host-color-card.has-host-color {
+  border-color: var(--tag-color) !important;
+}
+
+.qterm-shell[data-host-color='background'] :is(.host-row, .host-color-card).has-host-color:is(:hover, .is-selected) {
+  background-color: color-mix(in srgb, var(--tag-color) 22%, transparent) !important;
+}
+
+:is(.qterm-shell, .qterm-dialog) .snippet-panel-row.has-snippet-color {
+  border-color: var(--snippet-color) !important;
+  box-shadow: inset 0 0 0 1px var(--snippet-color) !important;
+}
+
+:is(.qterm-shell, .qterm-dialog) .snippet-row.has-snippet-color {
+  box-shadow: none !important;
+}
+
+.qterm-minimal-appearance
+  .qterm-shell
+  :is(
+    .topbar,
+    .session-window-titlebar,
+    .session-tabs,
+    .sidebar,
+    .sidebar-header,
+    .pane-titlebar,
+    .tool-rail,
+    .tool-panel,
+    .tool-panel-header,
+    .sftp-function-bar,
+    .core-list
+  ) {
+  border-color: transparent;
+}
+
+.qterm-minimal-appearance .qterm-shell .asset-library-divider {
+  display: none;
+}
+
+.qterm-minimal-appearance
+  .qterm-shell
+  :is(.terminal-metrics-separator, .terminal-metrics [data-slot='separator'], .tool-rail-divider) {
+  background: transparent;
+}
+
+.qterm-minimal-appearance
+  .qterm-shell.has-page-background
+  :is(.topbar, .session-window-titlebar, .session-tabs, .sidebar, .tool-rail, .tool-panel) {
+  box-shadow: none;
+}
+
+.qterm-minimal-appearance :is(.dialog-header-separator, .dialog-footer-separator) {
+  background: transparent;
+}
+
+.qterm-minimal-appearance
+  :is(
+    .settings-nav,
+    .settings-main-header,
+    .settings-card-row,
+    .settings-background-environment + .settings-background-environment,
+    .credential-toolbar,
+    .credential-row,
+    .snippet-panel-header,
+    .snippet-host,
+    .snippet-bindings,
+    .snippet-list-accordion .snippet-row,
+    .sftp-info-grid > div
+  ) {
+  border-color: transparent;
+}
+
+.qterm-shell .tool-panel .snippet-panel-row:hover,
+.qterm-shell .tool-panel .snippet-panel-row:focus-visible {
+  background-color: transparent !important;
+
+  box-shadow: inset 0 0 0 1px var(--snippet-color, var(--qt-border)) !important;
+}
+
+.settings-dialog
+  :is(
+    [data-slot='button'][data-size='icon'],
+    [data-slot='button'][data-size='icon-xs'],
+    [data-slot='button'][data-size='icon-sm'],
+    [data-slot='button'][data-size='icon-lg'],
+    .terminal-theme-card-actions button
+  ) {
+  border: 1px solid transparent;
+}
+
+.settings-dialog
+  :is(
+    [data-slot='button'][data-size='icon'],
+    [data-slot='button'][data-size='icon-xs'],
+    [data-slot='button'][data-size='icon-sm'],
+    [data-slot='button'][data-size='icon-lg'],
+    .terminal-theme-card-actions button
+  ):hover:not(:disabled) {
+  border-color: transparent !important;
+  background: color-mix(in srgb, var(--qt-text) 8%, var(--qt-panel)) !important;
+  box-shadow: none !important;
+}
+
+.settings-dialog
+  :is(
+    .settings-delete-action,
+    [data-slot='button']:has(.lucide-trash-2),
+    .terminal-theme-card-actions button:has(.lucide-trash-2)
+  ):hover:not(:disabled) {
+  color: var(--qt-danger) !important;
+  border-color: transparent !important;
+  background: color-mix(in srgb, var(--qt-danger) 12%, var(--qt-panel)) !important;
+}
+
+.settings-dialog [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--qt-text) 28%, transparent) !important;
+  background: color-mix(in srgb, var(--qt-text) 7%, var(--qt-panel)) !important;
+}

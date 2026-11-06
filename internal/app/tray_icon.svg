@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+  <title>Qterm menu bar icon</title>
+  <!-- 单色模板保留品牌的 Q 环与终端提示符；透明内腔让 macOS 自适应菜单栏外观。 -->
+  <g transform="translate(2.2 2.2) scale(0.9)" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="21" cy="21" r="16" stroke-width="4.5"/>
+    <path d="M29 30.5 38 39" stroke-width="5"/>
+    <path d="m14 15 6 5-6 5m10 -1h6" stroke-width="3"/>
+  </g>
+</svg>

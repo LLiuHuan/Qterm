@@ -1,0 +1,10 @@
+{"CreatedAt":"2026-10-16 05:57:59.151638251 +0000 UTC","Driver":"bridge","ID":"1f240eeff38394e667fd0a35d9bcfeb060cf6c380a8ad073f773d5348f3a4a3f","IPv4":"true","IPv6":"false","Internal":"false","Labels":"","Name":"bridge","Scope":"local"}
+{"CreatedAt":"2026-05-12 02:58:01.72675334 +0000 UTC","Driver":"bridge","ID":"f5fa475a4ea33a73140fc19eddfaba91407dd646bc1562e4666103d77396522b","IPv4":"true","IPv6":"false","Internal":"false","Labels":"com.docker.compose.config-hash=0fc9455c88efffc4053505a3b5d1dc8490fdc76c1c260bc0748f24929b97fe64,com.docker.compose.network=default,com.docker.compose.project=file-upload-interceptor,com.docker.compose.version=5.1.1","Name":"file-upload-interceptor_default","Scope":"local"}
+{"CreatedAt":"2026-04-13 05:48:20.89401525 +0000 UTC","Driver":"host","ID":"94ece95ea671230621db446b0936b9d6f957ee0eecca0273c93ade9fd8fa4c0a","IPv4":"true","IPv6":"false","Internal":"false","Labels":"","Name":"host","Scope":"local"}
+{"CreatedAt":"2026-04-13 05:48:20.891616083 +0000 UTC","Driver":"null","ID":"ad537a176c2b2574f64c6664e1d7e02b286e3ede7e772557a1439f1e0f371327","IPv4":"true","IPv6":"false","Internal":"false","Labels":"","Name":"none","Scope":"local"}
+{"CreatedAt":"2026-04-13 05:49:10.832094718 +0000 UTC","Driver":"bridge","ID":"3dcb5392bfab7cb7bef54701a1bdcaea129dac5d7a447925db10c29e80fe7a70","IPv4":"true","IPv6":"false","Internal":"false","Labels":"","Name":"ylk-network","Scope":"local"}
+{"CreatedAt":"2026-10-19 10:00:00 +0000 UTC","Driver":"bridge","ID":"a1b2c3d4e5f60000000000000000000000000000000000000000000000000000","IPv4":"true","IPv6":"false","Internal":"false","Labels":"","Name":"demo,net","Scope":"local"}
+{"CreatedAt":"2026-10-19 10:00:01 +0000 UTC","Driver":"bridge","ID":"b1b2c3d4e5f60000000000000000000000000000000000000000000000000000","IPv4":"true","IPv6":"false","Internal":"false","Labels":"","Name":"demo net","Scope":"local"}
+{"Name":"legacy-net"}
+{"ID":"badbadbadbad","Name":"broken-net"
+{"ID":"cafebabecafe0000000000000000000000000000000000000000000000000000","Name":"","Driver":"bridge","Scope":"local"}

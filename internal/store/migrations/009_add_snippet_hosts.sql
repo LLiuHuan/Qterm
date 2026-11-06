@@ -1,0 +1,1 @@
+ALTER TABLE snippets ADD COLUMN host_ids TEXT NOT NULL DEFAULT '[]';

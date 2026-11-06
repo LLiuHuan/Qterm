@@ -1,0 +1,14 @@
+.qterm-dialog {
+  --qt-panel: var(--background);
+  --qt-subtle: var(--muted);
+  --qt-text: var(--foreground);
+  --qt-muted: var(--muted-foreground);
+  --qt-focus: var(--ring);
+  --qt-danger: var(--destructive);
+  --qt-shadow: 0 16px 48px rgb(24 24 27 / 16%);
+  --qt-hover: color-mix(in srgb, var(--foreground) 7%, transparent);
+  --qt-active: color-mix(in srgb, var(--foreground) 12%, transparent);
+  --qt-theme-hover: var(--qt-hover);
+  --qt-theme-selected: var(--qt-active);
+  --qt-theme-border: var(--qt-border);
+}

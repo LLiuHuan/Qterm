@@ -1,0 +1,86 @@
+[
+  {
+    "Id": "3e7ece12ef9933451bf93c80643f54ab9ccbf4edc83560af3805456121e5718d",
+    "Created": "2026-10-16T14:55:25.92859526Z",
+    "Path": "/start.sh",
+    "Args": [],
+    "State": {
+      "Status": "running",
+      "Running": true,
+      "ExitCode": 0
+    },
+    "Image": "sha256:4ddb929ac6c9b6c7cce8f82549207222758da36918ba858f7beac5f74b5e0fc0",
+    "Name": "/bookworm-vnc",
+    "Mounts": [
+      {
+        "Type": "bind",
+        "Source": "/Users/demo/docker/demo/vnc",
+        "Destination": "/data",
+        "Mode": "",
+        "RW": true,
+        "Propagation": "rprivate"
+      },
+      {
+        "Type": "volume",
+        "Name": "qterm-demo-cache",
+        "Source": "/var/lib/docker/volumes/qterm-demo-cache/_data",
+        "Destination": "/cache",
+        "Mode": "",
+        "RW": false,
+        "Propagation": ""
+      }
+    ],
+    "Config": {
+      "Hostname": "3e7ece12ef99",
+      "Image": "pushpenderindia/bookworm-vnc:latest",
+      "Cmd": ["/start.sh"],
+      "Entrypoint": [],
+      "Env": [
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "DEBIAN_FRONTEND=noninteractive",
+        "DISPLAY=:1",
+        "VNC_PORT=5901",
+        "NO_VNC_PORT=6080",
+        "VNC_RESOLUTION=1920x1080",
+        "VNC_COL_DEPTH=24"
+      ],
+      "Labels": {
+        "org.opencontainers.image.created": "2025-09-04T07:40:21.291Z",
+        "org.opencontainers.image.description": "Bookworm VNC server, noVNC web interface, supervisord",
+        "org.opencontainers.image.licenses": "",
+        "org.opencontainers.image.revision": "fe974d09d15c5206216ecba199ffdebcd3e5c11e",
+        "org.opencontainers.image.source": "https://github.com/PushpenderIndia/BookWormVNC",
+        "org.opencontainers.image.title": "BookWormVNC",
+        "org.opencontainers.image.url": "https://github.com/PushpenderIndia/BookWormVNC",
+        "org.opencontainers.image.version": "main",
+        "com.docker.compose.project": "demo-project",
+        "com.docker.compose.service": "vnc",
+        "com.docker.compose.project.working_dir": "/opt/demo-project"
+      }
+    },
+    "NetworkSettings": {
+      "Ports": {
+        "5901/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "5902"
+          },
+          {
+            "HostIp": "::",
+            "HostPort": "5902"
+          }
+        ],
+        "6080/tcp": [
+          {
+            "HostIp": "0.0.0.0",
+            "HostPort": "6081"
+          },
+          {
+            "HostIp": "::",
+            "HostPort": "6081"
+          }
+        ]
+      }
+    }
+  }
+]

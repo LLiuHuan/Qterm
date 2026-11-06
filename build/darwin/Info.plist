@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>zh-Hans</string>
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>zh-Hans</string>
+			<string>en</string>
+		</array>
+		<key>CFBundleExecutable</key>
+		<string>qterm</string>
+		<key>CFBundleGetInfoString</key>
+		<string>SSH terminal, SFTP, tunneling and host management</string>
+		<key>CFBundleIconFile</key>
+		<string>icons</string>
+		<key>CFBundleIdentifier</key>
+		<string>com.qterm.desktop</string>
+		<key>CFBundleName</key>
+		<string>Qterm</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>0.0.1</string>
+		<key>CFBundleVersion</key>
+		<string>0.0.1</string>
+		<key>LSMinimumSystemVersion</key>
+		<string>12.0.0</string>
+		<key>NSHighResolutionCapable</key>
+		<string>true</string>
+		<key>NSHumanReadableCopyright</key>
+		<string>(c) 2026, Qterm</string>
+	</dict>
+</plist>

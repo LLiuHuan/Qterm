@@ -1,0 +1,14 @@
+Port 22
+ListenAddress 0.0.0.0
+Protocol 2
+UsePAM yes
+KbdInteractiveAuthentication yes
+ChallengeResponseAuthentication yes
+PasswordAuthentication no
+AuthenticationMethods keyboard-interactive:pam
+PermitRootLogin no
+PermitEmptyPasswords no
+UseDNS no
+PrintMotd no
+X11Forwarding no
+AllowUsers qtermotp

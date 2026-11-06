@@ -1,0 +1,63 @@
+.qterm-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  font-family: var(--qt-ui-font, var(--qt-font-ui-stack));
+  line-height: 1.35;
+  display: grid;
+  grid-template-rows: 2.625rem minmax(0, 1fr);
+  color: var(--qt-text);
+  background: var(--qt-app);
+}
+
+.qterm-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--qt-background-image, none);
+  background-color: var(--qt-background-color, transparent);
+  background-position: center;
+  background-size: cover;
+  opacity: var(--qt-background-opacity, 0);
+  transition: opacity 180ms ease;
+}
+
+.qterm-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.qterm-shell.is-dark {
+  color-scheme: dark;
+}
+
+.qterm-shell :is(.topbar, .session-window-titlebar),
+.qterm-shell .sidebar,
+.qterm-shell .tool-rail {
+  background: var(--qt-glass-surface, var(--qt-bar, var(--qt-panel)));
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.qterm-shell.has-terminal-sessions .workspace {
+  background: var(--qt-glass-surface, var(--qt-panel));
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.qterm-shell .terminal-stage {
+  background: var(--qt-glass-terminal, var(--qt-terminal, var(--qt-panel)));
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+}
+
+.qterm-shell .session-tabs {
+  background: var(--qt-glass-surface, var(--qt-bar, var(--qt-panel)));
+}
+
+.qterm-shell .pane-titlebar,
+.qterm-shell .tool-panel {
+  background: var(--qt-glass-surface, var(--qt-bar, var(--qt-panel)));
+}

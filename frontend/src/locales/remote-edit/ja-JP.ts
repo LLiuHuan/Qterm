@@ -1,0 +1,66 @@
+export const remoteEditUiJa: Record<string, string> = {
+  'remote.ui.openWithLocal': 'ローカルプログラムで開く',
+  'remote.ui.openInEditor': '編集',
+  'remote.ui.syncNow': '今すぐ同期',
+  'remote.ui.stopSync': '同期を停止',
+  'remote.ui.discardLocal': 'ローカルの変更を破棄',
+  'remote.ui.state.watching': 'ローカルの変更を待機中',
+  'remote.ui.state.syncing': '同期中',
+  'remote.ui.state.synced': '同期済み',
+  'remote.ui.state.conflict': '競合',
+  'remote.ui.state.error': 'エラー',
+  'remote.ui.state.stopped': '停止済み',
+  'remote.ui.stateLabel': '同期状態：{state}',
+  'remote.ui.conflict.title': 'リモートファイルが変更されました',
+  'remote.ui.conflict.description':
+    'リモートの内容が、編集を開始したときの内容と一致していません。上書きは、リモートが下に表示されている内容のままの場合にのみ書き戻します。リモートがさらに変更されていると、このダイアログが再び表示され、新しい内容が気づかないうちに上書きされることはありません。',
+  'remote.ui.conflict.reload': '再読み込み',
+  'remote.ui.conflict.reloadHint': 'ローカルの変更を破棄し、リモートから最新の内容を読み直します',
+  'remote.ui.conflict.overwrite': '上書き',
+  'remote.ui.conflict.overwriteHint': 'ローカルの内容をリモートに書き戻します',
+  'remote.ui.conflict.cancel': 'キャンセル',
+  'remote.ui.conflict.cancelHint': '現状を保持し、後で判断します',
+  'remote.ui.conflict.externalNotice':
+    '今回の変更は外部エディターで行われました。ローカルの一時ファイルはプロセスをまたいで読み取れないため、リモートの内容のみを表示し、差分は表示されません。',
+  'remote.ui.conflict.diffTitle': 'リモートの現在の内容 ↔ ローカルの変更',
+  'remote.ui.conflict.diffIdentical': '両側の内容は一致しています',
+  'remote.ui.conflict.diffSummary': '{added} 行を追加、{removed} 行を削除',
+  'remote.ui.conflict.diffUnavailable':
+    'リモートの内容を読み取れませんでした（バイナリ、または読み取りが不完全）。そのため差分は表示されません。',
+  'remote.ui.conflict.repeated':
+    '確認している間にリモートが再び変更されたため、今回は書き込みませんでした。もう一度選択してください。',
+  'remote.ui.editor.loading': '読み込み中…',
+  'remote.ui.editor.save': '保存',
+  'remote.ui.editor.close': '閉じる',
+  'remote.ui.editor.refresh': '更新',
+  'remote.ui.editor.refreshHint':
+    '更新：リモートにまだ同期されていないローカルの変更を破棄し、リモートから最新の内容を読み直します（破棄した変更は元に戻せません）。',
+  'remote.ui.editor.dirty': '未保存の変更があります',
+  'remote.ui.editor.clean': '未保存の変更はありません',
+  'remote.ui.editor.saved': 'リモートに保存しました',
+  'remote.ui.editor.unsupportedBinary':
+    'バイナリファイルのため、アプリ内では編集できません。「ローカルプログラムで開く」を使用してください。',
+  'remote.ui.editor.unsupportedTruncated':
+    'ファイルがアプリ内編集の読み取り上限（8 MiB）を超えているため、全体を読み込めませんでした。「ローカルプログラムで開く」を使用してください。',
+  'remote.ui.editor.unsupportedTooLarge':
+    'ファイルがアプリ内編集のサイズ上限を超えています。「ローカルプログラムで開く」を使用してください。',
+  'remote.ui.editor.fallback': '組み込みエディターを読み込めなかったため、プレーンテキストエディターに切り替えました。',
+  'remote.ui.editor.discardTitle': 'ローカルの変更を破棄',
+  'remote.ui.editor.discardMessage': 'エディターの内容はリモートの現在の内容に戻り、未保存の変更は失われます。',
+  'remote.ui.editor.discardConfirm': '破棄',
+  'remote.ui.editor.closeDirtyTitle': '閉じる前に変更を破棄しますか？',
+  'remote.ui.editor.closeDirtyMessage':
+    '閉じるとこのウィンドウの変更は失われます。リモートのファイルは変更されません。',
+  'remote.ui.editor.closeDirtyConfirm': '破棄して閉じる',
+  'remote.ui.stop.title': '同期を停止',
+  'remote.ui.stop.message':
+    'ローカルの変更の監視を停止し、ローカルの一時ファイルを削除します。リモートにまだ同期されていない変更は失われます。',
+  'remote.ui.stop.confirm': '停止して削除',
+  'remote.ui.toast.openedLocal': 'ローカルプログラムで開きました：{path}',
+  'remote.ui.toast.openFailed': '開けませんでした：{reason}',
+  'remote.ui.toast.synced': 'リモートに同期しました',
+  'remote.ui.toast.syncFailed': '同期できませんでした：{reason}',
+  'remote.ui.toast.stopped': '同期を停止し、ローカルの一時ファイルを削除しました',
+  'remote.ui.toast.stopFailed': '同期を停止できませんでした：{reason}',
+  'remote.ui.toast.saveFailed': '保存できませんでした：{reason}',
+}

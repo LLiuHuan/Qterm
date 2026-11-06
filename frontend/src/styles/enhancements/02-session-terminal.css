@@ -1,0 +1,218 @@
+.terminal-stage.is-split .workspace-pane.is-focused {
+  z-index: 1;
+}
+
+.workspace-pane.is-pane-maximized {
+  z-index: 30;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.workspace-pane.is-pane-covered {
+  visibility: hidden;
+  pointer-events: none;
+}
+.terminal-stage.is-split .workspace-pane {
+  border: 0;
+  border-radius: 4px;
+
+  clip-path: inset(0);
+}
+.terminal-stage.is-split .workspace-pane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--qt-border);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 3;
+}
+.terminal-stage.is-split .workspace-pane.is-focused::after {
+  border-color: var(--qt-accent);
+}
+.terminal-stage.is-split .workspace-pane.is-focused .pane-titlebar {
+  border-bottom-color: var(--qt-accent);
+}
+.pane-titlebar {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 31px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px;
+  background: var(--qt-bar);
+  border-bottom: 1px solid var(--qt-border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.pane-titlebar button {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.terminal-stage.is-split .terminal-session-pane {
+  top: 31px;
+  padding: 7px;
+}
+.terminal-stage.is-split .session-status {
+  top: 36px;
+  right: 12px;
+}
+.split-resize-handle.is-vertical .qterm-resize-handle__line {
+  top: 2px;
+  bottom: 2px;
+}
+.split-resize-handle.is-horizontal .qterm-resize-handle__line {
+  right: 2px;
+  left: 2px;
+}
+.split-drop-preview {
+  position: absolute;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--qt-accent) 50%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--qt-accent) 12%, transparent);
+  transition:
+    left 150ms ease,
+    top 150ms ease,
+    width 150ms ease,
+    height 150ms ease;
+}
+.split-drop-preview span {
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--qt-panel);
+  color: var(--qt-text);
+  box-shadow: var(--qt-shadow);
+}
+@media (max-width: 1100px) {
+  .app-body.has-split-workspace {
+    grid-template-columns: var(--qt-sidebar-effective-width) minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .app-body.has-split-workspace,
+  .is-sidebar-collapsed .app-body.has-split-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .split-drop-preview {
+    transition: none;
+  }
+}
+
+.session-tab-ghost {
+  opacity: 0.25;
+}
+.session-tab-dragging {
+  opacity: 0.95;
+  cursor: grabbing;
+  box-shadow: 0 4px 16px #0003;
+}
+
+.qterm-shell.is-session-window {
+  grid-template-rows: 42px minmax(0, 1fr);
+}
+.qterm-shell.is-session-window .app-body {
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+.qterm-shell.is-session-window .app-body.has-split-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+.qterm-shell.is-session-window .workspace {
+  min-width: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+.qterm-shell.is-session-window .tool-panel-resize {
+  top: 0;
+}
+.qterm-shell.is-session-window .terminal-workspace-body,
+.qterm-shell.is-session-window .tool-panel {
+  grid-row: 1;
+}
+.session-window-titlebar {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 90px;
+  border-bottom: 1px solid var(--qt-border);
+  color: var(--qt-text);
+  background: var(--qt-glass-surface, var(--qt-bar));
+  font-weight: 600;
+  --wails-draggable: no-drag;
+  user-select: none;
+
+  position: relative;
+}
+
+.session-window-titlebar__actions {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  --wails-draggable: no-drag;
+}
+
+.session-window-handover-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--qt-panel);
+  --wails-draggable: drag;
+}
+
+.session-overlay-glass {
+  border: 1px solid color-mix(in srgb, var(--qt-theme-divider) 72%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--qt-panel) 72%, transparent);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--qt-text) 14%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  backdrop-filter: blur(12px) saturate(1.2);
+}
+
+.session-overlay {
+  --qt-overlay-surface: var(--qt-panel);
+  --qt-overlay-border: color-mix(in srgb, var(--qt-theme-divider) 72%, transparent);
+  --qt-overlay-fg: var(--qt-text);
+  --qt-overlay-muted: var(--qt-muted);
+  --qt-overlay-hover: var(--qt-hover);
+  --qt-overlay-primary-bg: color-mix(in srgb, var(--qt-accent) 12%, transparent);
+  --qt-overlay-primary-border: color-mix(in srgb, var(--qt-accent) 45%, transparent);
+  --qt-overlay-primary-text: var(--qt-text);
+}
+
+.session-overlay--canvas {
+  --qt-overlay-surface: rgb(255 255 255 / 7%);
+  --qt-overlay-border: rgb(255 255 255 / 15%);
+  --qt-overlay-fg: rgb(255 255 255 / 92%);
+  --qt-overlay-muted: rgb(255 255 255 / 75%);
+  --qt-overlay-hover: rgb(255 255 255 / 16%);
+  --qt-overlay-primary-bg: rgb(14 165 233 / 25%);
+  --qt-overlay-primary-border: rgb(56 189 248 / 40%);
+  --qt-overlay-primary-text: #fff;
+}
+
+.session-overlay-glass--canvas {
+  border-color: var(--qt-overlay-border);
+  background: var(--qt-overlay-surface);
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 10%),
+    0 4px 6px -4px rgb(0 0 0 / 10%);
+}
+.session-window-titlebar__status.status-dot--connected {
+  background: var(--qt-success, #22c55e);
+}
+.session-window-titlebar__status.status-dot--error {
+  background: var(--qt-danger);
+}

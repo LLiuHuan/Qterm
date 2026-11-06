@@ -1,0 +1,166 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-qt-text: var(--qt-text);
+  --color-qt-muted: var(--qt-muted);
+  --color-qt-faint: var(--qt-faint);
+  --color-qt-accent: var(--qt-accent);
+  --color-qt-accent-text: var(--qt-accent-text);
+  --color-qt-success: var(--qt-success);
+  --color-qt-warning: var(--qt-warning);
+  --color-qt-danger: var(--qt-danger);
+  --color-qt-info: var(--qt-info);
+  --color-qt-green: var(--qt-green);
+  --color-qt-terminal-text: var(--qt-terminal-text);
+
+  --color-qt-app: var(--qt-app);
+  --color-qt-bar: var(--qt-bar);
+  --color-qt-panel: var(--qt-panel);
+  --color-qt-subtle: var(--qt-subtle);
+  --color-qt-hover: var(--qt-hover);
+  --color-qt-active: var(--qt-active);
+  --color-qt-terminal: var(--qt-terminal);
+
+  --color-qt-border: var(--qt-border);
+  --color-qt-divider: var(--qt-divider);
+  --color-qt-control-border: var(--qt-control-border);
+
+  --color-qt-control-text: var(--qt-control-text);
+  --color-qt-control-muted-text: var(--qt-control-muted-text);
+  --color-qt-control-muted-bg: var(--qt-control-muted-bg);
+  --color-qt-control-primary-bg: var(--qt-control-primary-bg);
+  --color-qt-control-primary-text: var(--qt-control-primary-text);
+  --color-qt-control-secondary-bg: var(--qt-control-secondary-bg);
+  --color-qt-control-secondary-text: var(--qt-control-secondary-text);
+
+  --color-qt-overlay-fg: var(--qt-overlay-fg);
+  --color-qt-overlay-muted: var(--qt-overlay-muted);
+  --color-qt-overlay-border: var(--qt-overlay-border);
+  --color-qt-overlay-surface: var(--qt-overlay-surface);
+  --color-qt-text-muted: var(--qt-text-muted);
+  --color-qt-theme-divider: var(--qt-theme-divider);
+  --color-qt-focus: var(--qt-focus);
+  --color-qt-background-border: var(--qt-background-border);
+  --color-qt-background-hover: var(--qt-background-hover);
+
+  --spacing-qt-control-height: var(--qt-control-height);
+  --spacing-qt-control-height-sm: var(--qt-control-height-sm);
+  --spacing-qt-control-height-lg: var(--qt-control-height-lg);
+  --spacing-qt-control-height-xs: var(--qt-control-height-xs);
+  --spacing-qt-control-gap: var(--qt-control-gap);
+
+  --radius-qt: var(--qt-control-radius, 6px);
+  --font-qt-mono: var(--qt-font-mono);
+}
+
+:root {
+  font-family: var(--qt-ui-font, var(--qt-font-ui-stack));
+
+  font-size: calc(100% * var(--qt-ui-scale, 1));
+  color-scheme: light dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  font-variant: inherit;
+}
+
+button,
+[role='button'] {
+  cursor: pointer;
+}
+
+@layer base {
+  button {
+    color: inherit;
+  }
+}
+
+@layer utilities {
+  .flex-c {
+    @apply flex items-center;
+  }
+  .flex-b {
+    @apply flex justify-between;
+  }
+  .flex-cc {
+    @apply flex items-center justify-center;
+  }
+  .flex-cb {
+    @apply flex items-center justify-between;
+  }
+  .flex-col-c {
+    @apply flex flex-col items-center;
+  }
+
+  .border-d {
+    @apply border border-qt-border;
+  }
+  .border-t-d {
+    @apply border-t border-t-qt-border;
+  }
+  .border-b-d {
+    @apply border-b border-b-qt-border;
+  }
+  .border-l-d {
+    @apply border-l border-l-qt-border;
+  }
+  .border-r-d {
+    @apply border-r border-r-qt-border;
+  }
+
+  .c-p {
+    @apply cursor-pointer;
+  }
+  .tad-150 {
+    @apply transition-all duration-150;
+  }
+  .tad-200 {
+    @apply transition-all duration-200;
+  }
+
+  .sr-only-qt {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

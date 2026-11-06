@@ -1,0 +1,4 @@
+-- 展示元数据独立于排序；旧命令保留原执行模式与顺序。
+ALTER TABLE snippets ADD COLUMN icon TEXT NOT NULL DEFAULT '';
+ALTER TABLE snippets ADD COLUMN color TEXT NOT NULL DEFAULT '';
+ALTER TABLE snippets ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
