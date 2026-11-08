@@ -214,6 +214,7 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.portForwards.empty.title': 'Aucune redirection de ports pour l’instant',
   'settings.portForwards.empty.description':
     'Après avoir créé un transfert, activez-le au besoin dans le panneau de droite, ou laissez-le démarrer automatiquement à la connexion de l’hôte',
+  'settings.portForwards.loading': 'Chargement des redirections…',
   'settings.portForwards.pagination.loaded': '{shown}/{total}',
   'settings.portForwards.pagination.loadMore': 'Charger plus',
   'settings.portForwards.dialog.deleteTitle': 'Supprimer la redirection de ports',

@@ -232,6 +232,10 @@ function onEntryDoubleClick(entry: SftpBrowserEntry, event: MouseEvent): void {
     return
   }
 
+  if (canPreview(entry)) {
+    requestImagePreview(entry)
+    return
+  }
   if (canRemoteEdit(entry)) requestRemoteTextEditor(remoteSessionId.value, entry.key)
 }
 
@@ -243,7 +247,7 @@ const currentDirectory = computed(() => props.segments.at(-1)?.path ?? '')
 
 function canRemoteEdit(entry: SftpBrowserEntry | null): boolean {
   if (!entry || !remoteSessionId.value || props.contextKind !== 'remote' || !props.available) return false
-  return entry.type !== 'directory'
+  return entry.type !== 'directory' && !canPreview(entry)
 }
 
 const previewTarget = ref<SftpBrowserEntry | null>(null)
@@ -413,7 +417,8 @@ function emitEntryAction(action: EntryAction): void {
       void openEntryWithLocalProgram(entry)
       break
     case 'openInEditor':
-      requestRemoteTextEditor(remoteSessionId.value, entry.key)
+      if (canPreview(entry)) requestImagePreview(entry)
+      else requestRemoteTextEditor(remoteSessionId.value, entry.key)
       break
     case 'syncNow':
       void syncEntryNow(entry)
@@ -765,7 +770,13 @@ function onPaneDrop(event: DragEvent): void {
             <label class="sftp-filter-search">
               <Search :size="15" aria-hidden="true" />
               <span class="sr-only">{{ t('sftp.ui.filterName') }}</span>
-              <QtermInput v-model="filterQuery" :placeholder="t('sftp.ui.enterName')" type="search" autofocus />
+              <QtermInput
+                v-model="filterQuery"
+                data-qterm-composite-input
+                :placeholder="t('sftp.ui.enterName')"
+                type="search"
+                autofocus
+              />
             </label>
             <div class="sftp-filter-count text-xs">
               {{ t('sftp.ui.copiedItems', { matched: filterMatchCount, total: props.entries.length }) }}

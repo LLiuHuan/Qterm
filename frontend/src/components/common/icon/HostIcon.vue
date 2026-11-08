@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Server } from '@lucide/vue'
 import { builtinHostIcons } from '@/features/hosts/builtinIcons.ts'
+import { customHostIconSrc } from '@/features/hosts/customHostIcon.ts'
 import { resolveHostIcon } from '@/features/hosts/hostIcons.ts'
 import { useI18n } from '@/locales'
 
@@ -12,9 +13,9 @@ const props = withDefaults(defineProps<{ icon?: string; size?: number; protocol?
 })
 const { t } = useI18n()
 
-const selected = computed(() =>
-  builtinHostIcons.find((item) => item.value === resolveHostIcon({ icon: props.icon, protocol: props.protocol })),
-)
+const resolvedIcon = computed(() => resolveHostIcon({ icon: props.icon, protocol: props.protocol }))
+const selected = computed(() => builtinHostIcons.find((item) => item.value === resolvedIcon.value))
+const customSrc = computed(() => customHostIconSrc(resolvedIcon.value))
 </script>
 
 <template>
@@ -24,6 +25,12 @@ const selected = computed(() =>
       :src="selected.src"
       :alt="selected.label"
       :class="{ 'qterm-theme-aware-logo': selected.themeAware }"
+      draggable="false"
+    />
+    <img
+      v-else-if="customSrc"
+      :src="customSrc"
+      :alt="t('shell.hostIcon.alt', { label: t('shell.hostIcon.custom') })"
       draggable="false"
     />
     <Server v-else :size="size" :aria-label="t('shell.asset.host')" />

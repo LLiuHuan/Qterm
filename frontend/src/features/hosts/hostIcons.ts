@@ -1,5 +1,6 @@
 import type { HostRecord } from '@/services/hosts.ts'
 import type { SessionTab } from '../../types/qterm'
+import { isCustomHostIcon } from './customHostIcon'
 
 export type AutomaticHostIcon =
   | 'android'
@@ -199,12 +200,14 @@ export function resolveHostIcon(host: Pick<HostRecord, 'icon' | 'protocol'>): st
 
 export function hostIconLabel(host: HostIconSource): string {
   const icon = resolveHostIcon(host)
+  if (isCustomHostIcon(icon) || icon.startsWith('data:')) return '自定义图标'
   const automaticIcon = automaticHostIconGlyphs[icon.toLocaleLowerCase() as AutomaticHostIcon]
   return automaticIcon || icon || host.name.slice(0, 1).toLocaleUpperCase()
 }
 
 export function hostIconTitle(host: HostIconSource): string {
   const icon = resolveHostIcon(host)
+  if (isCustomHostIcon(icon) || icon.startsWith('data:')) return '自定义图标'
   const automaticTitle = automaticHostIconTitles[icon.toLocaleLowerCase() as AutomaticHostIcon]
   return automaticTitle || (icon ? '自定义图标' : '自动识别')
 }

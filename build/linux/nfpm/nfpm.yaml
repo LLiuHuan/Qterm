@@ -9,11 +9,11 @@ platform: "linux"
 version: "0.0.1"
 section: "default"
 priority: "extra"
-maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
+maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}> # 打包脚本会兜底成 Qterm <qterm@users.noreply.github.com>
 description: "A cross-platform SSH workspace"
 vendor: "Qterm"
-homepage: "https://wails.io"
-license: "MIT"
+homepage: "https://github.com/LLiuHuan/Qterm"
+license: "Apache-2.0"
 release: "1"
 
 contents:

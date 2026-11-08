@@ -4,8 +4,11 @@ import {
   Archive,
   ArchiveRestore,
   Check,
+  Clapperboard,
   Download,
   Edit3,
+  History,
+  Loader2,
   Maximize,
   Minimize,
   Pause,
@@ -21,6 +24,7 @@ import {
   IconButton,
   QtermButton,
   QtermCheckbox,
+  QtermEmptyState,
   QtermInput,
   QtermSwitch,
   QtermTextarea,
@@ -79,7 +83,8 @@ const props = withDefaults(
 const { t } = useI18n()
 
 const items = ref<SessionHistoryRecord[]>([])
-const loading = ref(false)
+
+const loading = ref(true)
 const error = ref('')
 const query = ref('')
 const recordingQuery = ref('')
@@ -105,7 +110,8 @@ const activeTab = ref<'history' | 'recordings'>(props.view ?? 'history')
 const historyView = ref<'active' | 'archived'>('active')
 
 const recordings = ref<TerminalRecording[]>([])
-const recordingsLoading = ref(false)
+
+const recordingsLoading = ref(true)
 
 const recordingsLoadingMore = ref(false)
 const recordingsError = ref('')
@@ -891,17 +897,34 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <p v-if="activeTab === 'history' && loading" class="panel-empty-note text-qt-muted text-xs">
-      {{ t('history.loading') }}
-    </p>
-    <p v-else-if="activeTab === 'history' && error" class="panel-empty-note text-qt-muted text-xs">{{ error }}</p>
-
-    <p
+    <QtermEmptyState
+      v-if="activeTab === 'history' && loading"
+      variant="outlined"
+      role="status"
+      busy
+      :icon="Loader2"
+      icon-class="spin"
+      :description="t('history.loading')"
+    />
+    <QtermEmptyState
+      v-else-if="activeTab === 'history' && error"
+      variant="outlined"
+      role="alert"
+      :title="t('history.load.failure')"
+      :description="error"
+    />
+    <QtermEmptyState
       v-else-if="activeTab === 'history' && items.length && !visibleItems.length"
-      class="panel-empty-note text-qt-muted text-xs"
-    >
-      {{ t('history.empty.filtered') }}
-    </p>
+      variant="outlined"
+      :description="t('history.empty.filtered')"
+    />
+    <QtermEmptyState
+      v-else-if="activeTab === 'history' && !items.length"
+      variant="outlined"
+      :icon="History"
+      :title="t('history.empty.none')"
+      :description="t('history.empty.hint')"
+    />
 
     <ScrollArea
       v-if="activeTab === 'history' && historyPageItems.length"
@@ -1073,13 +1096,35 @@ onBeforeUnmount(() => {
           </IconButton>
         </div>
       </div>
-      <p v-if="recordingsLoading" class="panel-empty-note text-qt-muted text-xs">
-        {{ t('history.recording.loading') }}
-      </p>
-      <p v-else-if="recordingsError" class="panel-empty-note text-qt-muted text-xs">{{ recordingsError }}</p>
-      <p v-else-if="recordingQuery.trim() && !visibleRecordings.length" class="panel-empty-note text-qt-muted text-xs">
-        {{ t('history.recording.empty.filtered') }}
-      </p>
+
+      <QtermEmptyState
+        v-if="recordingsLoading"
+        variant="outlined"
+        role="status"
+        busy
+        :icon="Loader2"
+        icon-class="spin"
+        :description="t('history.recording.loading')"
+      />
+      <QtermEmptyState
+        v-else-if="recordingsError"
+        variant="outlined"
+        role="alert"
+        :title="t('history.recording.load.failure')"
+        :description="recordingsError"
+      />
+      <QtermEmptyState
+        v-else-if="recordingQuery.trim() && !visibleRecordings.length"
+        variant="outlined"
+        :description="t('history.recording.empty.filtered')"
+      />
+      <QtermEmptyState
+        v-else-if="!visibleRecordings.length"
+        variant="outlined"
+        :icon="Clapperboard"
+        :title="t('history.recording.empty.none')"
+        :description="t('history.recording.empty.hint')"
+      />
       <ScrollArea
         v-else
         ref="recordingsScroll"

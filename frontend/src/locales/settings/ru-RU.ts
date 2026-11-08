@@ -210,6 +210,7 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.portForwards.empty.title': 'Пробросов портов пока нет',
   'settings.portForwards.empty.description':
     'После создания проброса его можно включать по мере необходимости в панели справа или включать автоматически при подключении к хосту',
+  'settings.portForwards.loading': 'Загрузка проброса портов…',
   'settings.portForwards.pagination.loaded': '{shown}/{total}',
   'settings.portForwards.pagination.loadMore': 'Загрузить ещё',
   'settings.portForwards.dialog.deleteTitle': 'Удалить проброс портов',

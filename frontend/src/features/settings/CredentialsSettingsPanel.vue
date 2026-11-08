@@ -2,11 +2,11 @@
 import {
   HostIcon,
   IconButton,
-  SegmentedTabs,
   QtermButton,
-  QtermFormMessage,
+  QtermEmptyState,
   QtermInput,
   QtermSecretInput,
+  SegmentedTabs,
 } from '../../components/common'
 import OtpPanel from '../otp/OtpPanel.vue'
 import type { OtpEntry } from '../../services/otp'
@@ -14,7 +14,7 @@ import CredentialCreateDialog from '../../components/dialogs/CredentialCreateDia
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/common/form-controls'
 import { Label, ScrollArea } from '../../components/common/control-primitives'
 import { computed, ref, watch } from 'vue'
-import { FileKey, KeyRound, LockKeyhole, Pencil, Search, Trash2 } from '@lucide/vue'
+import { FileKey, KeyRound, Loader2, LockKeyhole, Pencil, Search, Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import {
@@ -89,6 +89,10 @@ const filtered = computed(() => {
     ),
   )
 })
+
+const loadErrorDetail = computed(() => (props.error === t('shell.error.credentialsRead') ? '' : props.error))
+
+const hasFilter = computed(() => query.value.trim() !== '' || kindFilter.value !== 'all')
 
 const hostsByCredential = computed(() => {
   const map = new Map<string, HostRecord[]>()
@@ -284,7 +288,7 @@ async function confirmDelete(): Promise<void> {
     </div>
 
     <template v-else>
-      <div class="credential-toolbar flex-none grid gap-[14px] pr-2 pb-[14px]">
+      <div class="credential-toolbar flex-none grid gap-[14px] pb-[14px]">
         <div class="credential-create-actions flex-wrap gap-[8px]">
           <QtermButton variant="outline" type="button" @click="openCreate('password')">
             <LockKeyhole :size="15" />{{ t('settings.credentials.action.createPassword') }}
@@ -322,8 +326,23 @@ async function confirmDelete(): Promise<void> {
         </div>
       </div>
 
-      <p v-if="props.loading" class="panel-empty-note text-qt-muted text-xs">{{ t('settings.credentials.loading') }}</p>
-      <QtermFormMessage v-else-if="props.error" variant="error">{{ props.error }}</QtermFormMessage>
+      <QtermEmptyState
+        v-if="props.loading"
+        variant="outlined"
+        role="status"
+        busy
+        :icon="Loader2"
+        icon-class="spin"
+        :description="t('settings.credentials.loading')"
+      />
+
+      <QtermEmptyState
+        v-else-if="props.error"
+        variant="outlined"
+        role="alert"
+        :title="t('shell.error.credentialsRead')"
+        :description="loadErrorDetail"
+      />
 
       <ScrollArea v-else-if="filtered.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
         <div class="credential-list grid gap-2 pr-2">
@@ -379,16 +398,21 @@ async function confirmDelete(): Promise<void> {
           @load-more="loadMore"
         />
       </ScrollArea>
-      <div
+
+      <QtermEmptyState
+        v-else-if="hasFilter"
+        variant="outlined"
+        :icon="KeyRound"
+        :title="t('settings.credentials.empty.matching')"
+      />
+
+      <QtermEmptyState
         v-else
-        class="credentials-empty min-h-[220px] flex flex-col items-center justify-center gap-[8px] text-qt-muted text-center"
-      >
-        <KeyRound :size="28" aria-hidden="true" />
-        <strong class="text-sm">{{
-          query ? t('settings.credentials.empty.matching') : t('settings.credentials.empty.none')
-        }}</strong>
-        <p>{{ t('settings.credentials.empty.description') }}</p>
-      </div>
+        variant="outlined"
+        :icon="KeyRound"
+        :title="t('settings.credentials.empty.none')"
+        :description="t('settings.credentials.empty.description')"
+      />
     </template>
   </section>
 

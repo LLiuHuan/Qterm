@@ -196,6 +196,7 @@ export const settingsAssetsZh: Record<string, string> = {
   'settings.portForwards.action.create': '创建端口转发',
   'settings.portForwards.empty.title': '还没有端口转发',
   'settings.portForwards.empty.description': '创建一条转发后，可在右侧面板按需开启，或连接主机时自动开启',
+  'settings.portForwards.loading': '正在加载端口转发…',
   'settings.portForwards.pagination.loaded': '{shown}/{total}',
   'settings.portForwards.pagination.loadMore': '加载更多',
   'settings.portForwards.dialog.deleteTitle': '删除端口转发',

@@ -209,6 +209,7 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.portForwards.empty.title': 'ポート転送はまだありません',
   'settings.portForwards.empty.description':
     '転送を作成すると、右側のパネルで必要に応じてオンにしたり、ホスト接続時に自動でオンにしたりできます',
+  'settings.portForwards.loading': 'ポート転送を読み込み中…',
   'settings.portForwards.pagination.loaded': '{shown}/{total}',
   'settings.portForwards.pagination.loadMore': 'さらに読み込む',
   'settings.portForwards.dialog.deleteTitle': 'ポート転送を削除',

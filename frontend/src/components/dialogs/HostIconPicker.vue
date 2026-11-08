@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Image, Trash2, Upload } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { builtinHostIcons, hostIconPickerOptions } from '../../features/hosts/builtinIcons'
+import { customHostIconSrc, readCustomHostIcon } from '../../features/hosts/customHostIcon'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../common/overlay-controls'
 import { QtermButton } from '../common'
 import DeleteConfirmDialog from './DeleteConfirmDialog.vue'
 import { useI18n } from '@/locales'
+import { toast } from 'vue-sonner'
 
 const props = defineProps<{
   modelValue?: string
@@ -20,20 +22,54 @@ const { t } = useI18n()
 const iconOptions = hostIconPickerOptions
 
 const selectedIcon = computed(() => builtinHostIcons.find((item) => item.value === props.modelValue))
+const customIconSrc = computed(() => customHostIconSrc(props.modelValue))
 const removeIconOpen = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+let selectionVersion = 0
+let pendingImportVersion = 0
+let disposed = false
+
+onBeforeUnmount(() => {
+  disposed = true
+  selectionVersion += 1
+})
 
 function selectIcon(value: string): void {
+  selectionVersion += 1
   emit('update:modelValue', value)
 }
 
 function requestRemoveIcon(event: Event): void {
   event.preventDefault()
+  selectionVersion += 1
   removeIconOpen.value = true
 }
 
 function confirmRemoveIcon(): void {
+  selectionVersion += 1
   emit('update:modelValue', '')
   removeIconOpen.value = false
+}
+
+function requestImportIcon(event: Event): void {
+  event.preventDefault()
+  pendingImportVersion = ++selectionVersion
+  fileInput.value?.click()
+}
+
+async function importIcon(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (!file) return
+  const importVersion = pendingImportVersion
+  try {
+    const value = await readCustomHostIcon(file)
+    if (!disposed && importVersion === selectionVersion) emit('update:modelValue', value)
+  } catch {
+    if (!disposed && importVersion === selectionVersion) toast.error(t('error.unknown'))
+  } finally {
+    if (input) input.value = ''
+  }
 }
 </script>
 
@@ -55,6 +91,12 @@ function confirmRemoveIcon(): void {
           class="host-icon-image size-[24px] w-[22px] h-[22px] block flex-none object-contain"
           :class="{ 'qterm-theme-aware-logo': selectedIcon.themeAware }"
         />
+        <img
+          v-else-if="customIconSrc"
+          :src="customIconSrc"
+          :alt="t('shell.hostIcon.alt', { label: t('shell.hostIcon.custom') })"
+          class="host-icon-image size-[24px] w-[22px] h-[22px] block flex-none object-contain"
+        />
         <slot v-else name="fallback"><Image :size="17" aria-hidden="true" /></slot>
       </QtermButton>
     </DropdownMenuTrigger>
@@ -67,7 +109,7 @@ function confirmRemoveIcon(): void {
         <DropdownMenuItem
           v-for="option in iconOptions"
           :key="option.value"
-          class="host-icon-option"
+          class="host-icon-option cursor-pointer!"
           :class="{ 'is-selected': props.modelValue === option.value }"
           :title="option.label"
           @select="selectIcon(option.value)"
@@ -81,7 +123,7 @@ function confirmRemoveIcon(): void {
           <span class="sr-only">{{ option.label }}</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-          class="host-icon-action host-icon-action--danger"
+          class="host-icon-action host-icon-action--danger cursor-pointer! data-[disabled]:cursor-default!"
           :disabled="!props.modelValue"
           :title="t('shell.hostIcon.remove')"
           @select="requestRemoveIcon"
@@ -89,13 +131,24 @@ function confirmRemoveIcon(): void {
           <Trash2 :size="15" aria-hidden="true" />
           <span class="sr-only">{{ t('shell.hostIcon.remove') }}</span>
         </DropdownMenuItem>
-        <DropdownMenuItem class="host-icon-action" disabled :title="t('shell.hostIcon.importDisabled')">
+        <DropdownMenuItem
+          class="host-icon-action cursor-pointer!"
+          :title="t('shell.hostIcon.import')"
+          @select="requestImportIcon"
+        >
           <Upload :size="15" aria-hidden="true" />
           <span class="sr-only">{{ t('shell.hostIcon.import') }}</span>
         </DropdownMenuItem>
       </div>
     </DropdownMenuContent>
   </DropdownMenu>
+  <input
+    ref="fileInput"
+    class="hidden"
+    type="file"
+    accept="image/png,image/jpeg,image/webp,image/gif"
+    @change="importIcon"
+  />
   <DeleteConfirmDialog
     :open="removeIconOpen"
     :title="t('shell.hostIcon.removeTitle')"

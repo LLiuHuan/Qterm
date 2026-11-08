@@ -104,7 +104,7 @@ const tools = computed<Array<{ id: ToolPanel; label: string; icon: Component; di
 
 <template>
   <aside
-    class="tool-rail flex min-h-0 flex-col items-center gap-1.25 px-1 py-1.75 border-l-d"
+    class="tool-rail flex min-h-0 flex-col items-start gap-1.25 px-1 py-1.75 border-l-d"
     :aria-label="t('shell.toolRail.aria')"
   >
     <template v-if="props.rdpActive && props.vncActive">
@@ -168,7 +168,7 @@ const tools = computed<Array<{ id: ToolPanel; label: string; icon: Component; di
       </IconButton>
     </template>
     <template v-if="!props.rdpActive && !props.localSession">
-      <Separator class="tool-rail-divider" />
+      <Separator class="tool-rail-divider self-center" />
       <IconButton
         tooltip-side="left"
         :label="t('shell.toolRail.history')"

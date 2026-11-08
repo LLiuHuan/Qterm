@@ -72,7 +72,7 @@ export function useSessionTabDrag(options: SessionTabDragOptions) {
   const tabDragDelta = ref({ x: 0, y: 0 })
 
   let ignoreTabClick = false
-  let ignoreTabClickTimer: ReturnType<typeof setTimeout> | undefined
+  let ignoreTabClickTimer: number | undefined
   let tabDragPoint: { x: number; y: number } | null = null
   let tabDragStart: { x: number; y: number } | null = null
   let tabDragHandled = false

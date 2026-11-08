@@ -2,9 +2,11 @@
 import { computed } from 'vue'
 import { Braces } from '@lucide/vue'
 import { builtinHostIcons } from '../hosts/builtinIcons'
+import { customHostIconSrc } from '../hosts/customHostIcon'
 
 const props = withDefaults(defineProps<{ icon?: string; size?: number }>(), { icon: '', size: 16 })
 const selected = computed(() => builtinHostIcons.find((item) => item.value === props.icon))
+const customSrc = computed(() => customHostIconSrc(props.icon))
 </script>
 
 <template>
@@ -16,6 +18,7 @@ const selected = computed(() => builtinHostIcons.find((item) => item.value === p
       :class="{ 'qterm-theme-aware-logo': selected.themeAware }"
       draggable="false"
     />
+    <img v-else-if="customSrc" :src="customSrc" alt="" draggable="false" />
     <Braces v-else :size="size" />
   </span>
 </template>

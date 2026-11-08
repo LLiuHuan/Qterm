@@ -1,0 +1,27 @@
+# 全平台发布打包镜像：在 Linux 里产出 macOS(.app/.dmg)、Windows(.exe/NSIS)、Linux(deb/rpm/AppImage) 产物。
+#
+# 基镜像就是仓库自己的交叉编译镜像（zig + macOS SDK + GTK/WebKit 头文件），
+# 这里只补发布用的工具链：NSIS、libfuse2（linuxdeploy 解包执行需要）、wails3 CLI。
+#
+# 构建：docker build -f build/docker/Dockerfile.release -t qterm-release .
+FROM wails-cross:latest
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        nsis file zip unzip ca-certificates xz-utils dpkg-dev \
+    && (apt-get install -y --no-install-recommends libfuse2 || apt-get install -y --no-install-recommends libfuse2t64) \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG WAILS_VERSION=v3.1.0
+RUN GOBIN=/usr/local/bin go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
+
+# linuxdeploy 在没有 /dev/fuse 的容器里需要解包运行，否则挂载失败。
+ENV APPIMAGE_EXTRACT_AND_RUN=1
+ENV CGO_CFLAGS="-w"
+
+COPY build/docker/package.sh /usr/local/bin/package.sh
+RUN chmod +x /usr/local/bin/package.sh
+
+WORKDIR /app
+ENTRYPOINT ["/usr/local/bin/package.sh"]

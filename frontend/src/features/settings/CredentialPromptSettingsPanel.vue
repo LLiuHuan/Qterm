@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
-import { Pencil, Plus, Trash2 } from '@lucide/vue'
+import { Loader2, Pencil, Plus, Trash2 } from '@lucide/vue'
 import {
   IconButton,
   QtermButton,
@@ -31,9 +31,12 @@ const { t } = useI18n()
 
 const rules = ref<CredentialPromptRuleRecord[]>([])
 const searchQuery = ref('')
-const loading = ref(false)
+
+const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
+
+const loadError = ref('')
 const editorOpen = ref(false)
 const editingID = ref<string | null>(null)
 const deleteTarget = ref<CredentialPromptRuleRecord | null>(null)
@@ -44,6 +47,10 @@ const RULE_PAGE_SIZE = 20
 const visibleRuleCount = ref(RULE_PAGE_SIZE)
 
 const draftInvalid = computed(() => draft.value.pattern.trim().length > 0 && !isValidPromptPattern(draft.value.pattern))
+
+const loadErrorDetail = computed(() =>
+  loadError.value === t('settings.credentialPrompt.error.load') ? '' : loadError.value,
+)
 const canSave = computed(() => draft.value.pattern.trim().length > 0 && !draftInvalid.value && !saving.value)
 const kindOptions = computed(() => [
   { value: 'password', label: t('settings.credentialPrompt.kind.password') },
@@ -68,11 +75,12 @@ function loadMoreRules(): void {
 async function loadRules(): Promise<void> {
   loading.value = true
   error.value = ''
+  loadError.value = ''
   try {
     rules.value = await props.gateway.list()
     visibleRuleCount.value = RULE_PAGE_SIZE
-  } catch (loadError) {
-    error.value = errorMessage(loadError, t('settings.credentialPrompt.error.load'))
+  } catch (cause) {
+    loadError.value = errorMessage(cause, t('settings.credentialPrompt.error.load'))
   } finally {
     loading.value = false
   }
@@ -207,7 +215,6 @@ watch(searchQuery, () => {
   <section class="flex h-full min-h-0 flex-col gap-4" :aria-label="t('settings.credentialPrompt.panel.aria')">
     <QtermSearchToolbar
       v-model="searchQuery"
-      class="pr-2"
       :placeholder="t('settings.credentialPrompt.search.placeholder')"
       :search-aria-label="t('settings.credentialPrompt.search.aria')"
       :clear-aria-label="t('settings.credentialPrompt.search.clear')"
@@ -218,22 +225,31 @@ watch(searchQuery, () => {
     </QtermSearchToolbar>
 
     <QtermFormMessage v-if="error && !editorOpen && !deleteTarget" variant="error">{{ error }}</QtermFormMessage>
+
     <QtermEmptyState
       v-if="loading"
       variant="outlined"
-      :description="t('settings.credentialPrompt.loading')"
       role="status"
       busy
+      :icon="Loader2"
+      icon-class="spin"
+      :description="t('settings.credentialPrompt.loading')"
     />
+
+    <QtermEmptyState
+      v-else-if="loadError"
+      variant="outlined"
+      role="alert"
+      :title="t('settings.credentialPrompt.error.load')"
+      :description="loadErrorDetail"
+    />
+
     <QtermEmptyState v-else-if="!rules.length" variant="outlined" :description="t('settings.credentialPrompt.empty')">
       <template #icon>
         <div class="grid size-[34px] place-items-center rounded-[9px] bg-qt-subtle">
           <Plus :size="18" />
         </div>
       </template>
-      <QtermButton size="sm" type="button" @click="openCreateDialog">
-        <Plus :size="14" /> {{ t('settings.credentialPrompt.add') }}
-      </QtermButton>
     </QtermEmptyState>
     <QtermEmptyState
       v-else-if="!filteredRules.length"

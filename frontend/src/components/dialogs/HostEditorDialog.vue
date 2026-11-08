@@ -49,6 +49,7 @@ import { defaultTerminalTypeFor } from '@/services/hosts.ts'
 import { testRouteDraft, type RouteTestHopView } from '../../services/hostRoute'
 import { decodeAppError, translateErrorKey } from '../../services/errors'
 import { hostIconPickerOptions } from '../../features/hosts/builtinIcons'
+import { isCustomHostIcon } from '../../features/hosts/customHostIcon'
 import {
   HOST_PROTOCOLS,
   hostProtocolAuthModes,
@@ -789,6 +790,7 @@ const directoryFollowOptions = computed(() => [
 
 function iconDisplayName(value: string | undefined): string {
   if (!value) return t('shell.hostEditor.iconDetect.unknown')
+  if (isCustomHostIcon(value) || value.startsWith('data:')) return t('shell.hostIcon.custom')
   return hostIconPickerOptions.find((option) => option.value === value)?.label ?? value
 }
 
@@ -1750,47 +1752,46 @@ function updateAddress(value: unknown): void {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div v-if="sshHost" class="mt-3 grid min-w-0 gap-3 rounded-md border border-qt-border p-3">
-                        <label class="settings-toggle-row">
-                          <span>
-                            <strong>{{ t('shell.hostEditor.twoFactor.title') }}</strong>
-                            <small class="text-xs">{{ t('shell.hostEditor.twoFactor.help') }}</small>
-                          </span>
+
+                      <div v-if="sshHost" class="form-field mt-3 min-w-0 grid gap-[6px] text-qt-muted">
+                        <div class="flex items-center justify-between gap-3">
+                          <Label class="font-medium text-qt-text">{{ t('shell.hostEditor.twoFactor.title') }}</Label>
                           <QtermSwitch
                             :model-value="props.draft.sshTwoFactorEnabled ?? false"
                             :aria-label="t('shell.hostEditor.twoFactor.title')"
                             @update:model-value="updateTwoFactor"
                           />
-                        </label>
-                        <template v-if="props.draft.sshTwoFactorEnabled">
-                          <div class="grid min-w-0 gap-1.5">
-                            <Label>{{ t('shell.hostEditor.twoFactor.otp') }}</Label>
-                            <QtermCombobox
-                              :model-value="props.draft.sshOtpEntryId || '__manual__'"
-                              :options="otpOptions"
-                              :aria-label="t('shell.hostEditor.twoFactor.otp')"
-                              :placeholder="t('shell.hostEditor.twoFactor.manual')"
-                              @update:model-value="updateOtpSelection"
-                            />
-                          </div>
-                          <label class="settings-toggle-row">
-                            <span>
-                              <strong>{{ t('shell.hostEditor.twoFactor.autoFill') }}</strong>
-                              <small class="text-xs">{{ t('shell.hostEditor.twoFactor.autoFillHelp') }}</small>
-                            </span>
-                            <QtermSwitch
-                              :model-value="props.draft.sshOtpAutoFill ?? false"
-                              :disabled="
-                                !(props.otpEntries ?? []).some(
-                                  (entry) => entry.id === props.draft.sshOtpEntryId && entry.type === 'totp',
-                                )
-                              "
-                              :aria-label="t('shell.hostEditor.twoFactor.autoFill')"
-                              @update:model-value="(value: boolean) => updateDraft({ sshOtpAutoFill: value })"
-                            />
-                          </label>
-                        </template>
+                        </div>
+                        <small class="text-xs">{{ t('shell.hostEditor.twoFactor.help') }}</small>
                       </div>
+                      <template v-if="sshHost && props.draft.sshTwoFactorEnabled">
+                        <div class="form-field mt-3 min-w-0 grid gap-[6px] text-qt-muted">
+                          <Label>{{ t('shell.hostEditor.twoFactor.otp') }}</Label>
+                          <QtermCombobox
+                            :model-value="props.draft.sshOtpEntryId || '__manual__'"
+                            :options="otpOptions"
+                            :aria-label="t('shell.hostEditor.twoFactor.otp')"
+                            :placeholder="t('shell.hostEditor.twoFactor.manual')"
+                            @update:model-value="updateOtpSelection"
+                          />
+                        </div>
+                        <label class="settings-toggle-row mt-3">
+                          <span>
+                            <strong>{{ t('shell.hostEditor.twoFactor.autoFill') }}</strong>
+                            <small class="text-xs">{{ t('shell.hostEditor.twoFactor.autoFillHelp') }}</small>
+                          </span>
+                          <QtermSwitch
+                            :model-value="props.draft.sshOtpAutoFill ?? false"
+                            :disabled="
+                              !(props.otpEntries ?? []).some(
+                                (entry) => entry.id === props.draft.sshOtpEntryId && entry.type === 'totp',
+                              )
+                            "
+                            :aria-label="t('shell.hostEditor.twoFactor.autoFill')"
+                            @update:model-value="(value: boolean) => updateDraft({ sshOtpAutoFill: value })"
+                          />
+                        </label>
+                      </template>
                       <label v-if="sshHost" class="settings-toggle-row mt-3" :class="{ 'opacity-50': networkDevice }">
                         <span>
                           <strong>{{ t('shell.hostEditor.keepAlive') }}</strong>

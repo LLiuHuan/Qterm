@@ -199,6 +199,10 @@ const props = withDefaults(
     forwards?: PortForwardConfig[]
 
     forwardGroups?: string[]
+
+    forwardsLoading?: boolean
+
+    forwardsError?: string
   }>(),
   {
     otpEntries: () => [],
@@ -281,6 +285,8 @@ const props = withDefaults(
     proxiesError: '',
     forwards: () => [],
     forwardGroups: () => [],
+    forwardsLoading: false,
+    forwardsError: '',
     minimalAppearance: false,
     uiScale: 1,
     uiFont: '',
@@ -646,6 +652,8 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :forwards="props.forwards ?? []"
                 :forward-groups="props.forwardGroups ?? []"
                 :hosts="props.hosts ?? []"
+                :loading="props.forwardsLoading ?? false"
+                :error="props.forwardsError ?? ''"
                 @update:forwards="emit('update:forwards', $event)"
                 @update:forward-groups="emit('update:forwardGroups', $event)"
               />

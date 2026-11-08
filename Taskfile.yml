@@ -40,6 +40,15 @@ tasks:
     env:
       DRY_RUN: '{{.DRY_RUN | default "false"}}'
 
+  release:docker:
+    summary: 用 Docker 打包全平台安装包 + 便携包 + SHA256SUMS
+    desc: |
+      产物写入 bin/releases/<时间戳>-v<版本>/。darwin 出 dmg + zip，windows 出 NSIS setup.exe + zip，
+      linux 出 deb + rpm + AppImage + tar.gz；版本号由 build/config.yml 决定（发布时用 tag 盖章）。
+      TARGETS=linux 可只打某一类；SKIP_FRONTEND=true 复用已有 frontend/dist。
+    cmds:
+      - node build/release-docker.mjs {{if .TARGETS}}--targets {{.TARGETS}}{{end}} {{if eq .SKIP_FRONTEND "true"}}--skip-frontend{{end}}
+
   run:
     summary: Runs the application
     cmds:

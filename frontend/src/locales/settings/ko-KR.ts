@@ -207,6 +207,7 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.portForwards.empty.title': '아직 포트 포워딩이 없습니다',
   'settings.portForwards.empty.description':
     '포트 포워딩을 추가하면 오른쪽 패널에서 필요할 때 켜거나, 호스트에 연결할 때 자동으로 켜지게 할 수 있습니다',
+  'settings.portForwards.loading': '포트 포워딩 불러오는 중…',
   'settings.portForwards.pagination.loaded': '{shown}/{total}',
   'settings.portForwards.pagination.loadMore': '더 불러오기',
   'settings.portForwards.dialog.deleteTitle': '포트 포워딩 삭제',

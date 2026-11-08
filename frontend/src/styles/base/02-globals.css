@@ -111,6 +111,10 @@ button:disabled {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent);
 }
 
+.qterm-combobox input::placeholder {
+  line-height: inherit;
+}
+
 .qterm-combobox [data-slot='input-group-addon'] svg {
   width: 14px;
   height: 14px;

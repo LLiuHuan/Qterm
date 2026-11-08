@@ -62,6 +62,17 @@ const emit = defineEmits<{
   updateSearchQuery: [value: string]
 }>()
 const { t } = useI18n()
+const searchFieldRef = ref<HTMLLabelElement | null>(null)
+
+watch(
+  () => props.searchVisible,
+  async (visible) => {
+    if (!visible) return
+    await nextTick()
+    if (props.searchVisible) searchFieldRef.value?.querySelector('input')?.focus()
+  },
+  { immediate: true, flush: 'post' },
+)
 
 function hostColorStyle(host: { color?: string }): Record<string, string> | undefined {
   return tagColorStyle(host.color) as Record<string, string> | undefined
@@ -310,7 +321,7 @@ function handleHostAction(host: HostRecord, id: string): void {
         </template>
       </nav>
 
-      <label v-if="props.searchVisible" class="relative flex w-56 flex-none items-center">
+      <label ref="searchFieldRef" v-if="props.searchVisible" class="relative flex w-56 flex-none items-center">
         <Search
           :size="14"
           class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-qt-muted"

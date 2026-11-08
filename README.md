@@ -6,6 +6,16 @@
 
 <p align="center">把终端、文件传输、远程桌面与日常运维放进同一个工作台。</p>
 
+<p align="center">
+  <strong>简体中文</strong> ·
+  <a href="README.zh-TW.md">繁體中文</a> ·
+  <a href="README.en.md">English</a> ·
+  <a href="README.ja.md">日本語</a> ·
+  <a href="README.ko.md">한국어</a> ·
+  <a href="README.fr.md">Français</a> ·
+  <a href="README.ru.md">Русский</a>
+</p>
+
 Qterm 是基于 **Go、Wails v3、Vue 3 和 TypeScript** 构建的桌面连接管理工具，面向 macOS、Windows 和 Linux。以主机资产为入口，在多标签、分屏工作区中连接服务器和设备，并通过侧边工具面板处理文件、监控资源、管理容器及使用 AI 助手。
 
 支持简体中文、繁體中文、English、Français、日本語、한국어和 Русский 七种界面语言。

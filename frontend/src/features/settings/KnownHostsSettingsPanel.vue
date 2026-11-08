@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Copy, KeyRound, RefreshCw, ShieldAlert, ShieldCheck, Trash2 } from '@lucide/vue'
-import { IconButton, QtermButton, QtermEmptyState, QtermFormMessage, QtermSearchField } from '../../components/common'
+import { Copy, KeyRound, Loader2, RefreshCw, ShieldAlert, ShieldCheck, Trash2 } from '@lucide/vue'
+import { IconButton, QtermButton, QtermEmptyState, QtermSearchField } from '../../components/common'
 import { ScrollArea } from '../../components/common/control-primitives'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { useI18n } from '../../locales'
@@ -15,7 +15,10 @@ const { t } = useI18n()
 const entries = ref<KnownHostEntry[]>([])
 
 const hostsPath = ref('')
-const loading = ref(false)
+
+const loading = ref(true)
+
+let inFlight = false
 const error = ref('')
 const query = ref('')
 const pendingDelete = ref<KnownHostEntry | null>(null)
@@ -29,6 +32,8 @@ const visibleEntries = computed(() => {
   )
 })
 
+const loadErrorDetail = computed(() => (error.value === t('settings.knownHosts.loadFailed') ? '' : error.value))
+
 function isHashedHost(host: string): boolean {
   return host.startsWith('|')
 }
@@ -38,7 +43,8 @@ function hostText(entry: KnownHostEntry): string {
 }
 
 async function load(): Promise<void> {
-  if (loading.value) return
+  if (inFlight) return
+  inFlight = true
   loading.value = true
   error.value = ''
   try {
@@ -48,6 +54,7 @@ async function load(): Promise<void> {
   } catch (cause) {
     error.value = knownHostsErrorMessage(cause, t('settings.knownHosts.loadFailed'))
   } finally {
+    inFlight = false
     loading.value = false
   }
 }
@@ -120,11 +127,25 @@ onMounted(() => void load())
       </IconButton>
     </div>
 
-    <p v-if="loading && !entries.length" class="panel-empty-note text-qt-muted text-xs">
-      {{ t('settings.knownHosts.loading') }}
-    </p>
-    <QtermFormMessage v-else-if="error" variant="error">{{ error }}</QtermFormMessage>
+    <QtermEmptyState
+      v-if="loading && !entries.length"
+      variant="outlined"
+      role="status"
+      busy
+      :icon="Loader2"
+      icon-class="spin"
+      :description="t('settings.knownHosts.loading')"
+      class="flex-1"
+    />
 
+    <QtermEmptyState
+      v-else-if="error"
+      variant="outlined"
+      role="alert"
+      :title="t('settings.knownHosts.loadFailed')"
+      :description="loadErrorDetail"
+      class="flex-1"
+    />
     <ScrollArea v-else-if="visibleEntries.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
       <div class="flex flex-col gap-2 pr-2">
         <article
@@ -180,13 +201,17 @@ onMounted(() => void load())
       </div>
     </ScrollArea>
 
-    <div v-else-if="entries.length" class="flex flex-col items-center gap-2 py-10 text-center">
-      <KeyRound :size="28" class="text-qt-muted" aria-hidden="true" />
-      <strong class="text-sm">{{ t('settings.knownHosts.noMatch') }}</strong>
-    </div>
+    <QtermEmptyState
+      v-else-if="entries.length"
+      variant="outlined"
+      :icon="KeyRound"
+      :title="t('settings.knownHosts.noMatch')"
+      class="flex-1"
+    />
 
     <QtermEmptyState
       v-else
+      variant="outlined"
       class="flex-1"
       :icon="KeyRound"
       :title="t('settings.knownHosts.empty')"

@@ -209,6 +209,7 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.portForwards.empty.title': 'No port forwards yet',
   'settings.portForwards.empty.description':
     'Once you add a forward, enable it as needed in the panel on the right, or have it start automatically when the host connects',
+  'settings.portForwards.loading': 'Loading port forwards…',
   'settings.portForwards.pagination.loaded': '{shown}/{total}',
   'settings.portForwards.pagination.loadMore': 'Load more',
   'settings.portForwards.dialog.deleteTitle': 'Delete port forward',

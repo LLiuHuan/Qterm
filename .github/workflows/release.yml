@@ -1,11 +1,15 @@
 name: release
 
-# 推 `vX.Y.Z` tag 时构建六个平台产物并创建 GitHub Release。
+# 推 `vX.Y.Z` tag 时产出「安装包 + 便携包 + SHA256SUMS」并创建 GitHub Release。
 #
-# 为什么用矩阵而不是复用 `build/release.mjs`：那个脚本只能在 macOS 上跑，
-# 且要求本机装好 Docker/cross 镜像；CI 的每个 runner 只能构建自己这一份。
-# 资产命名必须与 `build/release.mjs` 保持一致（`qterm-{os}-{arch}.{zip|tar.gz}`），
-# 应用内更新器按这个名字精确匹配，改名前先改 `internal/update/github.go`。
+# 为什么是 Docker：产物的难点在跨平台工具链（macOS 的 .app/.dmg、Windows 的 NSIS、
+# Linux 的 deb/rpm/AppImage）。这些都跑在同一个 Linux 打包镜像里（build/docker/Dockerfile.release），
+# 版本号也只在这个流程里盖章（build/stamp-version.mjs），避免「界面新版本、安装包 0.0.1」。
+#
+# 两个 job 各跑一次镜像：amd64 出 darwin(两种架构) + windows(两种架构) + linux-amd64，
+# arm64 只出 linux-arm64（linux 二进制必须在同架构容器里链接 GTK/WebKit，交叉链接会缺目标架构库）。
+# 资产命名必须保留 `qterm-{os}-{arch}.{zip|tar.gz}`：应用内更新器按这个名字精确匹配
+# （internal/update/github.go 的 assetNameFor），改名前先改那里。
 on:
   push:
     tags:
@@ -22,40 +26,21 @@ permissions:
 env:
   GO_VERSION_FILE: go.mod
   NODE_VERSION: '22'
-  WAILS_VERSION: v3.1.0
 
 jobs:
-  build:
-    name: ${{ matrix.platform }}-${{ matrix.arch }}
+  package:
+    name: package-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
-            platform: darwin
-            arch: arm64
-            build_task: darwin:package
-          - os: macos-14
-            platform: darwin
+          - os: ubuntu-24.04
             arch: amd64
-            build_task: darwin:package
-          - os: ubuntu-latest
-            platform: linux
-            arch: amd64
-            build_task: linux:build
-          - os: ubuntu-latest
-            platform: linux
+            targets: darwin,windows,linux
+          - os: ubuntu-24.04-arm
             arch: arm64
-            build_task: linux:build
-          - os: windows-latest
-            platform: windows
-            arch: amd64
-            build_task: windows:build
-          - os: windows-latest
-            platform: windows
-            arch: arm64
-            build_task: windows:build
+            targets: linux
     steps:
       - uses: actions/checkout@v4
 
@@ -70,91 +55,63 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # qemu 让 amd64 runner 也能跑 linux/arm64 的 cross 镜像（与 release.mjs 同一机制）。
-      - uses: docker/setup-qemu-action@v3
-        if: matrix.platform == 'linux'
-
-      - name: Install wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      # 版本号只有一个来源：tag。把它写进 build/config.yml，前端打包时会把这个值嵌进去
-      # （services/appInfo.ts 直接读该文件），关于页的版本与更新比对才是对的。
       - name: Stamp version from tag
         shell: bash
         run: |
           set -euo pipefail
           tag="${{ github.event.inputs.tag || github.ref_name }}"
-          version="${tag#v}"
-          node -e "const fs=require('fs');const p='build/config.yml';const s=fs.readFileSync(p,'utf8');const out=s.replace(/^(\s{2}version:\s*).*$/m, (_,head)=>head+'\"'+process.argv[1]+'\"');if(out===s && !s.includes(process.argv[1])){throw new Error('version not stamped')}fs.writeFileSync(p,out)" "$version"
-          grep -E '^\s{2}version:' build/config.yml
+          node build/stamp-version.mjs "${tag#v}"
 
-      - name: Build ${{ matrix.platform }}/${{ matrix.arch }}
-        shell: bash
-        env:
-          ARCH: ${{ matrix.arch }}
-          CGO_ENABLED: ${{ matrix.platform == 'windows' && '0' || '1' }}
-        run: |
-          set -euo pipefail
-          wails3 task ${{ matrix.build_task }} \
-            ARCH="$ARCH" \
-            BIN_DIR="bin/$ARCH" \
-            DEV=false \
-            CGO_ENABLED="$CGO_ENABLED"
+      # 打包镜像基于仓库自己的交叉编译镜像（zig + macOS SDK + GTK/WebKit 头文件）。
+      - name: Build cross image
+        run: docker build --platform linux/${{ matrix.arch }} -t wails-cross:latest -f build/docker/Dockerfile.cross build/docker
 
-      - name: Archive (darwin)
-        if: matrix.platform == 'darwin'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "bin/${{ matrix.arch }}"
-          zip -qry "../../qterm-darwin-${{ matrix.arch }}.zip" Qterm.app
+      - name: Build release image
+        run: docker build --platform linux/${{ matrix.arch }} -t qterm-release -f build/docker/Dockerfile.release .
 
-      - name: Archive (linux)
-        if: matrix.platform == 'linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "bin/${{ matrix.arch }}"
-          tar -czf "../../qterm-linux-${{ matrix.arch }}.tar.gz" qterm
+      - name: Package artifacts
+        run: node build/release-docker.mjs --skip-frontend --skip-image --targets "${{ matrix.targets }}" --out "$PWD/bin/artifacts"
 
-      - name: Archive (windows)
-        if: matrix.platform == 'windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "bin/${{ matrix.arch }}"
-          zip -qry "../../qterm-windows-${{ matrix.arch }}.zip" qterm.exe
+      - name: List artifacts
+        run: ls -lh bin/artifacts
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qterm-${{ matrix.platform }}-${{ matrix.arch }}
+          name: qterm-${{ matrix.arch }}
           path: |
-            qterm-*.zip
-            qterm-*.tar.gz
+            bin/artifacts/qterm-*.dmg
+            bin/artifacts/qterm-*.zip
+            bin/artifacts/qterm-*.tar.gz
+            bin/artifacts/qterm-*.deb
+            bin/artifacts/qterm-*.rpm
+            bin/artifacts/qterm-*.AppImage
+            bin/artifacts/qterm-*-setup.exe
           if-no-files-found: error
           retention-days: 7
 
   publish:
     name: publish
-    needs: build
-    runs-on: ubuntu-latest
+    needs: package
+    runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      # SHA256SUMS 是更新器的唯一校验依据：没有它应用会拒绝安装。
+      # 两份 job 各上传一部分，校验和必须在合并后重新生成，否则会缺一半文件。
       - name: Generate SHA256SUMS
         shell: bash
         run: |
           set -euo pipefail
           cd artifacts
-          ls -1 qterm-*.{zip,tar.gz} | sort | xargs sha256sum > SHA256SUMS
+          ls -1 | sort | xargs sha256sum > SHA256SUMS
           cat SHA256SUMS
 
       - name: Create or update release
@@ -165,6 +122,5 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
-            artifacts/qterm-*.zip
-            artifacts/qterm-*.tar.gz
+            artifacts/qterm-*
             artifacts/SHA256SUMS

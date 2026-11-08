@@ -7,7 +7,9 @@
     select,
     [data-slot='select-trigger'],
     .path-bar
-  ):not(.qterm-combobox input):not([data-ai-composer-input]) {
+  ):not(.qterm-combobox input):not(.tags-input-shell input):not([data-qterm-composite-input]):not(
+    [data-ai-composer-input]
+  ) {
   border: 1px solid var(--qt-reference-input-border) !important;
   background: transparent !important;
   box-shadow: none !important;
@@ -23,7 +25,9 @@
     select,
     [data-slot='select-trigger'],
     .path-bar
-  ):not(.qterm-combobox input):not([data-ai-composer-input]):is(:focus, :focus-visible, :focus-within) {
+  ):not(.qterm-combobox input):not(.tags-input-shell input):not([data-qterm-composite-input]):not(
+    [data-ai-composer-input]
+  ):is(:focus, :focus-visible, :focus-within) {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-reference-ring) 16%, transparent) !important;
 }
 
@@ -62,7 +66,9 @@
     [data-slot='input'],
     [data-slot='select-trigger'],
     [data-slot='textarea']
-  ):not(.qterm-combobox input):not([data-ai-composer-input]):is(:focus, :focus-visible) {
+  ):not(.qterm-combobox input):not(.tags-input-shell input):not([data-qterm-composite-input]):not(
+    [data-ai-composer-input]
+  ):is(:focus, :focus-visible) {
   border-color: var(--qt-focus) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus) 16%, transparent) !important;
 }

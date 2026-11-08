@@ -3,8 +3,10 @@ import { IconButton, QtermButton, QtermEmptyState, QtermInput } from '../common'
 import {
   Pin,
   Check,
+  CircleAlert,
   History,
   Cpu,
+  Loader2,
   MemoryStick,
   Monitor,
   Network,
@@ -12,6 +14,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  SearchX,
   X,
   Eraser,
   FileCode2,
@@ -459,7 +462,12 @@ function handleAssetsImported(): void {
 <template>
   <aside class="tool-panel" :aria-label="displayedTitle">
     <header class="tool-panel-header">
-      <strong class="text-sm">{{ displayedTitle }}</strong>
+      <strong class="text-sm"
+        >{{ displayedTitle
+        }}<span v-if="props.tool === 'otp'" class="ml-2 text-xs font-normal text-qt-muted">{{
+          t('shell.otp.quickHint')
+        }}</span></strong
+      >
       <IconButton class="tool-panel-close" size="icon" :label="t('shell.toolPanel.close')" @click="emit('close')"
         ><X :size="16"
       /></IconButton>
@@ -946,61 +954,93 @@ function handleAssetsImported(): void {
           </div>
         </div>
 
-        <div
-          v-if="props.activeHost && (commands.length || commandLoading || commandError)"
-          class="command-history-list relative ml-2 mr-0 mb-2 flex min-h-0 flex-[1_1_auto]"
+        <ScrollArea
+          v-if="!props.activeHost || commandLoading || commandError || !visibleCommands.length"
+          class="command-history-scroll min-h-0 flex-1"
         >
+          <div class="px-2 pb-2">
+            <QtermEmptyState
+              v-if="!props.activeHost"
+              variant="outlined"
+              :icon="History"
+              :title="t('shell.toolPanel.noHostHistoryTitle')"
+              :description="t('shell.toolPanel.noHostHistoryDescription')"
+            />
+            <QtermEmptyState
+              v-else-if="commandLoading"
+              variant="outlined"
+              role="status"
+              busy
+              :icon="Loader2"
+              icon-class="spin"
+              :description="t('shell.common.loading')"
+            />
+
+            <QtermEmptyState
+              v-else-if="commandError"
+              variant="outlined"
+              role="alert"
+              :icon="CircleAlert"
+              :description="commandError"
+            />
+
+            <QtermEmptyState
+              v-else-if="!visibleCommands.length && commands.length"
+              variant="outlined"
+              :icon="SearchX"
+              :description="t('shell.toolPanel.noMatchingHistory')"
+            />
+
+            <QtermEmptyState
+              v-else-if="!visibleCommands.length"
+              variant="outlined"
+              :icon="History"
+              :title="t('shell.toolPanel.historyEmpty')"
+              :description="t('shell.toolPanel.historyEmptyHint')"
+            />
+          </div>
+        </ScrollArea>
+
+        <div v-else class="command-history-list relative ml-2 mr-0 mb-2 flex min-h-0 flex-[1_1_auto]">
           <ScrollArea class="command-history-scroll min-h-0 w-full flex-1">
-            <p v-if="commandLoading" class="panel-empty-note py-2 pl-2 pr-4 text-qt-muted text-xs">
-              {{ t('shell.toolPanel.loadingHistory') }}
-            </p>
-            <p v-else-if="commandError" class="panel-empty-note py-2 pl-2 pr-4 text-qt-muted text-xs">
-              {{ commandError }}
-            </p>
-
-            <template v-else-if="visibleCommands.length">
-              <div class="flex flex-col space-y-0.5 py-1 pl-2 pr-4">
-                <CommandHistoryContextMenu
-                  v-for="item in paginatedCommands"
-                  :key="item.id"
-                  :can-delete="!commandBusy"
-                  @add-snippet="emit('createSnippet', item.command)"
-                  @remove="removeCommand(item.id)"
+            <div class="flex flex-col space-y-0.5 py-1 pl-2 pr-4">
+              <CommandHistoryContextMenu
+                v-for="item in paginatedCommands"
+                :key="item.id"
+                :can-delete="!commandBusy"
+                @add-snippet="emit('createSnippet', item.command)"
+                @remove="removeCommand(item.id)"
+              >
+                <div
+                  class="command-history-item c-p grid grid-cols-[minmax(0,_1fr)_auto] items-center gap-[9px] min-h-[32px] rounded-md px-1.5 py-2"
                 >
-                  <div
-                    class="command-history-item c-p grid grid-cols-[minmax(0,_1fr)_auto] items-center gap-[9px] min-h-[32px] rounded-md px-1.5 py-2"
+                  <button
+                    class="command-history-text text-xs"
+                    type="button"
+                    :title="
+                      props.activeSession?.state === 'connected'
+                        ? t('shell.toolPanel.doubleClickRun', { command: item.command })
+                        : t('shell.toolPanel.connectToRun')
+                    "
+                    :disabled="props.activeSession?.state !== 'connected'"
+                    @dblclick="runCommand(item.command)"
                   >
-                    <button
-                      class="command-history-text text-xs"
-                      type="button"
-                      :title="
-                        props.activeSession?.state === 'connected'
-                          ? t('shell.toolPanel.doubleClickRun', { command: item.command })
-                          : t('shell.toolPanel.connectToRun')
-                      "
-                      :disabled="props.activeSession?.state !== 'connected'"
-                      @dblclick="runCommand(item.command)"
-                    >
-                      {{ item.command }}
-                    </button>
-                    <small class="command-history-time text-qt-muted whitespace-nowrap text-xs">{{
-                      commandTime(item.executedAt)
-                    }}</small>
-                  </div>
-                </CommandHistoryContextMenu>
-              </div>
+                    {{ item.command }}
+                  </button>
+                  <small class="command-history-time text-qt-muted whitespace-nowrap text-xs">{{
+                    commandTime(item.executedAt)
+                  }}</small>
+                </div>
+              </CommandHistoryContextMenu>
+            </div>
 
-              <QtermLoadMore
-                class="pb-1 pl-2 pr-4"
-                :visible="paginatedCommands.length"
-                :total="visibleCommands.length"
-                :load-more-label="t('shell.common.loadMore')"
-                @load-more="loadMoreCommands"
-              />
-            </template>
-            <p v-else class="panel-empty-note py-2 pl-2 pr-4 text-qt-muted text-xs">
-              {{ t('shell.toolPanel.noMatchingHistory') }}
-            </p>
+            <QtermLoadMore
+              class="pb-1 pl-2 pr-4"
+              :visible="paginatedCommands.length"
+              :total="visibleCommands.length"
+              :load-more-label="t('shell.common.loadMore')"
+              @load-more="loadMoreCommands"
+            />
           </ScrollArea>
 
           <span
@@ -1008,21 +1048,6 @@ function handleAssetsImported(): void {
             aria-hidden="true"
           />
         </div>
-
-        <ScrollArea v-else class="command-history-scroll flex-[1_1_auto] min-h-0">
-          <QtermEmptyState
-            v-if="!props.activeHost"
-            :icon="History"
-            :title="t('shell.toolPanel.noHostHistoryTitle')"
-            :description="t('shell.toolPanel.noHostHistoryDescription')"
-          />
-          <QtermEmptyState
-            v-else
-            :icon="History"
-            :title="t('shell.toolPanel.emptyHistoryTitle')"
-            :description="t('shell.toolPanel.emptyHistoryDescription')"
-          />
-        </ScrollArea>
         <DeleteConfirmDialog
           :open="clearCommandsOpen"
           :title="t('shell.toolPanel.clearHistory')"

@@ -216,7 +216,8 @@ setSearchText(selectedLabel.value)
         <ComboboxInput
           :id="props.id"
           v-model="searchModel"
-          class="qterm-combobox-input bg-transparent! pr-7 text-xs shadow-none!"
+          class="qterm-combobox-input bg-transparent! pr-7 text-xs text-qt-text! shadow-none!"
+          :class="selectedLabel !== '' && !focused ? 'placeholder:text-qt-text!' : 'placeholder:text-qt-muted!'"
           :display-value="(value: unknown) => labelOf(value)"
           :placeholder="selectedLabel || props.placeholder"
           :aria-label="props.ariaLabel"

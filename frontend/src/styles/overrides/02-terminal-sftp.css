@@ -546,3 +546,16 @@
   color: var(--qt-danger) !important;
   background-color: color-mix(in srgb, var(--qt-danger) 16%, transparent) !important;
 }
+
+.qterm-shell.has-page-background .sftp-workspace-stage,
+.qterm-shell.has-page-background .rdp-workspace-stage {
+  background: transparent !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  text-shadow: var(--qt-background-text-shadow);
+}
+
+.qterm-shell.has-page-background .sftp-workspace-stage svg,
+.qterm-shell.has-page-background .rdp-workspace-stage svg {
+  filter: var(--qt-background-icon-shadow);
+}

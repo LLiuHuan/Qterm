@@ -83,6 +83,7 @@ watch(
       <div class="snippet-picker-search">
         <Search :size="15" aria-hidden="true" /><QtermInput
           v-model="query"
+          data-qterm-composite-input
           :aria-label="t('shell.snippetPicker.search')"
           class="text-xs"
           :placeholder="t('shell.snippetPicker.search')"

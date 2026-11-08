@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Folder, Pencil, Play, Plus, Route, Square, Trash2 } from '@lucide/vue'
-import { QtermEmptyState, QtermSearchField, IconButton } from '@/components/common'
+import { QtermButton, QtermEmptyState, QtermSearchField, IconButton } from '@/components/common'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/common/control-primitives'
 import {
   ContextMenu,
@@ -248,16 +248,21 @@ onBeforeUnmount(() => {
       </IconButton>
     </div>
 
-    <div v-if="props.forwards.length === 0" class="flex-1">
+    <div v-if="props.forwards.length === 0" class="flex-1 px-2 pb-2">
       <QtermEmptyState
+        variant="outlined"
         :icon="Route"
         :title="t('shell.toolPanel.noTunnels')"
         :description="t('shell.forwards.emptyHint')"
-      />
+      >
+        <QtermButton size="sm" class="mt-2" type="button" @click="openCreate">
+          <Plus :size="14" aria-hidden="true" /> {{ t('shell.forwards.add') }}
+        </QtermButton>
+      </QtermEmptyState>
     </div>
 
-    <div v-else-if="sections.length === 0" class="flex-1">
-      <QtermEmptyState :icon="Route" :title="t('shell.forwards.noMatch')" />
+    <div v-else-if="sections.length === 0" class="flex-1 px-2 pb-2">
+      <QtermEmptyState variant="outlined" :icon="Route" :description="t('shell.forwards.noMatch')" />
     </div>
 
     <div v-else class="min-h-0 flex-1 overflow-y-auto px-2 pb-2">

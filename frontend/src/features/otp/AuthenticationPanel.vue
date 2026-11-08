@@ -20,11 +20,8 @@ const credential = computed(() => props.credentials.find((item) => item.id === p
 </script>
 
 <template>
-  <section class="flex h-full min-h-0 flex-col gap-3 px-2 py-2">
-    <div class="flex shrink-0 items-center gap-2">
-      <span class="min-w-0 flex-1 text-xs text-qt-muted">{{ t('shell.otp.quickHint') }}</span>
-    </div>
-    <div v-if="credential" class="flex shrink-0 items-center gap-2 rounded-md border-d px-3 py-2">
+  <section class="flex h-full min-h-0 flex-col gap-3">
+    <div v-if="credential" class="mx-2 mt-2 flex shrink-0 items-center gap-2 rounded-md border-d px-3 py-2">
       <KeyRound :size="16" class="shrink-0 text-qt-muted" />
       <div class="min-w-0 flex-1">
         <div class="text-xs text-qt-muted">{{ t('shell.otp.currentCredential') }}</div>

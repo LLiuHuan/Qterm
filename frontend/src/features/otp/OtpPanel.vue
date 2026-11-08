@@ -385,8 +385,17 @@ onBeforeUnmount(() => {
       <input ref="qrFileInput" class="hidden" type="file" accept="image/*" @change="onQrFileChange" />
     </div>
 
-    <div v-if="visibleEntries.length === 0" class="flex-1">
-      <QtermEmptyState :icon="KeyRound" :title="t('shell.otp.empty')" :description="t('shell.otp.emptyHint')" />
+    <div v-if="props.entries.length === 0" class="flex-1 px-2 pb-2">
+      <QtermEmptyState
+        variant="outlined"
+        :icon="KeyRound"
+        :title="t('shell.otp.empty')"
+        :description="t('shell.otp.emptyHint')"
+      />
+    </div>
+
+    <div v-else-if="visibleEntries.length === 0" class="flex-1 px-2 pb-2">
+      <QtermEmptyState variant="outlined" :icon="KeyRound" :description="t('shell.otp.noMatch')" />
     </div>
 
     <div v-else class="min-h-0 flex-1 overflow-y-auto px-2 pb-2">

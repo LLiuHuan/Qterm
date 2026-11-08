@@ -245,6 +245,7 @@ function providerLabel(provider: AIProvider): string {
 
       <QtermEmptyState
         v-if="!providers.length"
+        variant="outlined"
         class="min-h-[160px] py-6"
         :icon="Sparkles"
         :title="t('settings.ai.noProviders')"

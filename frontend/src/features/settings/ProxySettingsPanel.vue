@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Network, Pencil, Plus, Trash2 } from '@lucide/vue'
+import { Loader2, Network, Pencil, Plus, Trash2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
-import { IconButton, QtermButton, QtermFormMessage } from '../../components/common'
+import { IconButton, QtermButton, QtermEmptyState } from '../../components/common'
 import { ScrollArea } from '../../components/common/control-primitives'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import ProxyEditorDialog from '../../components/dialogs/ProxyEditorDialog.vue'
@@ -26,6 +26,8 @@ const emit = defineEmits<{ changed: [] }>()
 const { t } = useI18n()
 
 const sortedProxies = computed(() => [...props.proxies].sort((left, right) => left.name.localeCompare(right.name)))
+
+const loadErrorDetail = computed(() => (props.error === t('settings.proxies.error.load') ? '' : props.error))
 
 const formOpen = ref(false)
 const editingProxy = ref<ProxyRecord | null>(null)
@@ -86,15 +88,30 @@ async function confirmDelete(): Promise<void> {
 
 <template>
   <section class="flex h-full min-h-0 flex-col gap-4">
-    <div class="flex items-start justify-between gap-3 pr-2">
+    <div class="flex items-start justify-between gap-3">
       <p class="panel-empty-note text-qt-muted m-0 text-xs">{{ t('settings.proxies.description') }}</p>
       <QtermButton class="shrink-0" variant="outline" type="button" data-proxy-create @click="openCreate">
         <Plus :size="15" />{{ t('settings.proxies.action.create') }}
       </QtermButton>
     </div>
 
-    <p v-if="props.loading" class="panel-empty-note text-qt-muted text-xs">{{ t('settings.proxies.loading') }}</p>
-    <QtermFormMessage v-else-if="props.error" variant="error">{{ props.error }}</QtermFormMessage>
+    <QtermEmptyState
+      v-if="props.loading"
+      variant="outlined"
+      role="status"
+      busy
+      :icon="Loader2"
+      icon-class="spin"
+      :description="t('settings.proxies.loading')"
+    />
+
+    <QtermEmptyState
+      v-else-if="props.error"
+      variant="outlined"
+      role="alert"
+      :title="t('settings.proxies.error.load')"
+      :description="loadErrorDetail"
+    />
 
     <ScrollArea v-else-if="sortedProxies.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
       <div class="flex flex-col gap-2 pr-2">
@@ -146,11 +163,13 @@ async function confirmDelete(): Promise<void> {
       </div>
     </ScrollArea>
 
-    <div v-else class="flex flex-col items-center gap-2 py-10 text-center">
-      <Network :size="28" class="text-qt-muted" aria-hidden="true" />
-      <strong class="text-sm">{{ t('settings.proxies.empty.title') }}</strong>
-      <p class="m-0 max-w-90 text-xs text-qt-muted">{{ t('settings.proxies.empty.description') }}</p>
-    </div>
+    <QtermEmptyState
+      v-else
+      variant="outlined"
+      :icon="Network"
+      :title="t('settings.proxies.empty.title')"
+      :description="t('settings.proxies.empty.description')"
+    />
   </section>
 
   <ProxyEditorDialog

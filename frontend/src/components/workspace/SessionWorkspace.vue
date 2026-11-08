@@ -130,6 +130,8 @@ const props = defineProps<{
   terminalDisconnectBehavior?: 'reconnect' | 'close'
 
   terminalAutoReconnect?: boolean
+
+  closeConfirmIds?: string[]
   terminalRenderEngine?: import('../../features/settings/settingsStore').TerminalRenderEngine
 
   showTabIndex?: boolean
@@ -1195,6 +1197,7 @@ function finishSplitResize(): void {
     </nav>
 
     <div
+      v-show="!props.assetLibraryCovered"
       class="terminal-workspace-body relative col-[1] row-[2] flex flex-col min-w-0 min-h-0 overflow-hidden"
       :inert="props.assetLibraryCovered || undefined"
       :aria-hidden="props.assetLibraryCovered || undefined"
@@ -1350,6 +1353,7 @@ function finishSplitResize(): void {
             :disconnect-behavior="props.terminalDisconnectBehavior"
             :auto-reconnect="props.terminalAutoReconnect === true"
             :auto-reconnect-pending="session.autoReconnectPending === true"
+            :close-confirm-pending="props.closeConfirmIds?.includes(session.id) === true"
             :render-engine="props.terminalRenderEngine"
             :keyword-highlight-enabled="props.keywordHighlightEnabled"
             :keyword-highlight-rules="props.keywordHighlightRules"

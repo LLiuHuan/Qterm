@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { FolderPlus, Pencil, Plus, Route, Trash2 } from '@lucide/vue'
-import { QtermButton, QtermSearchToolbar } from '@/components/common'
+import { FolderPlus, Loader2, Pencil, Plus, Route, Trash2 } from '@lucide/vue'
+import { QtermButton, QtermEmptyState, QtermSearchToolbar } from '@/components/common'
 import { Accordion, AccordionContent, AccordionItem } from '@/components/common/control-primitives'
 import SettingsGroupHeader from '@/components/common/settings/SettingsGroupHeader.vue'
 import { ScrollArea } from '@/components/common/control-primitives'
@@ -34,8 +34,19 @@ const props = withDefaults(
     forwardGroups?: string[]
 
     activeHostId?: string
+
+    loading?: boolean
+
+    error?: string
   }>(),
-  { forwards: () => [], hosts: () => [], forwardGroups: () => [], activeHostId: '' },
+  {
+    forwards: () => [],
+    hosts: () => [],
+    forwardGroups: () => [],
+    activeHostId: '',
+    loading: false,
+    error: '',
+  },
 )
 
 const emit = defineEmits<{
@@ -191,7 +202,6 @@ function confirmGroupDelete(): void {
   <section class="flex h-full min-h-0 flex-col gap-4">
     <QtermSearchToolbar
       v-model="query"
-      class="pr-2"
       :placeholder="t('shell.forwards.search')"
       :search-aria-label="t('shell.forwards.search')"
       :clear-aria-label="t('shell.forwards.clearSearch')"
@@ -204,7 +214,19 @@ function confirmGroupDelete(): void {
       </QtermButton>
     </QtermSearchToolbar>
 
-    <ScrollArea v-if="sections.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
+    <QtermEmptyState
+      v-if="props.loading"
+      variant="outlined"
+      role="status"
+      busy
+      :icon="Loader2"
+      icon-class="spin"
+      :description="t('settings.portForwards.loading')"
+    />
+
+    <QtermEmptyState v-else-if="props.error" variant="outlined" role="alert" :description="props.error" />
+
+    <ScrollArea v-else-if="sections.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
       <div class="flex flex-col gap-2 pr-2">
         <Accordion v-model="expandedKeys" type="multiple" class="flex flex-col gap-2">
           <AccordionItem
@@ -303,16 +325,15 @@ function confirmGroupDelete(): void {
       </div>
     </ScrollArea>
 
-    <div v-else-if="query.trim()" class="flex flex-col items-center gap-2 py-10 text-center">
-      <Route :size="28" class="text-qt-muted" aria-hidden="true" />
-      <strong class="text-sm">{{ t('shell.forwards.noMatch') }}</strong>
-    </div>
+    <QtermEmptyState v-else-if="query.trim()" variant="outlined" :icon="Route" :title="t('shell.forwards.noMatch')" />
 
-    <div v-else class="flex flex-col items-center gap-2 py-10 text-center">
-      <Route :size="28" class="text-qt-muted" aria-hidden="true" />
-      <strong class="text-sm">{{ t('settings.portForwards.empty.title') }}</strong>
-      <p class="m-0 max-w-90 text-xs text-qt-muted">{{ t('settings.portForwards.empty.description') }}</p>
-    </div>
+    <QtermEmptyState
+      v-else
+      variant="outlined"
+      :icon="Route"
+      :title="t('settings.portForwards.empty.title')"
+      :description="t('settings.portForwards.empty.description')"
+    />
   </section>
 
   <PortForwardEditorDialog

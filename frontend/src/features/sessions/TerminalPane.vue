@@ -221,6 +221,8 @@ const props = withDefaults(
     autoReconnectPending?: boolean
 
     reconnecting?: boolean
+
+    closeConfirmPending?: boolean
     renderEngine?: TerminalRenderEngine
     keywordHighlightEnabled?: boolean
     keywordHighlightRules?: KeywordHighlightRule[]
@@ -263,6 +265,7 @@ const props = withDefaults(
     autoReconnect: false,
     autoReconnectPending: false,
     reconnecting: false,
+    closeConfirmPending: false,
     renderEngine: 'webgl',
     keywordHighlightEnabled: false,
     keywordHighlightRules: () => [],
@@ -349,7 +352,8 @@ const webglContextOwner = {}
 
 let webglAddonDpr = 0
 let resizeObserver: ResizeObserver | null = null
-let resizeNotifyTimer: ReturnType<typeof setTimeout> | null = null
+
+let resizeNotifyTimer: number | null = null
 let fitAfterLayoutResize = false
 let initialLayoutReady = false
 let dataSubscription: { dispose(): void } | null = null
@@ -373,7 +377,7 @@ let commandLineHasShellHistoryRecall = false
 let shellTabPrefix: string | null = null
 let shellTabCompletedCommand = ''
 let pendingShellTabSubmission: { typed: string; terminator: '\r' | '\n' } | null = null
-let shellTabSubmitTimer: ReturnType<typeof setTimeout> | null = null
+let shellTabSubmitTimer: number | null = null
 const SHELL_TAB_SUBMIT_TIMEOUT_MS = 300
 
 function fuzzyScore(command: string, query: string): number | null {
@@ -3288,6 +3292,14 @@ watch(
 )
 
 watch(
+  () => props.closeConfirmPending,
+  (pending) => {
+    if (pending) return
+    closingRequested = false
+  },
+)
+
+watch(
   () => props.autoReconnectPending,
   (pending) => {
     if (pending) {
@@ -3576,6 +3588,7 @@ onBeforeUnmount(() => {
             >
               <QtermInput
                 ref="searchInput"
+                data-qterm-composite-input
                 :model-value="searchQuery"
                 type="text"
                 class="h-8! min-h-0 min-w-0 flex-1 rounded-none border-0 bg-transparent! pl-2 pr-1 text-xs ring-0! shadow-none!"

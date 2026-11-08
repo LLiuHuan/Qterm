@@ -196,6 +196,7 @@ export const settingsAssetsZhHant: Record<string, string> = {
   'settings.portForwards.action.create': '創建連接埠轉發',
   'settings.portForwards.empty.title': '還沒有連接埠轉送',
   'settings.portForwards.empty.description': '創建一條轉送後，可在右側面板視需要開啟，或連線主機時自動開啟',
+  'settings.portForwards.loading': '正在載入連接埠轉送…',
   'settings.portForwards.pagination.loaded': '{shown}/{total}',
   'settings.portForwards.pagination.loadMore': '加載更多',
   'settings.portForwards.dialog.deleteTitle': '刪除連接埠轉送',

@@ -13,7 +13,7 @@ import {
   Server,
   X,
 } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
 import { IconButton } from '../common'
 import AssetHostRow from './AssetHostRow.vue'
@@ -81,6 +81,16 @@ const scrollAreaRef = ref<InstanceType<typeof ScrollArea> | null>(null)
 const rootListRef = ref<HTMLElement | null>(null)
 
 const searchFieldRef = ref<HTMLLabelElement | null>(null)
+
+watch(
+  () => props.searchVisible,
+  async (visible) => {
+    if (!visible) return
+    await nextTick()
+    if (props.searchVisible) searchFieldRef.value?.querySelector('input')?.focus()
+  },
+  { immediate: true, flush: 'post' },
+)
 
 function clearSearchQuery(event?: MouseEvent): void {
   event?.preventDefault()
@@ -211,8 +221,9 @@ function forwardCopy(host: HostRecord, kind: 'ip' | 'connection' | 'id'): void {
               t('shell.asset.retry')
             }}</QtermButton>
           </div>
+
           <div
-            v-else-if="props.hosts.length === 0"
+            v-else-if="props.hosts.length === 0 && visibleRootEntries.length === 0"
             class="asset-empty text-qt-muted asset-empty--fill flex min-h-28 flex-col items-center justify-center gap-2 px-3 py-[14px] text-center"
           >
             <Server :size="22" aria-hidden="true" />
@@ -221,8 +232,9 @@ function forwardCopy(host: HostRecord, kind: 'ip' | 'connection' | 'id'): void {
               t('shell.asset.addFirst')
             }}</QtermButton>
           </div>
+
           <div
-            v-else-if="!hasVisibleHosts"
+            v-else-if="props.hosts.length > 0 && !hasVisibleHosts && props.searchQuery.trim().length > 0"
             class="asset-empty text-qt-muted asset-empty--fill flex min-h-[180px] flex-col items-center justify-center gap-2 px-3 py-[26px] text-center"
           >
             <Search :size="22" aria-hidden="true" />

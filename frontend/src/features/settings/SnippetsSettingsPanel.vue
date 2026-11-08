@@ -434,7 +434,6 @@ onBeforeUnmount(() => {
     <div v-if="!props.standalone" class="flex h-full min-h-0 flex-col gap-4">
       <QtermSearchToolbar
         v-model="searchQuery"
-        class="pr-2"
         :placeholder="t('settings.snippets.search.placeholder')"
         :search-aria-label="t('settings.snippets.search.aria')"
         :clear-aria-label="t('settings.snippets.search.clear')"
@@ -465,9 +464,6 @@ onBeforeUnmount(() => {
             <Plus :size="18" />
           </div>
         </template>
-        <QtermButton size="sm" type="button" @click="createSnippet"
-          ><Plus :size="14" /> {{ t('settings.snippets.action.create') }}</QtermButton
-        >
       </QtermEmptyState>
       <QtermEmptyState
         v-else-if="searchQuery.trim() && !grouped.length"

@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowReactive, watch } from 'vue'
-import { ChevronDown, ChevronRight, Container, Database, Network, Package, RefreshCw } from '@lucide/vue'
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Container,
+  Database,
+  Loader2,
+  Network,
+  Package,
+  RefreshCw,
+} from '@lucide/vue'
 import { IconButton, QtermButton, QtermEmptyState, QtermFormMessage, SegmentedTabs } from '../../components/common'
 import {
   Accordion,
@@ -1022,12 +1032,10 @@ onBeforeUnmount(() => {
     </div>
 
     <ScrollArea class="min-h-0 min-w-0 w-full max-w-full flex-1 overflow-hidden" type="hover" :scroll-hide-delay="600">
-      <div
-        v-if="enabled === false"
-        class="flex h-full flex-col items-center justify-center gap-2 px-4"
-        data-testid="docker-enable"
-      >
+      <div v-if="enabled === false" class="flex flex-col gap-2 px-2 py-2" data-testid="docker-enable">
         <QtermEmptyState
+          variant="outlined"
+          class="px-3 py-3"
           :icon="Container"
           :title="t('shell.docker.enableTitle')"
           :description="t('shell.docker.enableHint')"
@@ -1058,23 +1066,50 @@ onBeforeUnmount(() => {
       </QtermEmptyState>
 
       <template v-else>
-        <QtermFormMessage v-if="error || currentError" variant="error" class="mx-3 mt-2">{{
-          error || currentError
-        }}</QtermFormMessage>
         <QtermFormMessage v-if="actionError" variant="error" class="mx-3 mt-2">{{ actionError }}</QtermFormMessage>
 
         <template v-if="activeTab === 'containers'">
-          <p v-if="tabLoading && !containers.length" class="m-0 px-2 py-2 text-xs text-qt-muted">
-            {{ t('shell.docker.loading') }}
-          </p>
+          <QtermEmptyState
+            v-if="tabLoading && !containers.length"
+            variant="outlined"
+            role="status"
+            busy
+            :icon="Loader2"
+            icon-class="spin"
+            class="mx-1 my-2 px-3"
+            :description="t('shell.docker.loading')"
+            data-testid="docker-loading"
+          />
+
+          <QtermEmptyState
+            v-else-if="currentError || error"
+            variant="outlined"
+            role="alert"
+            :icon="CircleAlert"
+            class="mx-1 my-2 px-3"
+            :description="currentError || error"
+            data-testid="docker-error"
+          />
 
           <QtermEmptyState
             v-else-if="!groups.length"
+            variant="outlined"
             :icon="Container"
             :title="t('shell.docker.empty')"
             :description="t('shell.docker.emptyHint')"
+            class="mx-1 my-2 px-3"
             data-testid="docker-empty"
-          />
+          >
+            <QtermButton
+              size="sm"
+              variant="outline"
+              class="mt-2"
+              :disabled="refreshing || !props.sessionId"
+              @click="refresh"
+            >
+              {{ t('shell.docker.refresh') }}
+            </QtermButton>
+          </QtermEmptyState>
 
           <div v-else>
             <Accordion
@@ -1212,17 +1247,47 @@ onBeforeUnmount(() => {
             </QtermButton>
           </div>
 
-          <p v-if="imageTab.loading && !imageTab.items.length" class="m-0 px-2 py-2 text-xs text-qt-muted">
-            {{ t('shell.docker.loadingImages') }}
-          </p>
+          <QtermEmptyState
+            v-if="imageTab.loading && !imageTab.items.length"
+            variant="outlined"
+            role="status"
+            busy
+            :icon="Loader2"
+            icon-class="spin"
+            class="mx-1 my-2 px-3"
+            :description="t('shell.docker.loadingImages')"
+            data-testid="docker-images-loading"
+          />
+
+          <QtermEmptyState
+            v-else-if="imageTab.error"
+            variant="outlined"
+            role="alert"
+            :icon="CircleAlert"
+            class="mx-1 my-2 px-3"
+            :description="imageTab.error"
+            data-testid="docker-images-error"
+          />
 
           <QtermEmptyState
             v-else-if="!imageTab.items.length"
+            variant="outlined"
             :icon="Package"
             :title="t('shell.docker.imagesEmpty')"
             :description="t('shell.docker.imagesEmptyHint')"
+            class="mx-1 my-2 px-3"
             data-testid="docker-images-empty"
-          />
+          >
+            <QtermButton
+              size="sm"
+              variant="outline"
+              class="mt-2"
+              :disabled="refreshing || !props.sessionId"
+              @click="refresh"
+            >
+              {{ t('shell.docker.refresh') }}
+            </QtermButton>
+          </QtermEmptyState>
 
           <div v-else data-testid="docker-images">
             <section
@@ -1258,122 +1323,185 @@ onBeforeUnmount(() => {
         </template>
 
         <template v-else-if="activeTab === 'volumes'">
-          <p v-if="volumeTab.loading && !volumeTab.items.length" class="m-0 px-2 py-2 text-xs text-qt-muted">
-            {{ t('shell.docker.loadingVolumes') }}
-          </p>
+          <QtermEmptyState
+            v-if="volumeTab.loading && !volumeTab.items.length"
+            variant="outlined"
+            role="status"
+            busy
+            :icon="Loader2"
+            icon-class="spin"
+            class="mx-1 my-2 px-3"
+            :description="t('shell.docker.loadingVolumes')"
+            data-testid="docker-volumes-loading"
+          />
+
+          <QtermEmptyState
+            v-else-if="volumeTab.error"
+            variant="outlined"
+            role="alert"
+            :icon="CircleAlert"
+            class="mx-1 my-2 px-3"
+            :description="volumeTab.error"
+            data-testid="docker-volumes-error"
+          />
 
           <QtermEmptyState
             v-else-if="!volumeTab.items.length"
+            variant="outlined"
             :icon="Database"
             :title="t('shell.docker.volumesEmpty')"
             :description="t('shell.docker.volumesEmptyHint')"
+            class="mx-1 my-2 px-3"
             data-testid="docker-volumes-empty"
-          />
-
-          <div
-            v-else
-            class="flex items-center justify-end gap-1 border-b border-qt-border px-2 py-2"
-            data-testid="docker-volume-tools"
           >
             <QtermButton
-              variant="destructive"
-              size="xs"
-              :disabled="!unusedVolumes.length || pruningVolumes || !!busyId"
-              @click="requestPruneVolumes"
+              size="sm"
+              variant="outline"
+              class="mt-2"
+              :disabled="refreshing || !props.sessionId"
+              @click="refresh"
             >
-              {{ t('shell.docker.pruneVolumes') }}
+              {{ t('shell.docker.refresh') }}
             </QtermButton>
-          </div>
+          </QtermEmptyState>
 
-          <div v-if="volumeTab.items.length" data-testid="docker-volumes">
-            <section
-              v-for="group in volumeGroups"
-              :key="group.id"
-              :data-volume-group="group.id"
-              class="mx-2 mt-2 overflow-hidden rounded-[8px] border border-qt-border"
+          <template v-else>
+            <div
+              class="flex items-center justify-end gap-1 border-b border-qt-border px-2 py-2"
+              data-testid="docker-volume-tools"
             >
-              <header class="flex min-w-0 items-center gap-2 px-2.5 py-2">
-                <span class="truncate text-sm font-medium text-qt-text">{{ group.title }}</span>
-                <small class="shrink-0 rounded-full bg-qt-hover px-1.5 text-xs leading-4 text-qt-muted">{{
-                  group.items.length
-                }}</small>
-              </header>
-              <DockerVolumeRow
-                v-for="volume in visibleItems(volumeGroupKey(group.id), group.items, true)"
-                :key="volume.name"
-                :volume="volume"
-                :busy="busyId === volume.name"
-                @detail="volumeDetailTarget = volume"
-                @remove="requestRemoveVolume(volume)"
-              />
-              <QtermLoadMore
-                class="px-2.5 py-1.5"
-                :visible="visibleCount(volumeGroupKey(group.id), group.items.length, true)"
-                :total="group.items.length"
-                :load-more-label="t('shell.common.loadMore')"
-                @load-more="loadMore(volumeGroupKey(group.id), group.items.length)"
-              />
-            </section>
-          </div>
+              <QtermButton
+                variant="destructive"
+                size="xs"
+                :disabled="!unusedVolumes.length || pruningVolumes || !!busyId"
+                @click="requestPruneVolumes"
+              >
+                {{ t('shell.docker.pruneVolumes') }}
+              </QtermButton>
+            </div>
+
+            <div data-testid="docker-volumes">
+              <section
+                v-for="group in volumeGroups"
+                :key="group.id"
+                :data-volume-group="group.id"
+                class="mx-2 mt-2 overflow-hidden rounded-[8px] border border-qt-border"
+              >
+                <header class="flex min-w-0 items-center gap-2 px-2.5 py-2">
+                  <span class="truncate text-sm font-medium text-qt-text">{{ group.title }}</span>
+                  <small class="shrink-0 rounded-full bg-qt-hover px-1.5 text-xs leading-4 text-qt-muted">{{
+                    group.items.length
+                  }}</small>
+                </header>
+                <DockerVolumeRow
+                  v-for="volume in visibleItems(volumeGroupKey(group.id), group.items, true)"
+                  :key="volume.name"
+                  :volume="volume"
+                  :busy="busyId === volume.name"
+                  @detail="volumeDetailTarget = volume"
+                  @remove="requestRemoveVolume(volume)"
+                />
+                <QtermLoadMore
+                  class="px-2.5 py-1.5"
+                  :visible="visibleCount(volumeGroupKey(group.id), group.items.length, true)"
+                  :total="group.items.length"
+                  :load-more-label="t('shell.common.loadMore')"
+                  @load-more="loadMore(volumeGroupKey(group.id), group.items.length)"
+                />
+              </section>
+            </div>
+          </template>
         </template>
 
         <template v-else>
-          <div
-            class="flex items-center justify-end gap-1 border-b border-qt-border px-2 py-2"
-            data-testid="docker-network-tools"
-          >
-            <QtermButton
-              variant="destructive"
-              size="xs"
-              :disabled="!removableUnusedNetworks.length || pruningNetworks || !!busyId"
-              @click="requestPruneNetworks"
-            >
-              {{ t('shell.docker.pruneNetworks') }}
-            </QtermButton>
-          </div>
+          <QtermEmptyState
+            v-if="networkTab.loading && !networkTab.items.length"
+            variant="outlined"
+            role="status"
+            busy
+            :icon="Loader2"
+            icon-class="spin"
+            class="mx-1 my-2 px-3"
+            :description="t('shell.docker.loadingNetworks')"
+            data-testid="docker-networks-loading"
+          />
 
-          <p v-if="networkTab.loading && !networkTab.items.length" class="m-0 px-2 py-2 text-xs text-qt-muted">
-            {{ t('shell.docker.loadingNetworks') }}
-          </p>
+          <QtermEmptyState
+            v-else-if="networkTab.error"
+            variant="outlined"
+            role="alert"
+            :icon="CircleAlert"
+            class="mx-1 my-2 px-3"
+            :description="networkTab.error"
+            data-testid="docker-networks-error"
+          />
 
           <QtermEmptyState
             v-else-if="!networkTab.items.length"
+            variant="outlined"
             :icon="Network"
             :title="t('shell.docker.networksEmpty')"
             :description="t('shell.docker.networksEmptyHint')"
+            class="mx-1 my-2 px-3"
             data-testid="docker-networks-empty"
-          />
-
-          <div v-else data-testid="docker-networks">
-            <section
-              v-for="group in networkGroups"
-              :key="group.id"
-              :data-network-group="group.id"
-              class="mx-2 mt-2 overflow-hidden rounded-[8px] border border-qt-border"
+          >
+            <QtermButton
+              size="sm"
+              variant="outline"
+              class="mt-2"
+              :disabled="refreshing || !props.sessionId"
+              @click="refresh"
             >
-              <header class="flex min-w-0 items-center gap-2 px-2.5 py-2">
-                <span class="truncate text-sm font-medium text-qt-text">{{ group.title }}</span>
-                <small class="shrink-0 rounded-full bg-qt-hover px-1.5 text-xs leading-4 text-qt-muted">{{
-                  group.items.length
-                }}</small>
-              </header>
-              <DockerNetworkRow
-                v-for="network in visibleItems(networkGroupKey(group.id), group.items, true)"
-                :key="network.id || network.name"
-                :network="network"
-                :busy="busyId === network.id"
-                @detail="networkDetailTarget = network"
-                @remove="requestRemoveNetwork(network)"
-              />
-              <QtermLoadMore
-                class="px-2.5 py-1.5"
-                :visible="visibleCount(networkGroupKey(group.id), group.items.length, true)"
-                :total="group.items.length"
-                :load-more-label="t('shell.common.loadMore')"
-                @load-more="loadMore(networkGroupKey(group.id), group.items.length)"
-              />
-            </section>
-          </div>
+              {{ t('shell.docker.refresh') }}
+            </QtermButton>
+          </QtermEmptyState>
+
+          <template v-else>
+            <div
+              class="flex items-center justify-end gap-1 border-b border-qt-border px-2 py-2"
+              data-testid="docker-network-tools"
+            >
+              <QtermButton
+                variant="destructive"
+                size="xs"
+                :disabled="!removableUnusedNetworks.length || pruningNetworks || !!busyId"
+                @click="requestPruneNetworks"
+              >
+                {{ t('shell.docker.pruneNetworks') }}
+              </QtermButton>
+            </div>
+
+            <div data-testid="docker-networks">
+              <section
+                v-for="group in networkGroups"
+                :key="group.id"
+                :data-network-group="group.id"
+                class="mx-2 mt-2 overflow-hidden rounded-[8px] border border-qt-border"
+              >
+                <header class="flex min-w-0 items-center gap-2 px-2.5 py-2">
+                  <span class="truncate text-sm font-medium text-qt-text">{{ group.title }}</span>
+                  <small class="shrink-0 rounded-full bg-qt-hover px-1.5 text-xs leading-4 text-qt-muted">{{
+                    group.items.length
+                  }}</small>
+                </header>
+                <DockerNetworkRow
+                  v-for="network in visibleItems(networkGroupKey(group.id), group.items, true)"
+                  :key="network.id || network.name"
+                  :network="network"
+                  :busy="busyId === network.id"
+                  @detail="networkDetailTarget = network"
+                  @remove="requestRemoveNetwork(network)"
+                />
+                <QtermLoadMore
+                  class="px-2.5 py-1.5"
+                  :visible="visibleCount(networkGroupKey(group.id), group.items.length, true)"
+                  :total="group.items.length"
+                  :load-more-label="t('shell.common.loadMore')"
+                  @load-more="loadMore(networkGroupKey(group.id), group.items.length)"
+                />
+              </section>
+            </div>
+          </template>
         </template>
       </template>
     </ScrollArea>
