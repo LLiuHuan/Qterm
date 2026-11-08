@@ -69,7 +69,17 @@ jobs:
           RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
+          # NSIS 的原生版本字段要求数字；当前安装包流水线只发布稳定的三段版本。
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "发布标签必须为 vX.Y.Z 数字稳定版本；当前安装包不支持预发布或构建后缀。" >&2
+            exit 1
+          fi
           node build/stamp-version.mjs "${RELEASE_TAG#v}"
+
+      # npm ci 只安装依赖；dist 不入库，必须在盖章后构建，才能把本次版本写入前端。
+      # 两个架构都先生成宿主机产物，再由下面的 Docker 挂载读取。
+      - name: Build frontend
+        run: npm --prefix frontend run build
 
       # 打包镜像基于仓库自己的交叉编译镜像（zig + macOS SDK + GTK/WebKit 头文件）。
       - name: Build cross image
@@ -119,7 +129,10 @@ jobs:
         run: |
           set -euo pipefail
           cd artifacts
-          ls -1 | sort | xargs sha256sum > SHA256SUMS
+          # 只对发布文件计算摘要，避免把正在写入的清单自身也算进去。
+          export LC_ALL=C
+          sha256sum qterm-* > SHA256SUMS
+          sha256sum --check SHA256SUMS
           cat SHA256SUMS
 
       - name: Create or update release

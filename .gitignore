@@ -1,5 +1,7 @@
 .cache/
-build
+/changeme
+/-.o
+/build/linux/qterm.desktop
 .DS_Store
 bin/
 .idea/

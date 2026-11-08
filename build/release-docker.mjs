@@ -5,12 +5,11 @@ import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIRECTORY = dirname(fileURLToPath(import.meta.url));
@@ -66,7 +65,7 @@ export function writeChecksums(directory, names) {
   return path;
 }
 
-function parseArguments(argv) {
+export function parseArguments(argv) {
   const options = {
     targets: "darwin,windows,linux",
     dryRun: false,
@@ -87,9 +86,75 @@ function parseArguments(argv) {
     else if (argument === "--out") options.out = resolve(argv[(index += 1)]);
     else throw new Error(`无法识别的参数：${argument}`);
   }
-  if (!/^[a-z,]+$/.test(options.targets))
+  const targets = options.targets?.split(",") ?? [];
+  if (
+    !targets.length ||
+    targets.some((target) => !["darwin", "windows", "linux"].includes(target))
+  ) {
     throw new Error(`--targets 不合法：${options.targets}`);
+  }
+  if (new Set(targets).size !== targets.length)
+    throw new Error("--targets 不能重复");
+  if (options.out) relativeToRoot(options.out);
   return options;
+}
+
+export function validateFrontendBuild(root = ROOT) {
+  const index = join(root, "frontend", "dist", "index.html");
+  if (
+    !existsSync(index) ||
+    !statSync(index).isFile() ||
+    statSync(index).size === 0
+  ) {
+    throw new Error(
+      "缺少有效的 frontend/dist/index.html，请先执行 npm --prefix frontend run build",
+    );
+  }
+}
+
+export function expectedArtifacts(options, architecture = process.arch) {
+  const names = [];
+  const targets = options.targets.split(",");
+  if (targets.includes("darwin")) {
+    for (const arch of ["amd64", "arm64"]) {
+      names.push(`qterm-darwin-${arch}.zip`);
+      if (!options.skipDmg) names.push(`qterm-darwin-${arch}.dmg`);
+    }
+  }
+  if (targets.includes("windows")) {
+    for (const arch of ["amd64", "arm64"])
+      names.push(
+        `qterm-windows-${arch}.zip`,
+        `qterm-windows-${arch}-setup.exe`,
+      );
+  }
+  if (targets.includes("linux")) {
+    const arch = architecture === "x64" ? "amd64" : architecture;
+    if (!["amd64", "arm64"].includes(arch))
+      throw new Error(`不支持的 Linux 发布架构：${architecture}`);
+    for (const extension of ["deb", "rpm", "AppImage", "tar.gz"])
+      names.push(`qterm-linux-${arch}.${extension}`);
+  }
+  return names.sort();
+}
+
+export function validateArtifacts(
+  directory,
+  options,
+  architecture = process.arch,
+) {
+  const names = expectedArtifacts(options, architecture);
+  for (const name of names) {
+    const file = join(directory, name);
+    if (
+      !existsSync(file) ||
+      !statSync(file).isFile() ||
+      statSync(file).size === 0
+    ) {
+      throw new Error(`发布产物缺失或为空：${name}`);
+    }
+  }
+  return names;
 }
 
 async function main() {
@@ -121,9 +186,11 @@ async function main() {
     console.log(`[release-docker] 产物目录：${outDirectory}`);
     if (!options.skipFrontend)
       console.log(`[release-docker] 前端：npm ${frontendCommand.join(" ")}`);
-    console.log(
-      `[release-docker] 镜像：docker build -f build/docker/Dockerfile.release -t ${IMAGE} .`,
-    );
+    if (options.skipImage) console.log(`[release-docker] 复用镜像：${IMAGE}`);
+    else
+      console.log(
+        `[release-docker] 镜像：docker build -f build/docker/Dockerfile.release -t ${IMAGE} .`,
+      );
     console.log(`[release-docker] 打包：docker ${dockerRun.join(" ")}`);
     console.log("[release-docker] 随后写入 SHA256SUMS");
     return;
@@ -133,6 +200,7 @@ async function main() {
     console.log("[release-docker] 构建前端（产物被 go:embed 打进二进制）");
     await run("npm", frontendCommand);
   }
+  validateFrontendBuild();
 
   console.log(`[release-docker] 校验版本戳（${version}）`);
   await run("node", [
@@ -180,9 +248,7 @@ async function main() {
     `/app/${relativeToRoot(outDirectory)}`,
   ]);
 
-  const names = readdirSync(outDirectory).filter((name) =>
-    statSync(join(outDirectory, name)).isFile(),
-  );
+  const names = validateArtifacts(outDirectory, options);
   const checksumPath = writeChecksums(outDirectory, names);
   console.log(`[release-docker] 产物 ${names.length} 个：`);
   for (const name of names.sort()) console.log(`  ${name}`);
@@ -200,7 +266,16 @@ async function imageExists(tag) {
 }
 
 function relativeToRoot(target) {
-  return target.startsWith(`${ROOT}/`) ? target.slice(ROOT.length + 1) : target;
+  const result = relative(ROOT, target);
+  if (
+    !result ||
+    result === ".." ||
+    result.startsWith(`..${sep}`) ||
+    isAbsolute(result)
+  ) {
+    throw new Error("--out 必须是项目目录内的子目录，以便挂载给打包容器");
+  }
+  return result.split(sep).join("/");
 }
 
 if (
