@@ -20,6 +20,39 @@ Qterm is a desktop connection management tool built with **Go, Wails v3, Vue 3, 
 
 The interface is available in seven languages: Simplified Chinese, Traditional Chinese, English, French, Japanese, Korean, and Russian.
 
+## Screenshots
+
+**Terminal, SFTP, and context menu tools**
+
+![Terminal, SFTP, and context menu tools](public/img_3.png)
+
+<details>
+<summary>Split panes and a custom background</summary>
+
+![Split panes and a custom background](public/img_4.png)
+
+</details>
+
+<details>
+<summary>Light and dark themes</summary>
+
+**Light theme home screen**
+
+![Light theme home screen](public/img.png)
+
+**Dark theme home screen**
+
+![Dark theme home screen](public/img_2.png)
+
+</details>
+
+<details>
+<summary>Application settings</summary>
+
+![Application settings](public/img_1.png)
+
+</details>
+
 ## Feature overview
 
 ### Hosts and connections

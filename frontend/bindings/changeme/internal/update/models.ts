@@ -8,6 +8,8 @@ export interface Asset {
 export interface Release {
   hasUpdate: boolean
 
+  noRelease: boolean
+
   version: string
   tag: string
   name: string
@@ -23,6 +25,8 @@ export enum State {
   StateIdle = 'idle',
   StateChecking = 'checking',
   StateUpToDate = 'up-to-date',
+
+  StateNoRelease = 'no-release',
   StateAvailable = 'available',
   StateDownloading = 'downloading',
   StateReady = 'ready',

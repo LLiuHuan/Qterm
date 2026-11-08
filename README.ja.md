@@ -20,6 +20,39 @@ Qterm は **Go、Wails v3、Vue 3、TypeScript** で構築したデスクトッ�
 
 インターフェースは简体中文、繁體中文、English、Français、日本語、한국어、Русский の 7 言語に対応しています。
 
+## スクリーンショット
+
+**ターミナル、SFTP、右クリックメニュー**
+
+![ターミナル、SFTP、右クリックメニュー](public/img_3.png)
+
+<details>
+<summary>分割ペインとカスタム背景</summary>
+
+![分割ペインとカスタム背景](public/img_4.png)
+
+</details>
+
+<details>
+<summary>ライトテーマとダークテーマ</summary>
+
+**ライトテーマのホーム画面**
+
+![ライトテーマのホーム画面](public/img.png)
+
+**ダークテーマのホーム画面**
+
+![ダークテーマのホーム画面](public/img_2.png)
+
+</details>
+
+<details>
+<summary>アプリ設定</summary>
+
+![アプリ設定](public/img_1.png)
+
+</details>
+
 ## 機能概要
 
 ### ホストと接続

@@ -43,6 +43,10 @@ jobs:
             targets: linux
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 手动运行时以输入的 tag 为准；否则 checkout 默认分支会把手动发布
+          # 错打成“默认分支当前代码 + 目标版本号”。推送 tag 时 ref_name 就是该 tag。
+          ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
 
       - uses: actions/setup-go@v5
         with:
@@ -61,10 +65,11 @@ jobs:
 
       - name: Stamp version from tag
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          tag="${{ github.event.inputs.tag || github.ref_name }}"
-          node build/stamp-version.mjs "${tag#v}"
+          node build/stamp-version.mjs "${RELEASE_TAG#v}"
 
       # 打包镜像基于仓库自己的交叉编译镜像（zig + macOS SDK + GTK/WebKit 头文件）。
       - name: Build cross image
@@ -99,6 +104,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 发布 job 必须从同一个 tag checkout，避免 Release 内容与产物代码不一致。
+          ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
 
       - uses: actions/download-artifact@v4
         with:

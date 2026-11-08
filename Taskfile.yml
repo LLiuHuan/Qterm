@@ -61,8 +61,13 @@ tasks:
       VERIFY=true 时额外跑一次前端构建与 go build，确认去注释后的快照仍可构建；
       WORKTREE=true 时以工作区（含未提交/未跟踪文件）为来源——本地数据库被未提交的迁移
       升级过时必须这样做，否则快照只支持旧 schema，应用会拒绝启动。
+      默认只生成代码，不暂存、不提交、不推送；生成后请人工检查差异并提交。
+      COMMIT=true MESSAGE="fix: 具体更新内容" 可显式创建提交，不再自动生成快照提交信息。
     cmds:
-      - node scripts/public-mirror.mjs --out {{.OUT | default "../Qterm-public"}} {{if eq .VERIFY "true"}}--verify{{end}} {{if eq .WORKTREE "true"}}--worktree{{end}}
+      - node scripts/public-mirror.mjs --out "$QTERM_MIRROR_OUT" {{if eq .VERIFY "true"}}--verify{{end}} {{if eq .WORKTREE "true"}}--worktree{{end}} {{if eq .COMMIT "true"}}--commit{{end}} {{if .MESSAGE}}--message "$QTERM_MIRROR_MESSAGE"{{end}}
+    env:
+      QTERM_MIRROR_OUT: '{{.OUT | default "../Qterm-public"}}'
+      QTERM_MIRROR_MESSAGE: '{{.MESSAGE | default ""}}'
 
   dev:
     summary: Runs the application in development mode

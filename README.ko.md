@@ -20,6 +20,39 @@ Qterm은 **Go, Wails v3, Vue 3, TypeScript**로 만든 데스크톱 연결 관�
 
 简体中文, 繁體中文, English, Français, 日本語, 한국어, Русский 7개 언어의 인터페이스를 지원합니다.
 
+## 스크린샷
+
+**터미널, SFTP 및 우클릭 메뉴**
+
+![터미널, SFTP 및 우클릭 메뉴](public/img_3.png)
+
+<details>
+<summary>분할 작업 공간과 사용자 지정 배경</summary>
+
+![분할 작업 공간과 사용자 지정 배경](public/img_4.png)
+
+</details>
+
+<details>
+<summary>밝은 테마와 어두운 테마</summary>
+
+**밝은 테마의 홈 화면**
+
+![밝은 테마의 홈 화면](public/img.png)
+
+**어두운 테마의 홈 화면**
+
+![어두운 테마의 홈 화면](public/img_2.png)
+
+</details>
+
+<details>
+<summary>앱 설정</summary>
+
+![앱 설정](public/img_1.png)
+
+</details>
+
 ## 기능 개요
 
 ### 호스트와 연결

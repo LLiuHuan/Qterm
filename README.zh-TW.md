@@ -20,6 +20,39 @@ Qterm 是以 **Go、Wails v3、Vue 3 與 TypeScript** 打造的桌面連線管�
 
 支援簡體中文、繁體中文、English、Français、日本語、한국어 與 Русский 七種介面語言。
 
+## 介面預覽
+
+**終端、SFTP 與右鍵工具**
+
+![終端、SFTP 與右鍵工具](public/img_3.png)
+
+<details>
+<summary>分割工作區與自訂背景</summary>
+
+![分割工作區與自訂背景](public/img_4.png)
+
+</details>
+
+<details>
+<summary>淺色與深色介面</summary>
+
+**淺色首頁**
+
+![淺色首頁](public/img.png)
+
+**深色首頁**
+
+![深色首頁](public/img_2.png)
+
+</details>
+
+<details>
+<summary>應用程式設定</summary>
+
+![應用程式設定](public/img_1.png)
+
+</details>
+
 ## 功能總覽
 
 ### 主機與連線

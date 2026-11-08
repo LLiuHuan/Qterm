@@ -20,6 +20,39 @@ Qterm est un outil de gestion de connexions de bureau construit avec **Go, Wails
 
 L’interface est disponible en sept langues : chinois simplifié, chinois traditionnel, anglais, français, japonais, coréen et russe.
 
+## Captures d’écran
+
+**Terminal, SFTP et menu contextuel**
+
+![Terminal, SFTP et menu contextuel](public/img_3.png)
+
+<details>
+<summary>Volets divisés et arrière-plan personnalisé</summary>
+
+![Volets divisés et arrière-plan personnalisé](public/img_4.png)
+
+</details>
+
+<details>
+<summary>Thèmes clair et sombre</summary>
+
+**Accueil en thème clair**
+
+![Accueil en thème clair](public/img.png)
+
+**Accueil en thème sombre**
+
+![Accueil en thème sombre](public/img_2.png)
+
+</details>
+
+<details>
+<summary>Paramètres de l’application</summary>
+
+![Paramètres de l’application](public/img_1.png)
+
+</details>
+
 ## Vue d’ensemble des fonctionnalités
 
 ### Hôtes et connexions
