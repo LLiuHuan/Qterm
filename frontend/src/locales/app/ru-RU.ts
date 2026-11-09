@@ -150,6 +150,7 @@ export const appRu: Record<string, string> = {
   'about.update.bell.title': 'Новая версия v{version} готова',
   'about.update.bell.body': 'Загрузка и проверка завершены. Перезапустите приложение, чтобы завершить обновление.',
   'about.update.bell.dismiss': 'Отмена',
+  'about.update.bell.dismissHint': 'Закрывает только это окно — колокольчик остаётся',
   'about.debug.title': 'Журнал отладки',
   'about.debug.description':
     'Записывает подробную диагностику локально во время поиска проблемы. По умолчанию отключено.',
@@ -189,6 +190,7 @@ export const appRu: Record<string, string> = {
   'history.note.saveFailure': 'Не удалось сохранить заметку.',
   'history.search.placeholder': 'Поиск по хосту, адресу, состоянию или заметке',
   'history.search.aria': 'Поиск по истории сессий',
+  'history.search.clear': 'Очистить поиск',
   'history.empty.filtered': 'Нет подходящих сессий в истории.',
   'history.loading': 'Загрузка истории сессий…',
   'history.type.ssh': 'SSH',
@@ -208,6 +210,7 @@ export const appRu: Record<string, string> = {
   'history.recording.export.failure': 'Не удалось экспортировать запись.',
   'history.recording.search.placeholder': 'Поиск по хосту, состоянию или заметке',
   'history.recording.search.aria': 'Поиск записей терминала',
+  'history.recording.search.clear': 'Очистить поиск',
   'history.recording.loading': 'Загрузка записей терминала…',
   'history.recording.directory.title': 'Каталог для записей сессий',
   'history.recording.directory.description':

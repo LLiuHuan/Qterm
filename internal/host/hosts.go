@@ -169,6 +169,44 @@ func hostUsesInlineProxy(host model.Host) bool {
 	return strings.TrimSpace(*host.ProxyMode) != "" && strings.TrimSpace(*host.ProxyMode) != model.ProxyModeNone
 }
 
+func (s *HostService) DuplicateHost(id, name string) (model.Host, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return model.Host{}, errno.New(errno.CodeInvalidArg, "host.id_required", "")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return model.Host{}, &model.ValidationError{
+			Field:  "name",
+			Reason: "不能为空",
+			Err:    model.ErrInvalidHost,
+		}
+	}
+
+	newHostID, err := randomID("host")
+	if err != nil {
+		return model.Host{}, errno.New(errno.CodeUnknown, "host.id_failed", "")
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.store == nil {
+		return model.Host{}, ErrHostServiceNotReady
+	}
+
+	duplicated, err := s.store.DuplicateHost(context.Background(), id, newHostID, name)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return model.Host{}, errno.New(errno.CodeNotFound, "host.not_found", "")
+		}
+		if errors.Is(err, model.ErrCredentialVaultLocked) {
+			return model.Host{}, errno.New(errno.CodePermissionDenied, "host.password_unavailable", "")
+		}
+		return model.Host{}, errno.New(errno.CodeStoreFailed, "host.save_failed", "")
+	}
+	return duplicated, nil
+}
+
 func (s *HostService) DeleteHost(id string) error {
 	id = strings.TrimSpace(id)
 	if id == "" {

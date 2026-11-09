@@ -181,6 +181,8 @@ export interface HostGateway {
   listGroups(): Promise<GroupRecord[]>
   create(input: HostDraft): Promise<HostRecord>
   update(id: string, input: HostDraft): Promise<HostRecord>
+
+  duplicate(id: string, name: string): Promise<HostRecord>
   remove(id: string): Promise<void>
   createGroup(name: string, parentId?: string): Promise<GroupRecord>
   updateGroup(id: string, name: string): Promise<GroupRecord>
@@ -357,6 +359,24 @@ class MemoryHostGateway implements HostGateway {
               : this.hosts[index].proxyPasswordConfigured === true,
     }
     this.hosts[index] = host
+    return { ...host }
+  }
+
+  async duplicate(id: string, name: string): Promise<HostRecord> {
+    const index = this.hosts.findIndex((host) => host.id === id)
+    if (index < 0) throw new Error('主机不存在')
+    const source = this.hosts[index]
+    const now = new Date().toISOString()
+
+    const host: HostRecord = {
+      ...source,
+      id: createID('host'),
+      name: name.trim() || source.name,
+      sortOrder: this.nextHostOrder(source.groupId),
+      createdAt: now,
+      updatedAt: now,
+    }
+    this.hosts.push(host)
     return { ...host }
   }
 
@@ -616,6 +636,12 @@ class WailsHostGateway implements HostGateway {
     return toRecord((await UpdateHost(id, payload)) as HostRecord)
   }
 
+  async duplicate(id: string, name: string): Promise<HostRecord> {
+    const { DuplicateHost } = await import('../../bindings/changeme/internal/app/service')
+
+    return toRecord((await DuplicateHost(id, name)) as HostRecord)
+  }
+
   async remove(id: string): Promise<void> {
     const { DeleteHost } = await import('../../bindings/changeme/internal/app/service')
     await DeleteHost(id)
@@ -676,6 +702,9 @@ class DeferredHostGateway implements HostGateway {
   }
   update(id: string, input: HostDraft): Promise<HostRecord> {
     return this.target.update(id, input)
+  }
+  duplicate(id: string, name: string): Promise<HostRecord> {
+    return this.target.duplicate(id, name)
   }
   remove(id: string): Promise<void> {
     return this.target.remove(id)

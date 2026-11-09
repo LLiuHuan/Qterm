@@ -31,6 +31,8 @@
 .qterm-shell.has-page-background {
   --qt-border: var(--qt-background-border);
   --qt-muted: var(--qt-background-muted);
+
+  --qt-hover: var(--qt-background-hover);
 }
 
 .qterm-shell.has-page-background :is(.topbar, .session-window-titlebar),
@@ -69,7 +71,7 @@
 }
 
 .qterm-shell.has-page-background
-  :is(.topbar, .session-window-titlebar, .sidebar, .session-tabs, .pane-titlebar, .tool-rail, .tool-panel)
+  :is(.session-window-titlebar, .sidebar, .session-tabs, .pane-titlebar, .tool-rail, .tool-panel)
   svg {
   filter: var(--qt-background-icon-shadow);
 }

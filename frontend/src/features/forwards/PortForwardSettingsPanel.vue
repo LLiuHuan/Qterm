@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { FolderPlus, Loader2, Pencil, Plus, Route, Trash2 } from '@lucide/vue'
-import { QtermButton, QtermEmptyState, QtermSearchToolbar } from '@/components/common'
+import { QtermButton, QtermEmptyState, QtermSearchToolbar, QtermSwitch } from '@/components/common'
 import { Accordion, AccordionContent, AccordionItem } from '@/components/common/control-primitives'
 import SettingsGroupHeader from '@/components/common/settings/SettingsGroupHeader.vue'
 import { ScrollArea } from '@/components/common/control-primitives'
@@ -9,7 +9,12 @@ import QtermLoadMore from '@/components/common/layout/QtermLoadMore.vue'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '@/components/common/dialog'
 import { useI18n } from '@/locales'
 import type { HostRecord } from '@/services/hosts'
-import type { PortForwardConfig } from '../../services/forwards'
+import {
+  PORT_FORWARD_STATUS_EVENT,
+  type PortForwardConfig,
+  type PortForwardState,
+  type PortForwardStatus,
+} from '../../services/forwards'
 import { useSnippetGroupPagination } from '../snippets/useSnippetGroupPagination'
 import PortForwardEditorDialog from './PortForwardEditorDialog.vue'
 import PortForwardGroupDialog from './PortForwardGroupDialog.vue'
@@ -38,6 +43,10 @@ const props = withDefaults(
     loading?: boolean
 
     error?: string
+
+    searchQuery?: string
+
+    searchRevision?: number
   }>(),
   {
     forwards: () => [],
@@ -46,6 +55,8 @@ const props = withDefaults(
     activeHostId: '',
     loading: false,
     error: '',
+    searchQuery: '',
+    searchRevision: 0,
   },
 )
 
@@ -60,6 +71,76 @@ const actions = usePortForwardActions({
   update: (next) => emit('update:forwards', next),
 })
 
+const statuses = ref<Record<string, PortForwardStatus>>({})
+const busy = ref<Record<string, boolean>>({})
+
+function stateOf(id: string): PortForwardState {
+  return statuses.value[id]?.state ?? 'stopped'
+}
+
+function isActive(id: string): boolean {
+  const state = stateOf(id)
+  return state === 'running' || state === 'starting' || state === 'reconnecting'
+}
+
+async function refreshStatuses(): Promise<void> {
+  const next: Record<string, PortForwardStatus> = {}
+  await Promise.all(
+    props.forwards.map(async (row) => {
+      const status = await actions.gateway.status(row.id).catch(() => null)
+      if (status) next[row.id] = status
+    }),
+  )
+  statuses.value = next
+}
+
+async function handleToggle(row: PortForwardConfig, enabled: boolean): Promise<void> {
+  busy.value = { ...busy.value, [row.id]: true }
+  try {
+    statuses.value = { ...statuses.value, [row.id]: await actions.setEnabled(row, enabled) }
+  } catch {
+    await refreshStatuses()
+  } finally {
+    const next = { ...busy.value }
+    delete next[row.id]
+    busy.value = next
+  }
+}
+
+let stopStatusEvents: (() => void) | undefined
+
+async function attachStatusEvents(): Promise<void> {
+  if (stopStatusEvents) return
+  try {
+    const { Events } = await import('@wailsio/runtime')
+    stopStatusEvents = Events.On(PORT_FORWARD_STATUS_EVENT, (event: { data?: unknown }) => {
+      const detail = event?.data as PortForwardStatus | undefined
+      if (!detail?.id) return
+      const previous = statuses.value[detail.id]
+
+      if (previous && previous.updatedAt > detail.updatedAt) return
+      statuses.value = { ...statuses.value, [detail.id]: detail }
+    })
+  } catch {
+    stopStatusEvents = undefined
+  }
+}
+
+onMounted(() => {
+  void attachStatusEvents()
+  void refreshStatuses()
+})
+
+onBeforeUnmount(() => {
+  stopStatusEvents?.()
+  stopStatusEvents = undefined
+})
+
+watch(
+  () => props.forwards.map((row) => row.id).join('|'),
+  () => void refreshStatuses(),
+)
+
 const sshHosts = computed(() =>
   props.hosts.filter((host) => !host.protocol || host.protocol.trim().toLocaleLowerCase() === 'ssh'),
 )
@@ -69,6 +150,14 @@ const groupOptions = computed(() => mergeForwardGroups(props.forwards, props.for
 const ungroupedLabel = computed(() => t('shell.forwards.ungrouped'))
 
 const query = ref('')
+
+watch(
+  [() => props.searchQuery, () => props.searchRevision],
+  ([value]) => {
+    query.value = value
+  },
+  { immediate: true },
+)
 
 const sections = computed(() =>
   forwardSections(props.forwards, {
@@ -288,6 +377,19 @@ function confirmGroupDelete(): void {
                     </span>
                   </div>
                   <div class="settings-library-row-actions flex shrink-0 items-center gap-1">
+                    <span
+                      v-if="isActive(row.id)"
+                      class="shrink-0 rounded-full bg-qt-subtle px-2 text-xs leading-4 text-qt-success"
+                      data-forward-running
+                      >{{ t('shell.forwards.stateRunning') }}</span
+                    >
+                    <QtermSwitch
+                      :model-value="isActive(row.id)"
+                      :disabled="busy[row.id] === true"
+                      :aria-label="t('shell.forwards.action.toggle', { name: forwardDisplayName(row) })"
+                      data-forward-toggle
+                      @update:model-value="(value: boolean) => handleToggle(row, value)"
+                    />
                     <QtermButton
                       variant="ghost"
                       size="icon-sm"

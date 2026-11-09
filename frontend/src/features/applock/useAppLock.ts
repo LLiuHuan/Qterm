@@ -2,13 +2,17 @@ import { computed, readonly, ref } from 'vue'
 import { createAppLockGateway, type AppLockStatus } from '../../services/appLock'
 import { hasWailsRuntime, whenWailsRuntime } from '../../services/runtime'
 
-const status = ref<AppLockStatus>({
+const EMPTY_STATUS: AppLockStatus = {
   enabled: false,
   hasPassword: false,
   autoLockMinutes: 0,
   hasRecovery: false,
   recoveryQuestion: '',
-})
+  touchIdEnabled: false,
+  touchIdAvailable: false,
+}
+
+const status = ref<AppLockStatus>({ ...EMPTY_STATUS })
 const locked = ref(false)
 const ready = ref(false)
 const gateway = createAppLockGateway()
@@ -65,13 +69,7 @@ async function refresh(lockOnStart = false): Promise<void> {
   try {
     status.value = await gateway.status()
   } catch {
-    status.value = {
-      enabled: false,
-      hasPassword: false,
-      autoLockMinutes: 0,
-      hasRecovery: false,
-      recoveryQuestion: '',
-    }
+    status.value = { ...EMPTY_STATUS }
   }
   if (!status.value.enabled) {
     locked.value = false
@@ -94,10 +92,26 @@ function lock(): void {
 async function unlock(password: string): Promise<boolean> {
   const ok = await gateway.verify(password)
   if (!ok) return false
+  finishUnlock()
+  return true
+}
+
+function finishUnlock(): void {
   locked.value = false
   restartIdleTimer()
   void gateway.broadcastLocked(false)
+}
+
+async function unlockWithTouchId(): Promise<boolean> {
+  const ok = await gateway.verifyTouchId()
+  if (!ok) return false
+  finishUnlock()
   return true
+}
+
+async function setTouchIdEnabled(enabled: boolean): Promise<void> {
+  await gateway.setTouchIdEnabled(enabled)
+  await refresh()
 }
 
 async function enable(password: string, autoLockMinutes: number, question = '', answer = ''): Promise<void> {
@@ -160,6 +174,10 @@ export function useAppLock() {
     ready: readonly(ready),
     enabled: computed(() => status.value.enabled),
     autoLockMinutes: computed(() => status.value.autoLockMinutes),
+
+    touchIdUnlockAvailable: computed(
+      () => status.value.enabled && status.value.touchIdEnabled && status.value.touchIdAvailable,
+    ),
     initAppLock,
     refresh,
     lock,
@@ -169,5 +187,7 @@ export function useAppLock() {
     changePassword,
     disable,
     setAutoLockMinutes,
+    unlockWithTouchId,
+    setTouchIdEnabled,
   }
 }

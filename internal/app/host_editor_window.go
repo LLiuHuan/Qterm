@@ -42,7 +42,7 @@ func (s *Service) OpenHostEditorWindow(ctx context.Context, hostID string) error
 			return nil
 		}
 		focusAuxiliaryWindow(window)
-		s.emitMaskState(maskWindowKindHostEditor, "")
+		s.emitMaskState(maskWindowKindHostEditor, "", "")
 
 		if app := application.Get(); app != nil {
 			app.Event.Emit(hostEditorTargetEvent, hostEditorTargetPayload{HostID: hostID})
@@ -77,7 +77,7 @@ func (s *Service) CloseHostEditorWindow() error {
 			s.hostEditorShown.Store(false)
 		}
 		s.hostEditorMu.Unlock()
-		s.emitMaskState("", "")
+		s.emitMaskState("", "", "")
 		window.Close()
 	})
 	return nil
@@ -133,7 +133,7 @@ func (s *Service) ShowHostEditorWindow(ctx context.Context, hostID string) (stri
 
 		target = s.hostEditorTargetID
 		s.hostEditorMu.Unlock()
-		s.emitMaskState(maskWindowKindHostEditor, "")
+		s.emitMaskState(maskWindowKindHostEditor, "", "")
 		return target, nil
 	})
 }
@@ -155,7 +155,7 @@ func (s *Service) registerHostEditorWindow(window application.Window) {
 			s.hostEditorShown.Store(false)
 		}
 		s.hostEditorMu.Unlock()
-		s.emitMaskState("", "")
+		s.emitMaskState("", "", "")
 	})
 }
 

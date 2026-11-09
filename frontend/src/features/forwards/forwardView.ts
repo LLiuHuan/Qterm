@@ -15,7 +15,7 @@ export function forwardListenAddress(row: PortForwardConfig): string {
 
 export function forwardSummary(row: PortForwardConfig): string {
   const listener = forwardListenAddress(row)
-  if (row.kind === 'dynamic') return listener
+  if (row.kind === 'dynamic') return `${listener} (${(row.proxy ?? 'socks5').toUpperCase()})`
   return `${listener} → ${row.targetHost}:${row.targetPort}`
 }
 
@@ -26,6 +26,18 @@ export function forwardDisplayName(row: PortForwardConfig): string {
 export function forwardHostLabel(row: PortForwardConfig, hosts: HostRecord[]): string {
   const host = hosts.find((item) => item.id === row.hostId)
   return host?.name || host?.address || row.hostId
+}
+
+export function filterForwardsByHost(rows: PortForwardConfig[], hostId: string): PortForwardConfig[] {
+  const target = hostId.trim()
+  if (!target) return rows
+  return rows.filter((row) => row.hostId === target)
+}
+
+export function hasForwardForHost(rows: PortForwardConfig[], hostId: string): boolean {
+  const target = hostId.trim()
+  if (!target) return false
+  return rows.some((row) => row.hostId === target)
 }
 
 export function forwardGroupName(row: PortForwardConfig): string {
@@ -46,6 +58,8 @@ export function forwardMatchesQuery(
     forwardListenAddress(row),
     row.targetHost,
     String(row.targetPort),
+
+    row.kind === 'dynamic' ? (row.proxy ?? 'socks5') : '',
     kindLabel,
     forwardHostLabel(row, hosts),
   ]

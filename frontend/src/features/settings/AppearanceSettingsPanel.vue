@@ -933,7 +933,7 @@ function updateOpacity(kind: 'light' | 'dark', value: string | number): void {
           :show-close="false"
         />
         <div
-          class="terminal-theme-editor-grid grid flex-1 min-h-0 grid-cols-[minmax(0,2fr)_minmax(220px,1fr)] gap-4.5 p-4"
+          class="terminal-theme-editor-grid grid flex-1 min-h-0 grid-cols-[minmax(0,2fr)_minmax(220px,1fr)] grid-rows-[minmax(0,1fr)] gap-4.5 p-4"
         >
           <div
             class="terminal-theme-editor-form grid grid-cols-2 grid-rows-[auto_auto_minmax(0,1fr)] [align-content:start] gap-[14px_12px]"

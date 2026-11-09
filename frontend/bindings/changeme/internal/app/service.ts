@@ -425,6 +425,10 @@ export function DockerVolumes(sessionID: string): $CancellablePromise<model$0.Do
   return $Call.ByID(2740883837, sessionID)
 }
 
+export function DuplicateHost(id: string, name: string): $CancellablePromise<model$0.Host> {
+  return $Call.ByID(2519449577, id, name)
+}
+
 export function EnableAppLock(
   password: string,
   autoLockMinutes: number,
@@ -753,9 +757,10 @@ export function OpenSettingsWindow(
   kind: string,
   title: string,
   category: string,
+  search: string,
   resizable: boolean,
 ): $CancellablePromise<void> {
-  return $Call.ByID(1755290403, kind, title, category, resizable)
+  return $Call.ByID(1755290403, kind, title, category, search, resizable)
 }
 
 export function OpenSftpConnection(hostID: string): $CancellablePromise<model$0.Session> {
@@ -1229,6 +1234,10 @@ export function SetAppLockAutoLockMinutes(minutes: number): $CancellablePromise<
   return $Call.ByID(2378997311, minutes)
 }
 
+export function SetAppLockTouchIDEnabled(enabled: boolean): $CancellablePromise<void> {
+  return $Call.ByID(3693842441, enabled)
+}
+
 export function SetAutoUnlock(
   input: credential$0.SetAutoUnlockInput,
 ): $CancellablePromise<credential$0.CredentialVaultStatus> {
@@ -1440,6 +1449,10 @@ export function ValidateResourceBundleData(data: string | null, password: string
 
 export function VerifyAppLockPassword(password: string): $CancellablePromise<boolean> {
   return $Call.ByID(1772111560, password)
+}
+
+export function VerifyAppLockTouchID(): $CancellablePromise<boolean> {
+  return $Call.ByID(2220322101)
 }
 
 export function VncCloseSession(sessionID: string): $CancellablePromise<void> {

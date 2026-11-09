@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -22,12 +24,33 @@ const (
 	ForwardDynamic ForwardKind = "dynamic"
 )
 
+type ForwardProxyProtocol string
+
+const (
+	ForwardProxySOCKS5 ForwardProxyProtocol = "socks5"
+
+	ForwardProxyHTTP ForwardProxyProtocol = "http"
+)
+
 type ForwardSpec struct {
 	Kind       ForwardKind
 	ListenHost string
 	ListenPort int
 	TargetHost string
 	TargetPort int
+
+	Proxy ForwardProxyProtocol
+}
+
+func (s ForwardSpec) proxyProtocol() (ForwardProxyProtocol, error) {
+	switch s.Proxy {
+	case "":
+		return ForwardProxySOCKS5, nil
+	case ForwardProxySOCKS5, ForwardProxyHTTP:
+		return s.Proxy, nil
+	default:
+		return "", fmt.Errorf("unsupported forward proxy protocol %q", s.Proxy)
+	}
 }
 
 type Forward struct {
@@ -192,6 +215,10 @@ func (f *Forward) untrack(conn net.Conn) {
 
 func (f *Forward) handle(ctx context.Context, connection *Connection, client net.Conn) error {
 	if f.spec.Kind == ForwardDynamic {
+
+		if proto, err := f.spec.proxyProtocol(); err == nil && proto == ForwardProxyHTTP {
+			return serveHTTPConnect(ctx, connection, client)
+		}
 		return serveSOCKS5(ctx, connection, client)
 	}
 	target := net.JoinHostPort(f.spec.TargetHost, strconv.Itoa(f.spec.TargetPort))
@@ -246,7 +273,8 @@ func (s ForwardSpec) validate() error {
 		return errors.New("listen port out of range")
 	}
 	if s.Kind == ForwardDynamic {
-		return nil
+		_, err := s.proxyProtocol()
+		return err
 	}
 	if s.TargetHost == "" {
 		return errors.New("forward target host is required")
@@ -376,5 +404,88 @@ func socksWriteReply(conn net.Conn, code byte) error {
 
 	reply := []byte{socksVersion5, code, 0x00, socksAddrIPv4, 0, 0, 0, 0, 0, 0}
 	_, err := conn.Write(reply)
+	return err
+}
+
+const (
+	maxConnectHeaderBytes = 16 * 1024
+
+	connectHeaderTimeout = 30 * time.Second
+)
+
+var errConnectRejected = errors.New("HTTP CONNECT request rejected")
+
+func serveHTTPConnect(ctx context.Context, connection *Connection, client net.Conn) error {
+	target, err := readConnectTarget(client)
+	if err != nil {
+
+		_ = writeConnectResponse(client, "400 Bad Request")
+		return err
+	}
+	remote, err := connection.DialContext(ctx, "tcp", target)
+	if err != nil {
+		_ = writeConnectResponse(client, "502 Bad Gateway")
+		return err
+	}
+	defer remote.Close()
+	if err := writeConnectResponse(client, "200 Connection Established"); err != nil {
+		return err
+	}
+	relay(client, remote)
+	return nil
+}
+
+func readConnectTarget(conn net.Conn) (string, error) {
+	_ = conn.SetReadDeadline(time.Now().Add(connectHeaderTimeout))
+	defer conn.SetReadDeadline(time.Time{})
+
+	reader := bufio.NewReaderSize(conn, 4*1024)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
+	}
+	if len(line) > maxConnectHeaderBytes {
+		return "", errConnectRejected
+	}
+
+	total := len(line)
+	for {
+		header, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		total += len(header)
+		if total > maxConnectHeaderBytes {
+			return "", errConnectRejected
+		}
+		if strings.TrimRight(header, "\r\n") == "" {
+			break
+		}
+	}
+
+	fields := strings.Fields(line)
+	if len(fields) < 3 || !strings.EqualFold(fields[0], "CONNECT") {
+		return "", errConnectRejected
+	}
+
+	if !strings.HasPrefix(fields[2], "HTTP/1.") {
+		return "", errConnectRejected
+	}
+	target := fields[1]
+	host, port, err := net.SplitHostPort(target)
+	if err != nil || host == "" || port == "" {
+		return "", errConnectRejected
+	}
+	number, err := strconv.Atoi(port)
+	if err != nil || number <= 0 || number > 65535 {
+		return "", errConnectRejected
+	}
+	return target, nil
+}
+
+func writeConnectResponse(conn net.Conn, status string) error {
+	_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	defer conn.SetWriteDeadline(time.Time{})
+	_, err := io.WriteString(conn, "HTTP/1.1 "+status+"\r\n\r\n")
 	return err
 }

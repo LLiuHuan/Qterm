@@ -3,10 +3,25 @@ import { computed, onMounted, ref } from 'vue'
 import { QtermButton, QtermInput, QtermNumberField, QtermSettingsRow, QtermSwitch } from '@/components/common'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '@/components/common/dialog'
 import { useI18n } from '@/locales'
+import { decodeAppError } from '../../services/errors'
 import { useAppLock } from './useAppLock'
 
 const { t } = useI18n()
-const { enabled, autoLockMinutes, lock, enable, changePassword, disable, setAutoLockMinutes, refresh } = useAppLock()
+const {
+  enabled,
+  autoLockMinutes,
+  status,
+  lock,
+  enable,
+  changePassword,
+  disable,
+  setAutoLockMinutes,
+  setTouchIdEnabled,
+  refresh,
+} = useAppLock()
+
+const touchIdRowVisible = computed(() => enabled.value && status.value.touchIdAvailable)
+const touchIdWorking = ref(false)
 
 type DialogMode = 'enable' | 'change' | 'disable'
 const dialog = ref<DialogMode | null>(null)
@@ -106,6 +121,28 @@ onMounted(() => {
   void refresh()
 })
 
+async function updateTouchId(next: boolean): Promise<void> {
+  if (touchIdWorking.value || next === status.value.touchIdEnabled) return
+  touchIdWorking.value = true
+  error.value = ''
+  try {
+    await setTouchIdEnabled(next)
+  } catch (reason) {
+    const appError = decodeAppError(reason)
+    if (appError?.messageKey === 'applock.touchIdUnavailable') {
+      error.value = t('applock.touchId.unavailable')
+    } else if (appError?.messageKey === 'applock.notEnabled') {
+      error.value = t('applock.error.notEnabled')
+    } else {
+      error.value = t('applock.error.failed')
+    }
+
+    await refresh().catch(() => undefined)
+  } finally {
+    touchIdWorking.value = false
+  }
+}
+
 async function updateAutoLock(minutes: number): Promise<void> {
   if (!Number.isFinite(minutes) || minutes < 0) return
   try {
@@ -146,6 +183,20 @@ async function updateAutoLock(minutes: number): Promise<void> {
           :decrease-label="t('applock.autoLock.decrease')"
           :increase-label="t('applock.autoLock.increase')"
           @update:model-value="(value) => value !== undefined && updateAutoLock(value)"
+        />
+      </QtermSettingsRow>
+
+      <QtermSettingsRow
+        v-if="touchIdRowVisible"
+        class="settings-switch-row c-p"
+        :label="t('applock.touchId.label')"
+        :description="t('applock.touchId.help')"
+      >
+        <QtermSwitch
+          id="settings-app-lock-touch-id"
+          :model-value="status.touchIdEnabled"
+          :aria-label="t('applock.touchId.label')"
+          @update:model-value="updateTouchId"
         />
       </QtermSettingsRow>
 

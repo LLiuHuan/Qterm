@@ -82,6 +82,7 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.credentials.filter.all': 'すべて（{count}）',
   'settings.credentials.search.placeholder': '名前で認証情報を検索',
   'settings.credentials.search.aria': '名前で認証情報を検索',
+  'settings.credentials.search.clear': '検索を消去',
   'settings.credentials.loading': '認証情報を読み込み中…',
   'settings.credentials.action.edit': '認証情報を編集',
   'settings.credentials.action.delete': '認証情報を削除',
@@ -863,11 +864,6 @@ export const settingsCoreJa: Record<string, string> = {
   'terminal.core.showLineNumbersHelp':
     'ターミナル左側に出力の行番号を表示します。折り返しの継続行とカーソルより下の空行には番号を付けません。有効にするとターミナル幅を 1 列分使います。',
   'terminal.core.gutterMode': 'ターミナル左側の表示',
-  'terminal.core.gutterModeHelp':
-    '表示なし、出力の行番号、コマンド表示から選択します。コマンドモードは Shell Integration を優先します。',
-  'terminal.core.gutterModeOff': '表示なし',
-  'terminal.core.gutterModeLines': '行番号',
-  'terminal.core.gutterModeCommands': 'コマンド',
   'terminal.core.showTimestamps': 'タイムスタンプを表示',
   'terminal.core.showTimestampsHelp':
     '各論理行が最初に内容を出力した時刻を表示します。オフにすると完全な時刻はホバー時のみ表示されます。',

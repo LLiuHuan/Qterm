@@ -43,4 +43,15 @@ export const appLockKo: Record<string, string> = {
   'applock.autoLock.decrease': '자동 잠금 시간 줄이기',
   'applock.autoLock.increase': '자동 잠금 시간 늘리기',
   'applock.error.alreadyEnabled': '앱 잠금이 이미 활성화되어 있습니다. 현재 암호를 입력한 뒤 변경하세요.',
+  'applock.touchId.label': 'Touch ID로 잠금 해제',
+  'applock.touchId.help':
+    '잠긴 뒤 지문 버튼을 누르면 잠금이 풀립니다. 잠길 때 지문 인증이 자동으로 시작되지는 않습니다.',
+  'applock.touchId.unavailable': '이 기기에서는 지금 Touch ID를 사용할 수 없습니다.',
+  'applock.screen.touchIdUnlock': 'Touch ID로 잠금 해제',
+  'applock.screen.touchIdWaiting': '지문을 기다리는 중…',
+  'applock.screen.touchIdCancelled': '지문 인증이 취소되었습니다. 암호를 입력해 잠금을 해제할 수 있습니다.',
+  'applock.screen.touchIdUnavailable': '지금은 Touch ID를 사용할 수 없습니다. 암호를 입력해 잠금을 해제하세요.',
+  'applock.screen.touchIdTimeout': '지문 인증이 응답하지 않습니다. 암호를 입력해 잠금을 해제하세요.',
+  'applock.screen.touchIdFailed': '지문 인증에 실패했습니다. 다시 시도하거나 암호를 입력하세요.',
+  'applock.error.notEnabled': '앱 잠금이 켜져 있지 않습니다.',
 }

@@ -21,6 +21,7 @@ import { translateErrorKey } from '../../services/errors'
 import { formatByteSize } from '../../lib/format'
 import { openExternalUrl } from '../../services/externalLink'
 import { updatesAvailable } from '../../services/updates'
+import AiMessageText from '../ai/AiMessageText.vue'
 import AssetTransferPanel from './AssetTransferPanel.vue'
 
 const props = defineProps<{
@@ -235,11 +236,12 @@ async function downloadLog(): Promise<void> {
         }}</span>
       </div>
       <p v-if="updateError" class="mt-3 mb-0 text-xs text-qt-danger" data-update-error>{{ updateError }}</p>
+
       <details v-if="updateRelease?.notes" class="mt-3">
         <summary class="cursor-pointer text-xs text-qt-muted">{{ t('about.update.releaseNotes') }}</summary>
-        <p class="mt-2 mb-0 max-h-40 overflow-auto text-xs whitespace-pre-line text-qt-muted">
-          {{ updateRelease.notes }}
-        </p>
+        <div class="mt-2 max-h-40 overflow-auto text-xs text-qt-muted" data-update-notes>
+          <AiMessageText :text="updateRelease.notes" />
+        </div>
       </details>
       <div class="mt-4 flex flex-wrap justify-end gap-2">
         <QtermButton v-if="updateRelease?.pageUrl" variant="outline" type="button" @click="openReleasePage">

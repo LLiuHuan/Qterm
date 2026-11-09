@@ -21,13 +21,16 @@ import {
   Trash2,
 } from '@lucide/vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import AssetContextMenu from '../common/overlay-controls/AssetContextMenu.vue'
+import AssetContextMenu, { type AssetMenuAction } from '../common/overlay-controls/AssetContextMenu.vue'
+import AssetDragGhost from './AssetDragGhost.vue'
 import HostIcon from '../common/icon/HostIcon.vue'
 import { tagColorStyle } from '../../lib/colorTag'
 import type { GroupedHosts } from '../../types/qterm'
 import type { HostRecord } from '@/services/hosts.ts'
 import { compareAsset } from '../../features/hosts/assetTree'
+import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
 import { ScrollArea } from '../common/control-primitives'
+import { hiddenHostTagCount, hostConnectionSummary, hostTags, visibleHostTags } from '@/features/hosts/hostSummary'
 import { useI18n } from '@/locales'
 
 const props = defineProps<{
@@ -40,6 +43,8 @@ const props = defineProps<{
   loading: boolean
   loadError: string
   selectedHostId: string | null
+
+  selectedGroupId?: string | null
   showHostAddress: boolean
 }>()
 
@@ -58,7 +63,14 @@ const emit = defineEmits<{
   deleteHost: [host: HostRecord]
   editGroup: [group: GroupedHosts]
   deleteGroup: [group: GroupedHosts]
-  copyHost: [host: HostRecord, kind: 'ip' | 'connection' | 'id']
+  copyHost: [host: HostRecord, kind: 'ip' | 'id']
+
+  duplicateHost: [host: HostRecord]
+
+  moveAsset: [assetId: string, groupId: string, targetId: string, position: 'before' | 'after' | 'inside']
+  moveGroup: [id: string, parentId: string, targetId: string, position: 'before' | 'after' | 'inside']
+
+  toolPanel: [host: HostRecord, tool: 'tunnels' | 'sftp']
   updateSearchQuery: [value: string]
 }>()
 const { t } = useI18n()
@@ -135,15 +147,7 @@ function hostCount(group: GroupedHosts): number {
 }
 
 function connectionOf(host: HostRecord): string {
-  if (host.protocol === 'serial') {
-    const baud = host.serialBaud && host.serialBaud > 0 ? host.serialBaud : 115200
-    return `${host.address} · ${baud} 8N1`
-  }
-  return `${host.username}@${host.address}:${host.port}`
-}
-
-function hostTags(host: HostRecord): string[] {
-  return (host.tags ?? []).filter((tag) => tag.trim() !== '')
+  return hostConnectionSummary(host)
 }
 
 function withHostTags(base: string, host: HostRecord): string {
@@ -154,8 +158,6 @@ function withHostTags(base: string, host: HostRecord): string {
 function hostSubtitle(host: HostRecord): string {
   return connectionOf(host)
 }
-
-const HOST_CARD_TAG_LIMIT = 3
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -200,14 +202,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', suppressBareBackspace)
 })
 
-function visibleHostTags(host: HostRecord): string[] {
-  return hostTags(host).slice(0, HOST_CARD_TAG_LIMIT)
-}
-
-function hiddenHostTagCount(host: HostRecord): number {
-  return Math.max(0, hostTags(host).length - HOST_CARD_TAG_LIMIT)
-}
-
 function hostTitle(host: HostRecord): string {
   return withHostTags(t('shell.asset.hostTitle', { connection: connectionOf(host) }), host)
 }
@@ -216,10 +210,51 @@ function hostAriaLabel(host: HostRecord): string {
   return withHostTags(t('shell.asset.hostAria', { name: host.name, connection: connectionOf(host) }), host)
 }
 
+function selectGroupCard(group: GroupedHosts): void {
+  emit('selectGroup', group.id)
+}
+
 function openGroup(group: GroupedHosts): void {
   currentGroupId.value = group.id
   emit('selectGroup', group.id)
 }
+
+function parentOfAsset(item: AssetDragItem): string {
+  if (item.kind === 'group') return findGroupPath(props.groupedHosts, item.id).at(-2)?.id ?? ''
+  const groupId = props.hosts.find((host) => host.id === item.id)?.groupId ?? ''
+  return groupId === 'default' ? '' : groupId
+}
+
+const gridRef = ref<HTMLElement | null>(null)
+const assetDrag = useAssetDrag(gridRef, parentOfAsset, (item, drop) => {
+  if (item.kind === 'host') emit('moveAsset', item.id, drop.groupId, drop.targetId, drop.position)
+  else emit('moveGroup', item.id, drop.groupId, drop.targetId, drop.position)
+})
+
+const draggingHost = computed(() => {
+  const item = assetDrag.state.item
+  if (item?.kind !== 'host') return null
+  return props.hosts.find((host) => host.id === item.id) ?? null
+})
+
+const groupMoveTargets = computed<AssetMenuAction[]>(() => {
+  const rows: AssetMenuAction[] = [{ id: 'move-group:', label: t('shell.asset.moveToRoot'), icon: Folder }]
+  const walk = (groups: GroupedHosts[], depth: number): void => {
+    for (const group of groups) {
+      const isPlaceholder = group.id === 'default'
+      if (!isPlaceholder) {
+        rows.push({
+          id: `move-group:${group.id}`,
+          label: `${'· '.repeat(depth)}${group.name}`,
+          icon: FolderClosed,
+        })
+      }
+      walk(group.children ?? [], isPlaceholder ? depth : depth + 1)
+    }
+  }
+  walk(props.groupedHosts, 0)
+  return rows
+})
 
 function goHome(): void {
   currentGroupId.value = null
@@ -243,10 +278,22 @@ function openBreadcrumb(id: string | null): void {
   currentGroupId.value = id
 }
 
-function groupActions(group: GroupedHosts) {
+function groupActions(group: GroupedHosts): AssetMenuAction[] {
+  const forbidden = new Set(findGroupPath(props.groupedHosts, group.id).map((node) => node.id))
+  const collect = (node: GroupedHosts): void => {
+    forbidden.add(node.id)
+    for (const child of node.children ?? []) collect(child)
+  }
+  collect(group)
   return [
     { id: 'add-host', label: t('shell.asset.addHostInGroup'), icon: Plus },
     { id: 'create-subgroup', label: t('shell.asset.createSubgroup'), icon: FolderPlus },
+    {
+      id: 'move-group',
+      label: t('shell.asset.moveToGroup'),
+      icon: FolderClosed,
+      children: groupMoveTargets.value.filter((row) => !forbidden.has(row.id.slice('move-group:'.length))),
+    },
     {
       id: 'edit',
       label: t('shell.asset.editGroup'),
@@ -269,26 +316,44 @@ function handleGroupAction(group: GroupedHosts, id: string): void {
   else if (id === 'create-subgroup') emit('createSubgroup', group.id)
   else if (id === 'edit') emit('editGroup', group)
   else if (id === 'delete') emit('deleteGroup', group)
+  else if (id.startsWith('move-group:')) emit('moveGroup', group.id, id.slice('move-group:'.length), '', 'inside')
 }
 
-const hostActions = computed(() => [
-  { id: 'open', label: t('shell.asset.connect'), icon: Link },
-  { id: 'tunnel', label: t('shell.asset.tunnel'), icon: ArrowRightLeft, disabled: true },
-  { id: 'sftp', label: t('shell.asset.sftp'), icon: Folder, disabled: true },
-  { id: 'copy-ip', label: t('shell.asset.copyIp'), icon: Copy, separatorBefore: true },
-  { id: 'copy-id', label: t('shell.asset.copyId'), icon: Copy },
-  { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
-  { id: 'copy', label: t('shell.asset.copy'), icon: Copy },
-  { id: 'delete', label: t('shell.asset.delete'), icon: Trash2, destructive: true },
-])
+function sshCapable(host: HostRecord): boolean {
+  const protocol = (host.protocol ?? '').trim().toLowerCase()
+  return protocol === '' || protocol === 'ssh'
+}
+
+function hostActionsFor(host: HostRecord): AssetMenuAction[] {
+  const ssh = sshCapable(host)
+  return [
+    { id: 'open', label: t('shell.asset.connect'), icon: Link },
+    { id: 'tunnel', label: t('shell.asset.tunnel'), icon: ArrowRightLeft, disabled: !ssh },
+    { id: 'sftp', label: t('shell.asset.sftp'), icon: Folder, disabled: !ssh },
+    {
+      id: 'move-group',
+      label: t('shell.asset.moveToGroup'),
+      icon: FolderClosed,
+      children: groupMoveTargets.value,
+    },
+    { id: 'copy-ip', label: t('shell.asset.copyIp'), icon: Copy, separatorBefore: true },
+    { id: 'copy-id', label: t('shell.asset.copyId'), icon: Copy },
+    { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
+    { id: 'copy', label: t('shell.asset.copy'), icon: Copy },
+    { id: 'delete', label: t('shell.asset.delete'), icon: Trash2, destructive: true },
+  ]
+}
 
 function handleHostAction(host: HostRecord, id: string): void {
-  if (id === 'open') emit('openHost', host)
+  if (id === 'tunnel') emit('toolPanel', host, 'tunnels')
+  else if (id === 'sftp') emit('toolPanel', host, 'sftp')
+  else if (id === 'open') emit('openHost', host)
   else if (id === 'edit') emit('editHost', host)
   else if (id === 'delete') emit('deleteHost', host)
   else if (id === 'copy-ip') emit('copyHost', host, 'ip')
   else if (id === 'copy-id') emit('copyHost', host, 'id')
-  else if (id === 'copy') emit('copyHost', host, 'connection')
+  else if (id === 'copy') emit('duplicateHost', host)
+  else if (id.startsWith('move-group:')) emit('moveAsset', host.id, id.slice('move-group:'.length), '', 'inside')
 }
 </script>
 
@@ -425,7 +490,12 @@ function handleHostAction(host: HostRecord, id: string): void {
     </div>
 
     <ScrollArea v-else type="hover" :scroll-hide-delay="600" class="min-h-0 grow">
-      <div class="flex flex-col gap-5 p-4">
+      <div
+        ref="gridRef"
+        class="relative flex flex-col gap-5 p-4"
+        :class="{ 'asset-drag-active': assetDrag.state.active }"
+        @pointerdown.capture="assetDrag.start"
+      >
         <section v-if="visibleGroups.length" class="min-w-0">
           <h2 class="m-0 text-sm">{{ t('shell.assetLibrary.groups') }}</h2>
           <div class="mt-2 grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-2">
@@ -437,9 +507,18 @@ function handleHostAction(host: HostRecord, id: string): void {
             >
               <button
                 type="button"
+                data-asset-card
+                :data-asset-kind="'group'"
+                :data-asset-id="group.id"
+                :data-asset-label="group.name"
                 class="flex w-full min-w-0 items-center gap-3 rounded-lg border-d bg-[var(--qt-asset-library-card-bg,var(--qt-panel))] p-3 text-left hover:bg-[var(--qt-asset-library-card-hover,var(--qt-hover))] focus-visible:ring-2 focus-visible:ring-qt-focus"
+                :class="{
+                  'is-selected bg-[var(--qt-asset-library-card-hover,var(--qt-hover))]':
+                    props.selectedGroupId === group.id,
+                }"
                 :aria-label="t('shell.assetLibrary.groupAria', { name: group.name })"
-                @click="openGroup(group)"
+                @click="selectGroupCard(group)"
+                @dblclick="openGroup(group)"
               >
                 <span class="grid size-10 flex-none place-items-center rounded-lg border-d bg-qt-subtle text-qt-info">
                   <FolderClosed :size="20" aria-hidden="true" />
@@ -461,11 +540,15 @@ function handleHostAction(host: HostRecord, id: string): void {
             <AssetContextMenu
               v-for="host in visibleHosts"
               :key="host.id"
-              :actions="hostActions"
+              :actions="hostActionsFor(host)"
               @action="(id) => handleHostAction(host, id)"
             >
               <button
                 type="button"
+                data-asset-card
+                :data-asset-kind="'host'"
+                :data-asset-id="host.id"
+                :data-asset-label="host.name"
                 class="host-color-card relative flex w-full min-w-0 items-center gap-3 rounded-lg border-d bg-[var(--qt-asset-library-card-bg,var(--qt-panel))] p-3 text-left hover:bg-[var(--qt-asset-library-card-hover,var(--qt-hover))] focus-visible:ring-2 focus-visible:ring-qt-focus"
                 :class="{
                   'bg-[var(--qt-asset-library-card-hover,var(--qt-hover))]': props.selectedHostId === host.id,
@@ -521,5 +604,20 @@ function handleHostAction(host: HostRecord, id: string): void {
         </section>
       </div>
     </ScrollArea>
+
+    <AssetDragGhost
+      v-if="assetDrag.state.active || assetDrag.state.returnTo"
+      :kind="assetDrag.state.item?.kind ?? 'host'"
+      :host="draggingHost"
+      :label="assetDrag.state.label"
+      :valid="assetDrag.state.valid"
+      :x="assetDrag.state.x"
+      :y="assetDrag.state.y"
+      :anchor-x="assetDrag.state.anchorX"
+      :anchor-y="assetDrag.state.anchorY"
+      :source-width="assetDrag.state.sourceWidth"
+      :return-to="assetDrag.state.returnTo"
+      @returned="assetDrag.clearReturn()"
+    />
   </section>
 </template>

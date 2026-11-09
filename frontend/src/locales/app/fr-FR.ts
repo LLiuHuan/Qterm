@@ -154,6 +154,7 @@ export const appFr: Record<string, string> = {
   'about.update.bell.body':
     'Téléchargement et vérification terminés. Redémarrez l’application pour terminer la mise à jour.',
   'about.update.bell.dismiss': 'Annuler',
+  'about.update.bell.dismissHint': 'Ferme seulement ce panneau — la cloche reste',
   'about.debug.title': 'Journaux de débogage',
   'about.debug.description':
     'Enregistrer localement des journaux de diagnostic détaillés pour le dépannage. Désactivé par défaut.',
@@ -193,6 +194,7 @@ export const appFr: Record<string, string> = {
   'history.note.saveFailure': "Impossible d'enregistrer la note.",
   'history.search.placeholder': 'Rechercher un hôte, une adresse, un état ou une note',
   'history.search.aria': "Rechercher dans l'historique des sessions",
+  'history.search.clear': 'Effacer la recherche',
   'history.empty.filtered': 'Aucun historique de session correspondant.',
   'history.loading': "Chargement de l'historique des sessions…",
   'history.type.ssh': 'SSH',
@@ -212,6 +214,7 @@ export const appFr: Record<string, string> = {
   'history.recording.export.failure': "Impossible d'exporter l'enregistrement.",
   'history.recording.search.placeholder': 'Rechercher par hôte, état ou note',
   'history.recording.search.aria': 'Rechercher dans les enregistrements du terminal',
+  'history.recording.search.clear': 'Effacer la recherche',
   'history.recording.loading': 'Chargement des enregistrements du terminal…',
   'history.recording.directory.title': "Répertoire d'enregistrement des sessions",
   'history.recording.directory.description':

@@ -21,6 +21,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"changeme/internal/applock"
+	"changeme/internal/biometric"
 	"changeme/internal/credential"
 	"changeme/internal/diagnostics"
 	"changeme/internal/fonts"
@@ -67,7 +68,10 @@ func Run(assets embed.FS) error {
 		return err
 	}
 
-	appLockManager, err := applock.New(filepath.Join(configDir, "Qterm"))
+	appLockManager, err := applock.New(
+		filepath.Join(configDir, "Qterm"),
+		applock.WithBiometricAvailability(biometric.Available),
+	)
 	if err != nil {
 		return err
 	}
@@ -218,7 +222,7 @@ func Run(assets embed.FS) error {
 
 			} else {
 
-				service.markSettingsWindowOpen(true, "", settingsCategory)
+				service.markSettingsWindowOpen(true, "", settingsCategory, "")
 			}
 
 			window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {

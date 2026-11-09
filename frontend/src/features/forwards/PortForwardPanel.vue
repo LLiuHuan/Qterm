@@ -20,6 +20,8 @@ import {
 } from '@/services/forwards'
 import PortForwardEditorDialog from './PortForwardEditorDialog.vue'
 import {
+  filterForwardsByHost,
+  hasForwardForHost,
   mergeForwardGroups,
   forwardDisplayName,
   forwardGroupName,
@@ -47,6 +49,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:forwards': [value: PortForwardConfig[]]
   'update:forwardGroups': [value: string[]]
+
+  manage: []
 }>()
 const { t } = useI18n()
 const actions = usePortForwardActions({
@@ -68,8 +72,19 @@ const groupOptions = computed(() => mergeForwardGroups(props.forwards, props.for
 
 const ungroupedLabel = computed(() => t('shell.forwards.ungrouped'))
 
+const scopedForwards = computed(() => filterForwardsByHost(props.forwards, props.activeHostId))
+
+const hostHasNoForward = computed(
+  () => props.activeHostId.trim().length > 0 && !hasForwardForHost(props.forwards, props.activeHostId),
+)
+
+const activeHostLabel = computed(() => {
+  const host = props.hosts.find((item) => item.id === props.activeHostId)
+  return host?.name || host?.address || ''
+})
+
 const sections = computed(() =>
-  forwardSections(props.forwards, {
+  forwardSections(scopedForwards.value, {
     hosts: props.hosts,
     kindLabel: (row) => t(forwardKindLabelKey(row.kind)),
     ungroupedLabel: ungroupedLabel.value,
@@ -257,6 +272,19 @@ onBeforeUnmount(() => {
       >
         <QtermButton size="sm" class="mt-2" type="button" @click="openCreate">
           <Plus :size="14" aria-hidden="true" /> {{ t('shell.forwards.add') }}
+        </QtermButton>
+      </QtermEmptyState>
+    </div>
+
+    <div v-else-if="hostHasNoForward && !query.trim()" class="flex-1 px-2 pb-2">
+      <QtermEmptyState
+        variant="outlined"
+        :icon="Route"
+        :title="t('shell.forwards.hostEmptyTitle', { host: activeHostLabel })"
+        :description="t('shell.forwards.hostEmptyHint')"
+      >
+        <QtermButton size="sm" variant="outline" class="mt-2" type="button" @click="emit('manage')">
+          {{ t('shell.forwards.manage') }}
         </QtermButton>
       </QtermEmptyState>
     </div>

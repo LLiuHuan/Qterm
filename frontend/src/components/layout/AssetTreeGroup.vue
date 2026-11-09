@@ -25,7 +25,10 @@ const emit = defineEmits<{
   createSubgroup: [string]
   editGroup: [GroupedHosts]
   deleteGroup: [GroupedHosts]
-  copyHost: [HostRecord, 'ip' | 'connection' | 'id']
+  copyHost: [HostRecord, 'ip' | 'id']
+  duplicateHost: [HostRecord]
+
+  toolPanel: [HostRecord, 'tunnels' | 'sftp']
   moveAsset: [string, string, string, 'before' | 'after' | 'inside']
   moveGroup: [string, string, string, 'before' | 'after' | 'inside']
 }>()
@@ -50,8 +53,12 @@ const actions = computed(() => [
     disabled: props.group.id === 'default',
   },
 ])
-function forwardCopy(host: HostRecord, kind: 'ip' | 'connection' | 'id'): void {
+function forwardCopy(host: HostRecord, kind: 'ip' | 'id'): void {
   emit('copyHost', host, kind)
+}
+
+function forwardDuplicate(host: HostRecord): void {
+  emit('duplicateHost', host)
 }
 
 function hostCount(group: GroupedHosts): number {
@@ -104,6 +111,8 @@ function hostCount(group: GroupedHosts): number {
             @edit="emit('editHost', $event)"
             @delete="emit('deleteHost', $event)"
             @copy="forwardCopy"
+            @duplicate="forwardDuplicate"
+            @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
           />
           <AssetTreeGroup
             v-else
@@ -121,6 +130,8 @@ function hostCount(group: GroupedHosts): number {
             @edit-group="emit('editGroup', $event)"
             @delete-group="emit('deleteGroup', $event)"
             @copy-host="forwardCopy"
+            @duplicate-host="forwardDuplicate"
+            @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
             @move-asset="(...args) => emit('moveAsset', ...args)"
             @move-group="(...args) => emit('moveGroup', ...args)"
           />

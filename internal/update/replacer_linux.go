@@ -6,13 +6,12 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"syscall"
 )
 
 func (s *Service) launchReplacer(_ context.Context, stagedPath, executable string) error {
-	script, err := writeHelperScript(filepath.Dir(stagedPath), "qterm-update.sh", linuxReplacerScript())
+	script, err := writeHelperScript(s.helperScriptDir(), "qterm-update.sh", linuxReplacerScript())
 	if err != nil {
 		return installFailed("helper")
 	}

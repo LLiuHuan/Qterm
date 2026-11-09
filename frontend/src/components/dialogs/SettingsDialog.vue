@@ -200,6 +200,10 @@ const props = withDefaults(
 
     forwardGroups?: string[]
 
+    portForwardSearch?: string
+
+    portForwardSearchRevision?: number
+
     forwardsLoading?: boolean
 
     forwardsError?: string
@@ -221,7 +225,7 @@ const props = withDefaults(
     translateEndpoint: '',
     gutterShowTimestamps: true,
     gutterTimestampFormat: 'HH:mm:ss',
-    batchCommand: false,
+    batchCommand: true,
     confirmClose: true,
     scrollback: 5000,
     confirmMultiLinePaste: true,
@@ -285,6 +289,8 @@ const props = withDefaults(
     proxiesError: '',
     forwards: () => [],
     forwardGroups: () => [],
+    portForwardSearch: '',
+    portForwardSearchRevision: 0,
     forwardsLoading: false,
     forwardsError: '',
     minimalAppearance: false,
@@ -652,6 +658,8 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :forwards="props.forwards ?? []"
                 :forward-groups="props.forwardGroups ?? []"
                 :hosts="props.hosts ?? []"
+                :search-query="props.portForwardSearch ?? ''"
+                :search-revision="props.portForwardSearchRevision ?? 0"
                 :loading="props.forwardsLoading ?? false"
                 :error="props.forwardsError ?? ''"
                 @update:forwards="emit('update:forwards', $event)"

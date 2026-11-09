@@ -82,6 +82,7 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.credentials.filter.all': 'All ({count})',
   'settings.credentials.search.placeholder': 'Search credentials by name',
   'settings.credentials.search.aria': 'Search credentials by name',
+  'settings.credentials.search.clear': 'Clear search',
   'settings.credentials.loading': 'Loading credentials…',
   'settings.credentials.action.edit': 'Edit credential',
   'settings.credentials.action.delete': 'Delete credential',
@@ -863,11 +864,6 @@ export const settingsCoreEn: Record<string, string> = {
   'terminal.core.showLineNumbersHelp':
     'Show output line numbers in a gutter on the left of the terminal. Wrapped continuation rows and empty rows below the cursor are not numbered. Enabling this uses one column of terminal width.',
   'terminal.core.gutterMode': 'Terminal gutter',
-  'terminal.core.gutterModeHelp':
-    'Choose no markers, output line numbers, or command markers. Command mode prefers Shell Integration.',
-  'terminal.core.gutterModeOff': 'Off',
-  'terminal.core.gutterModeLines': 'Lines',
-  'terminal.core.gutterModeCommands': 'Commands',
   'terminal.core.showTimestamps': 'Show timestamps',
   'terminal.core.showTimestampsHelp':
     'Show when each logical line first produced content. When off, the full time is only shown on hover.',

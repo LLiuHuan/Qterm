@@ -46,4 +46,15 @@ export const appLockFr: Record<string, string> = {
   'applock.autoLock.decrease': 'Réduire la durée de verrouillage automatique',
   'applock.autoLock.increase': 'Augmenter la durée de verrouillage automatique',
   'applock.error.alreadyEnabled': 'Le verrouillage est déjà activé. Saisissez le code actuel pour le modifier.',
+  'applock.touchId.label': 'Déverrouiller avec Touch ID',
+  'applock.touchId.help':
+    "Touchez le bouton d'empreinte sur l'écran de verrouillage pour déverrouiller. Touch ID ne se déclenche jamais tout seul au verrouillage.",
+  'applock.touchId.unavailable': "Touch ID n'est pas disponible sur cet appareil pour le moment.",
+  'applock.screen.touchIdUnlock': 'Déverrouiller avec Touch ID',
+  'applock.screen.touchIdWaiting': "En attente de l'empreinte…",
+  'applock.screen.touchIdCancelled': "Touch ID a été annulé. Vous pouvez saisir le code d'accès.",
+  'applock.screen.touchIdUnavailable': "Touch ID est indisponible. Saisissez le code d'accès pour déverrouiller.",
+  'applock.screen.touchIdTimeout': "Touch ID n'a pas répondu. Saisissez le code d'accès pour déverrouiller.",
+  'applock.screen.touchIdFailed': "Touch ID n'a pas été vérifié. Réessayez ou saisissez le code d'accès.",
+  'applock.error.notEnabled': "Le verrouillage de l'application n'est pas activé.",
 }

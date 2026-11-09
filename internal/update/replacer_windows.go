@@ -6,12 +6,11 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 )
 
 func (s *Service) launchReplacer(_ context.Context, stagedPath, executable string) error {
-	script, err := writeHelperScript(filepath.Dir(stagedPath), "qterm-update.ps1", windowsReplacerScript())
+	script, err := writeHelperScript(s.helperScriptDir(), "qterm-update.ps1", windowsReplacerScript())
 	if err != nil {
 		return installFailed("helper")
 	}

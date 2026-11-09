@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import type { CSSProperties } from 'vue'
-import { LockKeyhole } from '@lucide/vue'
+import { Fingerprint, LockKeyhole } from '@lucide/vue'
 import { QtermButton, QtermInput } from '@/components/common'
 import { useI18n } from '@/locales'
+import { decodeAppError } from '../../services/errors'
 import { useAppLock } from './useAppLock'
 
 const props = defineProps<{ themeStyle?: CSSProperties }>()
 
 const { t } = useI18n()
-const { unlock, resetByRecovery, status } = useAppLock()
+const { unlock, unlockWithTouchId, resetByRecovery, status, touchIdUnlockAvailable } = useAppLock()
 
 const password = ref('')
 const error = ref('')
@@ -22,6 +23,9 @@ const confirmPassword = ref('')
 const recoveryError = ref('')
 const hasRecovery = computed(() => status.value.hasRecovery && status.value.recoveryQuestion !== '')
 const inputRef = ref<{ focus?: () => void; $el?: HTMLElement } | null>(null)
+
+const touchIdWorking = ref(false)
+const touchIdError = ref('')
 
 async function submit(): Promise<void> {
   if (working.value) return
@@ -51,6 +55,39 @@ async function focusInput(): Promise<void> {
   const element = inputRef.value?.$el
   if (element instanceof HTMLElement) {
     element.querySelector('input')?.focus()
+  }
+}
+
+async function submitTouchId(): Promise<void> {
+  if (touchIdWorking.value || working.value) return
+  touchIdWorking.value = true
+  touchIdError.value = ''
+  try {
+    const ok = await unlockWithTouchId()
+
+    if (!ok) touchIdError.value = t('applock.screen.touchIdFailed')
+  } catch (reason) {
+    touchIdError.value = translateTouchIdError(reason)
+
+    await focusInput()
+  } finally {
+    touchIdWorking.value = false
+  }
+}
+
+function translateTouchIdError(reason: unknown): string {
+  const key = decodeAppError(reason)?.messageKey
+  switch (key) {
+    case 'applock.touchIdUnavailable':
+      return t('applock.screen.touchIdUnavailable')
+    case 'applock.touchIdCancelled':
+      return t('applock.screen.touchIdCancelled')
+    case 'applock.touchIdTimeout':
+      return t('applock.screen.touchIdTimeout')
+    case 'applock.touchIdDisabled':
+      return t('applock.screen.touchIdFailed')
+    default:
+      return t('applock.screen.touchIdFailed')
   }
 }
 
@@ -169,6 +206,16 @@ onMounted(() => {
         />
         <p v-if="error" class="qterm-app-lock__error m-0 text-xs text-qt-danger" role="alert">{{ error }}</p>
         <QtermButton type="submit" :disabled="working">{{ t('applock.screen.unlock') }}</QtermButton>
+
+        <template v-if="touchIdUnlockAvailable">
+          <QtermButton type="button" variant="outline" :disabled="working || touchIdWorking" @click="submitTouchId">
+            <Fingerprint :size="15" stroke-width="1.75" aria-hidden="true" />
+            {{ touchIdWorking ? t('applock.screen.touchIdWaiting') : t('applock.screen.touchIdUnlock') }}
+          </QtermButton>
+          <p v-if="touchIdError" class="qterm-app-lock__error m-0 text-xs text-qt-danger" role="alert">
+            {{ touchIdError }}
+          </p>
+        </template>
         <button
           v-if="hasRecovery"
           type="button"

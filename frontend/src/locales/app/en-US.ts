@@ -145,6 +145,7 @@ export const appEn: Record<string, string> = {
   'about.update.bell.title': 'Version v{version} is ready',
   'about.update.bell.body': 'Downloaded and verified. Restart the app to finish updating.',
   'about.update.bell.dismiss': 'Cancel',
+  'about.update.bell.dismissHint': 'Closes this panel only — the bell stays',
   'about.debug.title': 'Debug logging',
   'about.debug.description': 'Record detailed diagnostics locally while troubleshooting. Disabled by default.',
   'about.debug.desktopOnly': 'Debug logging is available only in the desktop app.',
@@ -183,6 +184,7 @@ export const appEn: Record<string, string> = {
   'history.note.saveFailure': 'Could not save the note.',
   'history.search.placeholder': 'Search host, address, status, or note',
   'history.search.aria': 'Search session history',
+  'history.search.clear': 'Clear search',
   'history.empty.filtered': 'No matching session history.',
   'history.loading': 'Loading session history…',
   'history.type.ssh': 'SSH',
@@ -202,6 +204,7 @@ export const appEn: Record<string, string> = {
   'history.recording.export.failure': 'Could not export the recording.',
   'history.recording.search.placeholder': 'Search by host, status, or note',
   'history.recording.search.aria': 'Search terminal recordings',
+  'history.recording.search.clear': 'Clear search',
   'history.recording.loading': 'Loading terminal recordings…',
   'history.recording.directory.title': 'Session recording directory',
   'history.recording.directory.description':

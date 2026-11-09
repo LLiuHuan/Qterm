@@ -26,21 +26,20 @@ export interface SettingsCategoryGroup {
 export const SETTINGS_CATEGORY_GROUPS: readonly SettingsCategoryGroup[] = [
   {
     id: 'manage',
-    items: ['credentials', 'knownHosts', 'proxies', 'portForwards', 'snippets', 'history', 'recordings'],
+    items: [
+      'credentials',
+      'knownHosts',
+      'proxies',
+      'portForwards',
+      'snippets',
+      'credentialPrompt',
+      'history',
+      'recordings',
+    ],
   },
   {
     id: 'preference',
-    items: [
-      'application',
-      'appearance',
-      'terminal',
-      'rdp',
-      'highlight',
-      'credentialPrompt',
-      'shortcuts',
-      'ai',
-      'about',
-    ],
+    items: ['application', 'appearance', 'terminal', 'rdp', 'highlight', 'shortcuts', 'ai', 'about'],
   },
 ]
 

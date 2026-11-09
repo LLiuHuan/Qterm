@@ -7,4 +7,8 @@ export interface Status {
 
   hasRecovery: boolean
   recoveryQuestion: string
+
+  touchIdEnabled: boolean
+
+  touchIdAvailable: boolean
 }

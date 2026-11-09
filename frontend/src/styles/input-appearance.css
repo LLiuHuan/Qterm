@@ -1,3 +1,12 @@
+input[type='search'][data-slot='input']::-webkit-search-cancel-button,
+input[type='search'][data-slot='input']::-webkit-search-decoration,
+input[type='search'].qterm-reference-input::-webkit-search-cancel-button,
+input[type='search'].qterm-reference-input::-webkit-search-decoration {
+  display: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 :is(.qterm-shell, .qterm-dialog).has-page-background.is-dark
   :is(
     input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='hidden']):not(

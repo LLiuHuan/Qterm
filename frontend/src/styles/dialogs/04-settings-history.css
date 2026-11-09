@@ -49,6 +49,7 @@
   min-width: 0;
   flex: 1;
 }
+
 .settings-toggle-row {
   display: flex;
   min-width: 0;
@@ -58,7 +59,7 @@
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--qt-border);
   border-radius: 0.375rem;
-  background: var(--qt-panel);
+  background: transparent;
 }
 
 .settings-toggle-row--stacked {

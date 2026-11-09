@@ -46,7 +46,7 @@ function handleTitlebarDoubleClick(event: MouseEvent): void {
 
 <template>
   <header
-    class="topbar relative z-10 flex min-w-0 items-center gap-[0.3125rem] px-2.5 select-none border-b-d bg-qt-bar"
+    class="topbar relative z-10! flex min-w-0 items-center gap-[0.3125rem] px-2.5 select-none border-b-d bg-qt-bar"
     @dblclick="handleTitlebarDoubleClick"
   >
     <div class="window-drag-region" aria-hidden="true" @mousedown="armCurrentWindowDrag"></div>

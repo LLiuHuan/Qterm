@@ -19,6 +19,8 @@ type ForwardConfig struct {
 	TargetHost string `json:"targetHost"`
 	TargetPort int    `json:"targetPort"`
 
+	Proxy string `json:"proxy,omitempty"`
+
 	AutoOpen bool `json:"autoOpen"`
 }
 

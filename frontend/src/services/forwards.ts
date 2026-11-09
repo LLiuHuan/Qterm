@@ -12,6 +12,8 @@ import { createRuntimeGateway } from './runtime'
 
 export type PortForwardKind = 'local' | 'remote' | 'dynamic'
 
+export type PortForwardProxy = 'socks5' | 'http'
+
 export interface PortForwardConfig {
   id: string
 
@@ -24,6 +26,8 @@ export interface PortForwardConfig {
   listenPort: number
   targetHost: string
   targetPort: number
+
+  proxy?: PortForwardProxy
   autoOpen: boolean
 }
 
@@ -64,6 +68,8 @@ function toBackend(config: PortForwardConfig): BackendForwardConfig {
     listenPort: config.listenPort,
     targetHost: config.targetHost,
     targetPort: config.targetPort,
+
+    proxy: config.kind === 'dynamic' ? (config.proxy ?? 'socks5') : '',
     autoOpen: config.autoOpen,
   }
 }

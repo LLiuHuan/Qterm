@@ -297,6 +297,18 @@ body [data-sonner-toaster] {
   --qt-panel: color-mix(in srgb, var(--qt-theme-outer) 50%, transparent);
 }
 
+.update-bell-panel {
+  background: color-mix(in srgb, var(--qt-panel) 96%, transparent);
+}
+
+.qterm-shell.has-page-background .update-bell-panel {
+  background: color-mix(in srgb, var(--qt-theme-outer, var(--qt-panel)) 58%, transparent);
+}
+
+.qterm-shell.has-page-background.is-dark .update-bell-panel {
+  background: color-mix(in srgb, var(--qt-theme-outer, var(--qt-panel)) 68%, transparent);
+}
+
 .qterm-context-menu.has-page-background {
   --qt-theme-border: var(--qt-background-border);
   --qt-border: var(--qt-background-border);

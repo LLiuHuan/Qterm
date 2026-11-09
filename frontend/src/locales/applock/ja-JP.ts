@@ -45,4 +45,15 @@ export const appLockJa: Record<string, string> = {
   'applock.autoLock.decrease': '自動ロックの分数を減らす',
   'applock.autoLock.increase': '自動ロックの分数を増やす',
   'applock.error.alreadyEnabled': 'アプリロックは既に有効です。現在のパスコードを入力してから変更してください。',
+  'applock.touchId.label': 'Touch ID でロック解除',
+  'applock.touchId.help':
+    'ロック後に指紋ボタンを押すと解除できます。ロック時に指紋認証が自動で始まることはありません。',
+  'applock.touchId.unavailable': 'このデバイスでは現在 Touch ID を利用できません。',
+  'applock.screen.touchIdUnlock': 'Touch ID でロック解除',
+  'applock.screen.touchIdWaiting': '指紋の確認を待っています…',
+  'applock.screen.touchIdCancelled': '指紋認証はキャンセルされました。パスコードを入力して解除できます。',
+  'applock.screen.touchIdUnavailable': '現在 Touch ID を利用できません。パスコードを入力して解除してください。',
+  'applock.screen.touchIdTimeout': '指紋認証が応答しません。パスコードを入力して解除してください。',
+  'applock.screen.touchIdFailed': '指紋認証に失敗しました。もう一度試すか、パスコードを入力してください。',
+  'applock.error.notEnabled': 'アプリロックが有効になっていません。',
 }

@@ -4,7 +4,7 @@ import { Bell } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { IconButton, QtermButton } from '../../components/common'
 import { useI18n } from '@/locales'
-import { dismissUpdate, installUpdate, shouldNotifyUpdate, useUpdateState } from './updateStore'
+import { installUpdate, shouldNotifyUpdate, useUpdateState } from './updateStore'
 
 const { t } = useI18n()
 const state = useUpdateState()
@@ -41,8 +41,7 @@ function toggle(): void {
   open.value = !open.value
 }
 
-function later(): void {
-  dismissUpdate()
+function dismiss(): void {
   open.value = false
 }
 
@@ -75,15 +74,17 @@ async function installNow(): Promise<void> {
     </IconButton>
     <div
       v-if="open"
-      class="settings-card absolute top-full right-0 z-50 mt-2 flex w-72 flex-col gap-1 rounded-lg border border-solid border-qt-border p-3 shadow-lg [background:color-mix(in_srgb,var(--qt-panel)_96%,transparent)] [-webkit-backdrop-filter:blur(16px)_saturate(135%)] [backdrop-filter:blur(16px)_saturate(135%)]"
+      class="update-bell-panel absolute top-full right-0 z-50 mt-2 flex w-72 flex-col gap-1 rounded-lg border border-solid border-qt-border p-3 shadow-lg [-webkit-backdrop-filter:blur(18px)_saturate(130%)] [backdrop-filter:blur(18px)_saturate(130%)]"
       role="dialog"
       :aria-label="t('about.update.bell.title', { version })"
       data-update-bell-panel
     >
       <strong class="text-sm">{{ t('about.update.bell.title', { version }) }}</strong>
       <p class="m-0 text-xs text-qt-muted">{{ t('about.update.bell.body') }}</p>
+
+      <p class="m-0 text-[0.6875rem] text-qt-muted" data-update-bell-hint>{{ t('about.update.bell.dismissHint') }}</p>
       <div class="mt-2 flex justify-end gap-2">
-        <QtermButton variant="outline" type="button" data-update-bell-dismiss @click="later">
+        <QtermButton variant="outline" type="button" data-update-bell-dismiss @click="dismiss">
           {{ t('about.update.bell.dismiss') }}
         </QtermButton>
         <QtermButton type="button" :disabled="installing" data-update-bell-install @click="installNow">

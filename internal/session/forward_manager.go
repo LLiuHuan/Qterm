@@ -191,6 +191,7 @@ func (m *ForwardManager) attempt(ctx context.Context, entry *forwardEntry) (bool
 		ListenPort: entry.config.ListenPort,
 		TargetHost: entry.config.TargetHost,
 		TargetPort: entry.config.TargetPort,
+		Proxy:      tunnel.ForwardProxyProtocol(entry.config.Proxy),
 	}
 	forward, err := connection.OpenForward(ctx, spec)
 	if err != nil {

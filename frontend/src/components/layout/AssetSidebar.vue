@@ -16,6 +16,7 @@ import {
 import { computed, nextTick, ref, watch } from 'vue'
 import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
 import { IconButton } from '../common'
+import AssetDragGhost from './AssetDragGhost.vue'
 import AssetHostRow from './AssetHostRow.vue'
 import AssetTreeGroup from './AssetTreeGroup.vue'
 import type { GroupedHosts } from '../../types/qterm'
@@ -50,7 +51,11 @@ const emit = defineEmits<{
   selectHost: [hostId: string]
   selectGroup: [groupId: string]
   clearSelection: []
-  copyHost: [host: HostRecord, kind: 'ip' | 'connection' | 'id']
+  copyHost: [host: HostRecord, kind: 'ip' | 'id']
+
+  duplicateHost: [host: HostRecord]
+
+  toolPanel: [host: HostRecord, tool: 'tunnels' | 'sftp']
   moveAsset: [assetId: string, groupId: string, targetId: string, position: 'before' | 'after' | 'inside']
   moveGroup: [id: string, parentId: string, targetId: string, position: 'before' | 'after' | 'inside']
   openHost: [host: HostRecord]
@@ -114,8 +119,18 @@ const assetDrag = useAssetDrag(rootListRef, parentOf, (item, drop) => {
   else emit('moveGroup', item.id, drop.groupId, drop.targetId, drop.position)
 })
 
-function forwardCopy(host: HostRecord, kind: 'ip' | 'connection' | 'id'): void {
+const draggingHost = computed(() => {
+  const item = assetDrag.state.item
+  if (item?.kind !== 'host') return null
+  return props.hosts.find((host) => host.id === item.id) ?? null
+})
+
+function forwardCopy(host: HostRecord, kind: 'ip' | 'id'): void {
   emit('copyHost', host, kind)
+}
+
+function forwardDuplicate(host: HostRecord): void {
+  emit('duplicateHost', host)
 }
 </script>
 
@@ -274,6 +289,8 @@ function forwardCopy(host: HostRecord, kind: 'ip' | 'connection' | 'id'): void {
                 @edit-group="emit('editGroup', $event)"
                 @delete-group="emit('deleteGroup', $event)"
                 @copy-host="forwardCopy"
+                @duplicate-host="forwardDuplicate"
+                @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
                 @move-asset="(...args) => emit('moveAsset', ...args)"
                 @move-group="(...args) => emit('moveGroup', ...args)"
               />
@@ -287,6 +304,8 @@ function forwardCopy(host: HostRecord, kind: 'ip' | 'connection' | 'id'): void {
                 @edit="emit('editHost', $event)"
                 @delete="emit('deleteHost', $event)"
                 @copy="forwardCopy"
+                @duplicate="forwardDuplicate"
+                @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
               />
             </template>
           </div>
@@ -294,15 +313,19 @@ function forwardCopy(host: HostRecord, kind: 'ip' | 'connection' | 'id'): void {
       </ScrollArea>
     </div>
 
-    <Teleport to="body">
-      <div
-        v-if="assetDrag.state.active"
-        class="asset-drag-label text-sm"
-        :class="{ 'is-invalid': !assetDrag.state.valid }"
-        :style="{ left: `${assetDrag.state.x + 12}px`, top: `${assetDrag.state.y + 12}px` }"
-      >
-        {{ assetDrag.state.label }}
-      </div>
-    </Teleport>
+    <AssetDragGhost
+      v-if="assetDrag.state.active || assetDrag.state.returnTo"
+      :kind="assetDrag.state.item?.kind ?? 'host'"
+      :host="draggingHost"
+      :label="assetDrag.state.label"
+      :valid="assetDrag.state.valid"
+      :x="assetDrag.state.x"
+      :y="assetDrag.state.y"
+      :anchor-x="assetDrag.state.anchorX"
+      :anchor-y="assetDrag.state.anchorY"
+      :source-width="assetDrag.state.sourceWidth"
+      :return-to="assetDrag.state.returnTo"
+      @returned="assetDrag.clearReturn()"
+    />
   </aside>
 </template>

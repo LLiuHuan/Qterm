@@ -41,6 +41,10 @@ type Status struct {
 
 	HasRecovery      bool   `json:"hasRecovery"`
 	RecoveryQuestion string `json:"recoveryQuestion"`
+
+	TouchIDEnabled bool `json:"touchIdEnabled"`
+
+	TouchIDAvailable bool `json:"touchIdAvailable"`
 }
 
 type fileState struct {
@@ -57,19 +61,36 @@ type fileState struct {
 	Question   string `json:"question,omitempty"`
 	AnswerSalt string `json:"answerSalt,omitempty"`
 	AnswerHash string `json:"answerHash,omitempty"`
+
+	TouchIDEnabled bool `json:"touchIdEnabled,omitempty"`
 }
 
 type Manager struct {
 	mu   sync.Mutex
 	path string
 	data fileState
+
+	biometricAvailable func() bool
 }
 
-func New(root string) (*Manager, error) {
+type Option func(*Manager)
+
+func WithBiometricAvailability(check func() bool) Option {
+	return func(m *Manager) {
+		if check != nil {
+			m.biometricAvailable = check
+		}
+	}
+}
+
+func New(root string, options ...Option) (*Manager, error) {
 	if root == "" || !filepath.IsAbs(root) {
 		return nil, errno.New(errno.CodeInvalidArg, "applock.invalidPath", "")
 	}
 	manager := &Manager{path: filepath.Join(filepath.Clean(root), "app-lock.json")}
+	for _, apply := range options {
+		apply(manager)
+	}
 	if err := manager.load(); err != nil {
 		return nil, err
 	}
@@ -99,15 +120,56 @@ func (m *Manager) Status() Status {
 		return Status{}
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	enabled := m.data.Enabled && m.data.Hash != ""
-	return Status{
+	status := Status{
 		Enabled:          enabled,
 		HasPassword:      m.data.Hash != "",
 		AutoLockMinutes:  m.data.AutoLockMinutes,
 		HasRecovery:      m.data.AnswerHash != "",
 		RecoveryQuestion: m.data.Question,
+
+		TouchIDEnabled: enabled && m.data.TouchIDEnabled,
 	}
+	m.mu.Unlock()
+
+	status.TouchIDAvailable = m.biometricAvailableFn()
+	return status
+}
+
+func (m *Manager) TouchIDEnabled() bool {
+	if m == nil {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.data.Enabled && m.data.Hash != "" && m.data.TouchIDEnabled
+}
+
+func (m *Manager) SetTouchIDEnabled(enabled bool) error {
+	if m == nil {
+		return errno.New(errno.CodeUnknown, "applock.notReady", "")
+	}
+
+	if enabled && !m.biometricAvailableFn() {
+		return errno.New(errno.CodeInvalidArg, "applock.touchIdUnavailable", "")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if enabled && (!m.data.Enabled || m.data.Hash == "") {
+		return errno.New(errno.CodePermissionDenied, "applock.notEnabled", "")
+	}
+	if m.data.TouchIDEnabled == enabled {
+		return nil
+	}
+	m.data.TouchIDEnabled = enabled
+	return m.persistLocked()
+}
+
+func (m *Manager) biometricAvailableFn() bool {
+	if m == nil || m.biometricAvailable == nil {
+		return false
+	}
+	return m.biometricAvailable()
 }
 
 func (m *Manager) Enable(password string, autoLockMinutes int, question, answer string) error {
@@ -146,7 +208,7 @@ func (m *Manager) ChangePassword(current, next string) error {
 	if m.data.Hash != "" && !m.verifyLocked(current) {
 		return errno.New(errno.CodePermissionDenied, "applock.wrongPassword", "")
 	}
-	return m.saveLocked(next, m.data.AutoLockMinutes, true, "", "")
+	return m.saveLocked(next, m.data.AutoLockMinutes, m.data.Enabled, "", "")
 }
 
 func (m *Manager) Disable(password string) error {
@@ -158,7 +220,7 @@ func (m *Manager) Disable(password string) error {
 	if m.data.Hash != "" && !m.verifyLocked(password) {
 		return errno.New(errno.CodePermissionDenied, "applock.wrongPassword", "")
 	}
-	m.data = fileState{Version: 1, AutoLockMinutes: 0}
+	m.data = fileState{Version: 1, AutoLockMinutes: 0, TouchIDEnabled: false}
 	return m.persistLocked()
 }
 
@@ -177,7 +239,7 @@ func (m *Manager) ResetPasswordByRecovery(answer, next string) error {
 	if !m.verifyAnswerLocked(answer) {
 		return errno.New(errno.CodePermissionDenied, "applock.wrongAnswer", "")
 	}
-	return m.saveLocked(next, m.data.AutoLockMinutes, true, "", "")
+	return m.saveLocked(next, m.data.AutoLockMinutes, m.data.Enabled, "", "")
 }
 
 func (m *Manager) verifyAnswerLocked(answer string) bool {
@@ -251,6 +313,8 @@ func (m *Manager) saveLocked(password string, minutes int, enabled bool, questio
 		MemoryKiB:       defaultMemory,
 		Threads:         defaultThreads,
 		KeyLen:          defaultKeyLen,
+
+		TouchIDEnabled: previous.TouchIDEnabled,
 	}
 	if question == "" || answer == "" {
 

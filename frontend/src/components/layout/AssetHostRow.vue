@@ -19,16 +19,25 @@ const emit = defineEmits<{
   open: [host: HostRecord]
   edit: [host: HostRecord]
   delete: [host: HostRecord]
-  copy: [host: HostRecord, kind: 'ip' | 'connection' | 'id']
+  copy: [host: HostRecord, kind: 'ip' | 'id']
+
+  duplicate: [host: HostRecord]
+
+  toolPanel: [host: HostRecord, tool: 'tunnels' | 'sftp']
 }>()
 const { t } = useI18n()
 
 const colorStyle = computed(() => tagColorStyle(props.host.color))
 
+const sshCapable = computed(() => {
+  const protocol = (props.host.protocol ?? '').trim().toLowerCase()
+  return protocol === '' || protocol === 'ssh'
+})
+
 const actions = computed(() => [
   { id: 'open', label: t('shell.asset.connect'), icon: Link },
-  { id: 'tunnel', label: t('shell.asset.tunnel'), icon: ArrowRightLeft, disabled: true },
-  { id: 'sftp', label: t('shell.asset.sftp'), icon: Folder, disabled: true },
+  { id: 'tunnel', label: t('shell.asset.tunnel'), icon: ArrowRightLeft, disabled: !sshCapable.value },
+  { id: 'sftp', label: t('shell.asset.sftp'), icon: Folder, disabled: !sshCapable.value },
   { id: 'copy-ip', label: t('shell.asset.copyIp'), icon: Copy, separatorBefore: true },
   { id: 'copy-id', label: t('shell.asset.copyId'), icon: Copy },
   { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
@@ -37,12 +46,14 @@ const actions = computed(() => [
 ])
 
 function handleAction(id: string): void {
-  if (id === 'open') emit('open', props.host)
+  if (id === 'tunnel') emit('toolPanel', props.host, 'tunnels')
+  else if (id === 'sftp') emit('toolPanel', props.host, 'sftp')
+  else if (id === 'open') emit('open', props.host)
   else if (id === 'edit') emit('edit', props.host)
   else if (id === 'delete') emit('delete', props.host)
   else if (id === 'copy-ip') emit('copy', props.host, 'ip')
   else if (id === 'copy-id') emit('copy', props.host, 'id')
-  else if (id === 'copy') emit('copy', props.host, 'connection')
+  else if (id === 'copy') emit('duplicate', props.host)
 }
 
 const addressLine = computed(() => {

@@ -89,15 +89,99 @@ const listenScopeOptions = computed(() => [
 ])
 
 const kindOptions = computed(() => [
-  { value: 'local', label: t('shell.forwards.kindLocal') },
-  { value: 'remote', label: t('shell.forwards.kindRemote') },
-  { value: 'dynamic', label: t('shell.forwards.kindDynamic') },
+  { value: 'local', label: t('shell.forwards.kindLocalFlag') },
+  { value: 'remote', label: t('shell.forwards.kindRemoteFlag') },
+  { value: 'dynamic', label: t('shell.forwards.kindDynamicFlag') },
 ])
 
 const kindHint = computed(() => {
   if (draft.value.kind === 'remote') return t('shell.forwards.hintRemote')
   if (draft.value.kind === 'dynamic') return t('shell.forwards.hintDynamic')
   return t('shell.forwards.hintLocal')
+})
+
+const listenSectionLabel = computed(() =>
+  draft.value.kind === 'remote' ? t('shell.forwards.listenSectionRemote') : t('shell.forwards.listenSectionLocal'),
+)
+const targetSectionLabel = computed(() =>
+  draft.value.kind === 'remote' ? t('shell.forwards.targetSectionRemote') : t('shell.forwards.targetSectionLocal'),
+)
+const targetSectionHelp = computed(() =>
+  draft.value.kind === 'remote' ? t('shell.forwards.targetHelpRemote') : t('shell.forwards.targetHelpLocal'),
+)
+
+const listenPortLabel = computed(() =>
+  draft.value.kind === 'remote' ? t('shell.forwards.listenPortRemote') : t('shell.forwards.listenPort'),
+)
+const listenHostLabel = computed(() =>
+  draft.value.kind === 'remote' ? t('shell.forwards.listenHostRemote') : t('shell.forwards.listenHost'),
+)
+
+const proxyOptions = computed(() => [
+  { value: 'socks5', label: 'SOCKS5' },
+  { value: 'http', label: 'HTTP' },
+])
+const proxyProtocol = computed(() => draft.value.proxy ?? 'socks5')
+const proxyHint = computed(() =>
+  proxyProtocol.value === 'http' ? t('shell.forwards.proxyHttpHelp') : t('shell.forwards.proxySocks5Help'),
+)
+
+function setProxy(value: string): void {
+  draft.value = { ...draft.value, proxy: value === 'http' ? 'http' : 'socks5' }
+}
+
+interface PreviewEndpoint {
+  where: string
+
+  address: string
+}
+
+interface PreviewFlow {
+  from: PreviewEndpoint
+
+  via: string
+
+  to: PreviewEndpoint | null
+
+  badge: string
+}
+
+const previewFlow = computed<PreviewFlow>(() => {
+  const row = draft.value
+  const listen = `${row.listenHost || '127.0.0.1'}:${row.listenPort}`
+  const target = `${row.targetHost || '127.0.0.1'}:${row.targetPort}`
+  const local = t('shell.forwards.previewLocal')
+  const remote = t('shell.forwards.previewRemote')
+
+  const host = row.hostId ? forwardHostLabel(row, props.hosts) : ''
+
+  if (row.kind === 'dynamic') {
+    return {
+      from: { where: local, address: listen },
+      via: host ? t('shell.forwards.previewViaHost', { name: host }) : '',
+      to: { where: '', address: t('shell.forwards.previewAnyAddress') },
+      badge: proxyProtocol.value === 'http' ? 'HTTP' : 'SOCKS5',
+    }
+  }
+
+  if (row.kind === 'remote') {
+    return {
+      from: {
+        where: remote,
+        address: host ? `${host}:${row.listenPort}` : t('shell.forwards.previewRemotePort', { port: row.listenPort }),
+      },
+      via: '',
+      to: { where: local, address: target },
+      badge: '',
+    }
+  }
+
+  return {
+    from: { where: local, address: listen },
+    via: host ? t('shell.forwards.previewViaHost', { name: host }) : '',
+    to: { where: remote, address: target },
+    badge: '',
+  }
 })
 
 const groupOptions = computed<QtermComboboxOption[]>(() => [
@@ -154,6 +238,8 @@ function submit(): void {
     group: draft.value.group.trim(),
     id: draft.value.id || `forward-${Date.now().toString(36)}`,
   }
+
+  if (payload.kind !== 'dynamic') delete payload.proxy
 
   if (!payload.name) payload.name = forwardSummary(payload)
   emit('submit', payload)
@@ -213,6 +299,8 @@ function submit(): void {
             :label="t('shell.forwards.kind')"
             @update:model-value="(value) => (draft = { ...draft, kind: value as PortForwardKind })"
           />
+
+          <p class="m-0 text-[11px] leading-[1.5] text-qt-muted" data-forward-kind-hint>{{ kindHint }}</p>
         </div>
 
         <div class="flex flex-col gap-1.5">
@@ -225,7 +313,7 @@ function submit(): void {
         </div>
 
         <div class="flex flex-col gap-1.5">
-          <span class="text-xs font-medium text-qt-text">{{ t('shell.forwards.localService') }}</span>
+          <span class="text-xs font-medium text-qt-text">{{ listenSectionLabel }}</span>
           <SegmentedTabs
             :model-value="listenScope"
             :options="listenScopeOptions"
@@ -235,25 +323,25 @@ function submit(): void {
 
           <div class="grid gap-3" :class="{ 'sm:grid-cols-[minmax(0,1fr)_10rem]': listenScope === 'custom' }">
             <label v-if="listenScope === 'custom'" class="flex min-w-0 flex-col gap-1">
-              <span class="text-[11px] text-qt-muted">{{ t('shell.forwards.listenHost') }}</span>
+              <span class="text-[11px] text-qt-muted">{{ listenHostLabel }}</span>
               <QtermInput
                 v-model="draft.listenHost"
                 class="font-mono text-xs"
-                :aria-label="t('shell.forwards.listenHost')"
+                :aria-label="listenHostLabel"
                 spellcheck="false"
               />
             </label>
             <div class="flex min-w-0 flex-col gap-1">
-              <span class="text-[11px] text-qt-muted">{{ t('shell.forwards.listenPort') }}</span>
+              <span class="text-[11px] text-qt-muted">{{ listenPortLabel }}</span>
               <QtermNumberField
                 class="w-full"
                 :model-value="draft.listenPort"
                 :min="0"
                 :max="65535"
                 :step="1"
-                :aria-label="t('shell.forwards.listenPort')"
-                :decrease-label="t('shell.forwards.listenPort')"
-                :increase-label="t('shell.forwards.listenPort')"
+                :aria-label="listenPortLabel"
+                :decrease-label="listenPortLabel"
+                :increase-label="listenPortLabel"
                 @update:model-value="(value) => (draft = { ...draft, listenPort: value ?? 0 })"
               />
             </div>
@@ -261,10 +349,22 @@ function submit(): void {
           <span v-if="draft.listenHost !== '127.0.0.1'" class="text-[11px] text-qt-warning">
             {{ t('shell.forwards.exposeWarning') }}
           </span>
+
+          <div v-if="draft.kind === 'dynamic'" class="mt-1 flex flex-col gap-1.5" data-forward-proxy>
+            <span class="text-[11px] text-qt-muted">{{ t('shell.forwards.proxyProtocol') }}</span>
+            <SegmentedTabs
+              :model-value="proxyProtocol"
+              :options="proxyOptions"
+              :label="t('shell.forwards.proxyProtocol')"
+              @update:model-value="setProxy"
+            />
+            <span class="text-[11px] leading-[1.5] text-qt-muted">{{ proxyHint }}</span>
+          </div>
         </div>
 
         <div v-if="draft.kind !== 'dynamic'" class="flex flex-col gap-1.5">
-          <span class="text-xs font-medium text-qt-text">{{ t('shell.forwards.targetService') }}</span>
+          <span class="text-xs font-medium text-qt-text">{{ targetSectionLabel }}</span>
+          <span class="text-[11px] leading-[1.5] text-qt-muted">{{ targetSectionHelp }}</span>
           <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
             <label class="flex min-w-0 flex-col gap-1">
               <span class="text-[11px] text-qt-muted">{{ t('shell.forwards.targetHost') }}</span>
@@ -292,8 +392,11 @@ function submit(): void {
           </div>
         </div>
 
-        <label class="flex items-center justify-between gap-3 text-xs">
-          <span>{{ t('shell.forwards.autoOpen') }}</span>
+        <label class="settings-toggle-row" data-forward-auto-open>
+          <span>
+            <strong>{{ t('shell.forwards.autoOpen') }}</strong>
+            <small class="text-xs">{{ t('shell.forwards.autoOpenHelp') }}</small>
+          </span>
           <QtermSwitch
             :model-value="draft.autoOpen"
             :aria-label="t('shell.forwards.autoOpen')"
@@ -302,10 +405,34 @@ function submit(): void {
         </label>
 
         <p v-if="draftError" class="m-0 text-xs text-qt-danger" role="alert">{{ draftError }}</p>
-        <div class="rounded-md border border-qt-border bg-qt-subtle px-2 py-1.5 text-[11px] text-qt-muted">
-          <div class="mb-0.5">{{ t('shell.forwards.preview') }}</div>
-          <code class="font-mono text-qt-text">{{ forwardSummary(draft) }}</code>
-          <div class="mt-1">{{ kindHint }}</div>
+        <div
+          class="flex flex-col gap-1.5 rounded-md border border-qt-border bg-qt-subtle px-2 py-1.5 text-[11px] text-qt-muted"
+          data-forward-preview
+        >
+          <div class="flex items-center gap-1.5">
+            <span>{{ t('shell.forwards.preview') }}</span>
+
+            <span
+              v-if="previewFlow.badge"
+              data-forward-preview-badge
+              class="rounded bg-qt-hover px-1 text-[10px] leading-4 text-qt-muted"
+              >{{ previewFlow.badge }}</span
+            >
+          </div>
+
+          <div class="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 leading-5" data-forward-preview-flow>
+            <span class="shrink-0">{{ previewFlow.from.where }}</span>
+            <code class="min-w-0 font-mono text-qt-text [overflow-wrap:anywhere]">{{ previewFlow.from.address }}</code>
+            <template v-if="previewFlow.via">
+              <span class="shrink-0" aria-hidden="true">→</span>
+              <span class="min-w-0 [overflow-wrap:anywhere]">{{ previewFlow.via }}</span>
+            </template>
+            <template v-if="previewFlow.to">
+              <span class="shrink-0" aria-hidden="true">→</span>
+              <span v-if="previewFlow.to.where" class="shrink-0">{{ previewFlow.to.where }}</span>
+              <code class="min-w-0 font-mono text-qt-text [overflow-wrap:anywhere]">{{ previewFlow.to.address }}</code>
+            </template>
+          </div>
         </div>
       </div>
       <QtermDialogFooter>

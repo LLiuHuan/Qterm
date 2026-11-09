@@ -6,7 +6,6 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"syscall"
 )
@@ -17,7 +16,7 @@ func (s *Service) launchReplacer(_ context.Context, stagedPath, executable strin
 
 		return unsupportedPlatform("not-app-bundle")
 	}
-	script, err := writeHelperScript(filepath.Dir(stagedPath), "qterm-update.sh", darwinReplacerScript())
+	script, err := writeHelperScript(s.helperScriptDir(), "qterm-update.sh", darwinReplacerScript())
 	if err != nil {
 		return installFailed("helper")
 	}

@@ -116,6 +116,8 @@ const effectiveDirectoryFollowMode = computed(() => {
 const emit = defineEmits<{
   close: []
   manageCredentials: []
+
+  manageForwards: []
   'update:forwards': [value: import('../../services/forwards').PortForwardConfig[]]
   'update:forwardGroups': [value: string[]]
   'update:otp-entries': [value: import('../../services/otp').OtpEntry[]]
@@ -905,6 +907,7 @@ function handleAssetsImported(): void {
         :forward-groups="props.forwardGroups ?? []"
         :hosts="props.nextHosts ?? []"
         :active-host-id="props.activeHost?.id ?? ''"
+        @manage="emit('manageForwards')"
         @update:forwards="emit('update:forwards', $event)"
         @update:forward-groups="emit('update:forwardGroups', $event)"
       />

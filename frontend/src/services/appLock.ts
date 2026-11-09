@@ -1,5 +1,13 @@
 import { createRuntimeGateway } from './runtime'
 
+interface PreviewAppLockRecord {
+  hash: string
+  autoLockMinutes: number
+  question?: string
+  answerHash?: string
+  touchIdEnabled?: boolean
+}
+
 export interface AppLockStatus {
   enabled: boolean
   hasPassword: boolean
@@ -9,6 +17,10 @@ export interface AppLockStatus {
   hasRecovery: boolean
 
   recoveryQuestion: string
+
+  touchIdEnabled: boolean
+
+  touchIdAvailable: boolean
 }
 
 export interface AppLockGateway {
@@ -23,6 +35,10 @@ export interface AppLockGateway {
   disable(password: string): Promise<void>
   setAutoLockMinutes(minutes: number): Promise<void>
   verify(password: string): Promise<boolean>
+
+  setTouchIdEnabled(enabled: boolean): Promise<void>
+
+  verifyTouchId(): Promise<boolean>
 }
 
 class PreviewAppLockGateway implements AppLockGateway {
@@ -30,29 +46,25 @@ class PreviewAppLockGateway implements AppLockGateway {
 
   private readonly key = 'qterm.app-lock.preview'
 
-  private read(): { hash: string; autoLockMinutes: number; question?: string; answerHash?: string } | null {
+  private read(): PreviewAppLockRecord | null {
     try {
       const raw = globalThis.localStorage?.getItem(this.key)
       if (!raw) return null
-      const parsed = JSON.parse(raw) as {
-        hash?: string
-        autoLockMinutes?: number
-        question?: string
-        answerHash?: string
-      }
+      const parsed = JSON.parse(raw) as Partial<PreviewAppLockRecord>
       if (typeof parsed.hash !== 'string' || parsed.hash === '') return null
       return {
         hash: parsed.hash,
         autoLockMinutes: Number(parsed.autoLockMinutes) || 0,
         question: parsed.question,
         answerHash: parsed.answerHash,
+        touchIdEnabled: parsed.touchIdEnabled === true,
       }
     } catch {
       return null
     }
   }
 
-  private write(value: { hash: string; autoLockMinutes: number; question?: string; answerHash?: string } | null): void {
+  private write(value: PreviewAppLockRecord | null): void {
     try {
       if (!value) globalThis.localStorage?.removeItem(this.key)
       else globalThis.localStorage?.setItem(this.key, JSON.stringify(value))
@@ -75,12 +87,15 @@ class PreviewAppLockGateway implements AppLockGateway {
       autoLockMinutes: stored?.autoLockMinutes ?? 0,
       hasRecovery: Boolean(stored?.answerHash),
       recoveryQuestion: stored?.question ?? '',
+      touchIdEnabled: stored?.touchIdEnabled === true,
+
+      touchIdAvailable: false,
     }
   }
 
   async enable(password: string, autoLockMinutes: number, question = '', answer = ''): Promise<void> {
     if (this.read()) throw new Error('applock.alreadyEnabled')
-    const stored: { hash: string; autoLockMinutes: number; question?: string; answerHash?: string } = {
+    const stored: PreviewAppLockRecord = {
       hash: await this.digest(password),
       autoLockMinutes,
     }
@@ -104,7 +119,8 @@ class PreviewAppLockGateway implements AppLockGateway {
     const stored = this.read()
     if (!stored) throw new Error('applock.notEnabled')
     if (stored.hash !== (await this.digest(current))) throw new Error('applock.wrongPassword')
-    this.write({ hash: await this.digest(next), autoLockMinutes: stored.autoLockMinutes })
+
+    this.write({ ...stored, hash: await this.digest(next) })
   }
 
   async disable(password: string): Promise<void> {
@@ -125,6 +141,16 @@ class PreviewAppLockGateway implements AppLockGateway {
     if (!stored) return false
     return stored.hash === (await this.digest(password))
   }
+
+  async setTouchIdEnabled(enabled: boolean): Promise<void> {
+    if (enabled) throw new Error('applock.touchIdUnavailable')
+    const stored = this.read()
+    if (stored) this.write({ ...stored, touchIdEnabled: false })
+  }
+
+  async verifyTouchId(): Promise<boolean> {
+    throw new Error('applock.touchIdUnavailable')
+  }
 }
 
 class WailsAppLockGateway implements AppLockGateway {
@@ -143,6 +169,8 @@ class WailsAppLockGateway implements AppLockGateway {
       autoLockMinutes: Number(status.autoLockMinutes) || 0,
       hasRecovery: status.hasRecovery === true,
       recoveryQuestion: status.recoveryQuestion ?? '',
+      touchIdEnabled: status.touchIdEnabled === true,
+      touchIdAvailable: status.touchIdAvailable === true,
     }
   }
 
@@ -179,6 +207,16 @@ class WailsAppLockGateway implements AppLockGateway {
   async broadcastLocked(locked: boolean): Promise<void> {
     const { NotifyAppLockState } = await this.bindings()
     await NotifyAppLockState(locked)
+  }
+
+  async setTouchIdEnabled(enabled: boolean): Promise<void> {
+    const { SetAppLockTouchIDEnabled } = await this.bindings()
+    await SetAppLockTouchIDEnabled(enabled)
+  }
+
+  async verifyTouchId(): Promise<boolean> {
+    const { VerifyAppLockTouchID } = await this.bindings()
+    return (await VerifyAppLockTouchID()) === true
   }
 }
 

@@ -11,18 +11,14 @@ export interface UpdateViewState {
 
   errorKey: string
   errorDetail: string
-
-  dismissedVersion: string
 }
 
-const DISMISSED_STORAGE_KEY = 'qterm.update.dismissed.v1'
+const LEGACY_DISMISSED_STORAGE_KEY = 'qterm.update.dismissed.v1'
 
-function readDismissedVersion(): string {
+function dropLegacyDismissed(): void {
   try {
-    return window.localStorage.getItem(DISMISSED_STORAGE_KEY) ?? ''
-  } catch {
-    return ''
-  }
+    window.localStorage.removeItem(LEGACY_DISMISSED_STORAGE_KEY)
+  } catch {}
 }
 
 const state = reactive<UpdateViewState>({
@@ -30,7 +26,6 @@ const state = reactive<UpdateViewState>({
   busy: false,
   errorKey: '',
   errorDetail: '',
-  dismissedVersion: readDismissedVersion(),
 })
 
 let started = false
@@ -57,11 +52,75 @@ function recordError(cause: unknown): void {
   state.errorDetail = appError?.safeDetail ?? ''
 }
 
+const RETRY_DELAYS = [8_000, 20_000, 45_000]
+let retryAttempt = 0
+let retryTimer: number | undefined
+let retrying = false
+
+function clearRetry(): void {
+  window.clearTimeout(retryTimer)
+  retryTimer = undefined
+  retrying = false
+}
+
+function scheduleRetry(): void {
+  if (retrying || retryAttempt >= RETRY_DELAYS.length) return
+  retrying = true
+  const delay = RETRY_DELAYS[retryAttempt] ?? RETRY_DELAYS[RETRY_DELAYS.length - 1]
+  retryAttempt += 1
+  window.clearTimeout(retryTimer)
+  retryTimer = window.setTimeout(() => {
+    retrying = false
+    void checkUpdate({ autoDownload: true })
+  }, delay)
+}
+
+const RECHECK_INTERVAL = 5 * 60_000
+
+const RECHECK_AFTER_FAILURE = 30 * 60_000
+let recheckTimer: number | undefined
+
+function clearRecheck(): void {
+  window.clearTimeout(recheckTimer)
+  recheckTimer = undefined
+}
+
+function scheduleRecheck(delay = RECHECK_INTERVAL): void {
+  if (!started || recheckTimer !== undefined) return
+  recheckTimer = window.setTimeout(() => {
+    recheckTimer = undefined
+    if (!started) return
+    void checkUpdate({ autoDownload: true })
+  }, delay)
+}
+
+function recheckNow(): void {
+  if (!started) return
+  if (state.status.state === 'ready') return
+  void checkUpdate({ autoDownload: true })
+}
+
+function onVisibilityChange(): void {
+  if (document.visibilityState === 'visible') recheckNow()
+}
+
+let resumeBound = false
+
+function bindResumeChecks(): void {
+  if (resumeBound) return
+  resumeBound = true
+  document.addEventListener('visibilitychange', onVisibilityChange)
+
+  window.addEventListener('online', recheckNow)
+}
+
 export function ensureUpdateChecks(): void {
   if (started) return
   started = true
   const start = (): void => {
     stopStatus ??= updates.subscribe(applyStatus)
+    bindResumeChecks()
+    dropLegacyDismissed()
     void (async () => {
       try {
         applyStatus(await updates.status())
@@ -69,6 +128,8 @@ export function ensureUpdateChecks(): void {
         await checkUpdate({ autoDownload: true })
       } catch (cause) {
         recordError(cause)
+
+        scheduleRetry()
       }
     })()
   }
@@ -84,11 +145,22 @@ export async function checkUpdate(options: { autoDownload?: boolean } = {}): Pro
     const release = await updates.check(QTERM_VERSION)
     const nextState = release.noRelease ? 'no-release' : release.hasUpdate ? 'available' : 'up-to-date'
     applyStatus({ ...state.status, state: nextState, release })
+
+    clearRetry()
+    retryAttempt = 0
+
+    if (release.hasUpdate) clearRecheck()
+    else scheduleRecheck()
     if (options.autoDownload && release.hasUpdate) await downloadUpdate()
   } catch (cause) {
     recordError(cause)
 
     state.status = { ...state.status, state: 'failed', percent: 0, downloaded: 0 }
+
+    if (options.autoDownload) {
+      scheduleRetry()
+      scheduleRecheck(RECHECK_AFTER_FAILURE)
+    }
   } finally {
     state.busy = false
   }
@@ -119,20 +191,19 @@ export async function installUpdate(): Promise<void> {
 export function shouldNotifyUpdate(): boolean {
   const status = state.status
   if (status.state !== 'ready') return false
-  const version = status.release?.version ?? ''
-  return version !== '' && version !== state.dismissedVersion
-}
-
-export function dismissUpdate(): void {
-  const version = state.status.release?.version ?? ''
-  state.dismissedVersion = version
-  try {
-    window.localStorage.setItem(DISMISSED_STORAGE_KEY, version)
-  } catch {}
+  return (status.release?.version ?? '') !== ''
 }
 
 export function stopUpdateChecks(): void {
   stopStatus?.()
   stopStatus = undefined
+  window.clearTimeout(retryTimer)
+  retryTimer = undefined
+  clearRecheck()
+  retrying = false
+  retryAttempt = 0
   started = false
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  window.removeEventListener('online', recheckNow)
+  resumeBound = false
 }

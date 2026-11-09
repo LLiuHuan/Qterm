@@ -81,6 +81,7 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.credentials.filter.all': '전체({count})',
   'settings.credentials.search.placeholder': '이름으로 자격 증명 검색',
   'settings.credentials.search.aria': '이름으로 자격 증명 검색',
+  'settings.credentials.search.clear': '검색 지우기',
   'settings.credentials.loading': '자격 증명을 불러오는 중…',
   'settings.credentials.action.edit': '자격 증명 편집',
   'settings.credentials.action.delete': '자격 증명 삭제',
@@ -846,11 +847,6 @@ export const settingsCoreKo: Record<string, string> = {
   'terminal.core.showLineNumbersHelp':
     '터미널 왼쪽에 출력 줄 번호를 표시합니다. 줄바꿈으로 이어진 행과 커서 아래의 빈 행에는 번호를 표시하지 않습니다. 켜면 터미널 너비를 한 열 사용합니다.',
   'terminal.core.gutterMode': '터미널 거터',
-  'terminal.core.gutterModeHelp':
-    '표시하지 않거나 출력 줄 번호 또는 명령 표시를 선택합니다. 명령 모드는 Shell Integration을 우선 사용합니다.',
-  'terminal.core.gutterModeOff': '끄기',
-  'terminal.core.gutterModeLines': '줄 번호',
-  'terminal.core.gutterModeCommands': '명령',
   'terminal.core.showTimestamps': '타임스탬프 표시',
   'terminal.core.showTimestampsHelp':
     '각 논리 줄이 처음 내용을 만든 시간을 표시합니다. 끄면 전체 시간은 마우스를 올릴 때만 표시됩니다.',

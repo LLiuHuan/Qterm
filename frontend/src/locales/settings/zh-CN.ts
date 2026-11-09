@@ -78,6 +78,7 @@ export const settingsAssetsZh: Record<string, string> = {
   'settings.credentials.filter.all': '全部（{count}）',
   'settings.credentials.search.placeholder': '按名称搜索凭据',
   'settings.credentials.search.aria': '按名称搜索凭据',
+  'settings.credentials.search.clear': '清除搜索',
   'settings.credentials.loading': '正在加载凭据…',
   'settings.credentials.action.edit': '编辑凭据',
   'settings.credentials.action.delete': '删除凭据',
@@ -794,10 +795,6 @@ export const settingsCoreZh: Record<string, string> = {
   'terminal.core.showLineNumbersHelp':
     '在终端左侧显示输出行号。自动换行的续行与光标下方的空行不编号；开启后会占用一列终端宽度。',
   'terminal.core.gutterMode': '终端左侧标记',
-  'terminal.core.gutterModeHelp': '关闭、显示输出行号，或显示命令标记。命令模式优先使用 Shell Integration。',
-  'terminal.core.gutterModeOff': '关闭',
-  'terminal.core.gutterModeLines': '行号',
-  'terminal.core.gutterModeCommands': '命令',
   'terminal.core.showTimestamps': '显示时间戳',
   'terminal.core.showTimestampsHelp': '在每条逻辑行前显示它第一次出现内容的时间。关闭后只在悬停时显示完整时间。',
   'terminal.core.timestampFormat': '时间戳格式',

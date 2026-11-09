@@ -14,7 +14,7 @@ import CredentialCreateDialog from '../../components/dialogs/CredentialCreateDia
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/common/form-controls'
 import { Label, ScrollArea } from '../../components/common/control-primitives'
 import { computed, ref, watch } from 'vue'
-import { FileKey, KeyRound, Loader2, LockKeyhole, Pencil, Search, Trash2 } from '@lucide/vue'
+import { FileKey, KeyRound, Loader2, LockKeyhole, Pencil, Search, Trash2, X } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import {
@@ -93,6 +93,13 @@ const filtered = computed(() => {
 const loadErrorDetail = computed(() => (props.error === t('shell.error.credentialsRead') ? '' : props.error))
 
 const hasFilter = computed(() => query.value.trim() !== '' || kindFilter.value !== 'all')
+
+function clearSearch(event: MouseEvent): void {
+  event.preventDefault()
+  event.stopPropagation()
+  query.value = ''
+  ;(event.currentTarget as HTMLElement | null)?.closest('label')?.querySelector<HTMLInputElement>('input')?.focus()
+}
 
 const hostsByCredential = computed(() => {
   const map = new Map<string, HostRecord[]>()
@@ -319,9 +326,22 @@ async function confirmDelete(): Promise<void> {
             <Search :size="15" aria-hidden="true" />
             <QtermInput
               v-model="query"
+              class="pr-9"
               :placeholder="t('settings.credentials.search.placeholder')"
               :aria-label="t('settings.credentials.search.aria')"
             />
+
+            <QtermButton
+              v-if="query"
+              variant="ghost"
+              size="icon-xs"
+              class="absolute top-1/2 right-1 z-1 -translate-y-1/2"
+              type="button"
+              :aria-label="t('settings.credentials.search.clear')"
+              @click.prevent="clearSearch"
+            >
+              <X :size="16" aria-hidden="true" />
+            </QtermButton>
           </label>
         </div>
       </div>

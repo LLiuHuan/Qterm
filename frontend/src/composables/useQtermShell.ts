@@ -177,6 +177,16 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     resetShortcut,
   } = useSettingsState()
   const settingsCategory = ref<SettingsCategory>('application')
+
+  const settingsSearch = ref('')
+
+  const settingsSearchSeq = ref(0)
+
+  function applySettingsSearch(term: string): void {
+    settingsSearch.value = term
+    settingsSearchSeq.value += 1
+  }
+
   const themeMode = computed(() => settings.themeMode)
   const minimalAppearance = computed(() => settings.minimalAppearance)
   const uiScale = computed(() => settings.uiScale ?? 1)
@@ -242,7 +252,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const gutterTimestampFormat = computed<TerminalGutterTimestampFormat>(
     () => settings.terminalGutterTimestampFormat ?? 'HH:mm:ss',
   )
-  const terminalBatchCommand = computed(() => settings.terminalBatchCommand ?? false)
+  const terminalBatchCommand = computed(() => settings.terminalBatchCommand ?? true)
   const terminalConfirmClose = computed(() => settings.terminalConfirmClose ?? true)
 
   const terminalScrollback = computed(() => settings.terminalScrollback ?? 5000)
@@ -374,7 +384,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
       : []
   }
   function setGutterMode(value: TerminalGutterMode): void {
-    if (value === 'off' || value === 'lines' || value === 'commands') settings.terminalGutterMode = value
+    if (value === 'off' || value === 'lines') settings.terminalGutterMode = value
   }
   function setGutterShowTimestamps(value: boolean): void {
     settings.terminalGutterShowTimestamps = value === true
@@ -623,14 +633,15 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     return value !== null && Object.prototype.hasOwnProperty.call(SETTINGS_CATEGORY_SET, value)
   }
 
-  async function openSettings(category: SettingsCategory = 'application'): Promise<void> {
+  async function openSettings(category: SettingsCategory = 'application', search = ''): Promise<void> {
     if (settingsInWindow.value && !isSettingsWindowMode() && sessionGateway.persistent) {
       try {
-        await openSettingsWindow(t('shell.toolbar.settings'), category)
+        await openSettingsWindow(t('shell.toolbar.settings'), category, search)
         return
       } catch {}
     }
     settingsCategory.value = category
+    applySettingsSearch(search)
     await openSecuritySettings()
   }
 
@@ -1069,6 +1080,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
 
       const kind = params.get('kind') ?? 'settings'
       settingsCategory.value = isSettingsCategory(requested) ? requested : 'application'
+
+      applySettingsSearch(params.get('settingsSearch') ?? '')
       void (async () => {
         if (kind === 'settings') await openSecuritySettings().catch(() => undefined)
         try {
@@ -1204,6 +1217,9 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     securityWorking,
     securityError,
     settingsCategory,
+    settingsSearch,
+    settingsSearchSeq,
+    applySettingsSearch,
     settingsLocked,
     themeMode,
     minimalAppearance,

@@ -78,6 +78,7 @@ export const settingsAssetsZhHant: Record<string, string> = {
   'settings.credentials.filter.all': '全部（{count}）',
   'settings.credentials.search.placeholder': '按名稱搜索憑據',
   'settings.credentials.search.aria': '按名稱搜索憑據',
+  'settings.credentials.search.clear': '清除搜索',
   'settings.credentials.loading': '正在載入憑據…',
   'settings.credentials.action.edit': '編輯憑據',
   'settings.credentials.action.delete': '刪除憑據',
@@ -794,10 +795,6 @@ export const settingsCoreZhHant: Record<string, string> = {
   'terminal.core.showLineNumbersHelp':
     '在終端左側顯示輸出行號。自動換行的續行與游標下方的空行不編號；開啟後會佔用一欄終端寬度。',
   'terminal.core.gutterMode': '終端左側標記',
-  'terminal.core.gutterModeHelp': '關閉、顯示輸出行號，或顯示命令標記。命令模式優先使用 Shell Integration。',
-  'terminal.core.gutterModeOff': '關閉',
-  'terminal.core.gutterModeLines': '行號',
-  'terminal.core.gutterModeCommands': '命令',
   'terminal.core.showTimestamps': '顯示時間戳',
   'terminal.core.showTimestampsHelp': '在每條邏輯行前顯示它第一次出現內容的時間。關閉後只在懸停時顯示完整時間。',
   'terminal.core.timestampFormat': '時間戳格式',

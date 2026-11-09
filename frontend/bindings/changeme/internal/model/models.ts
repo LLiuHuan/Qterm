@@ -282,6 +282,8 @@ export interface ForwardConfig {
   targetHost: string
   targetPort: number
 
+  proxy?: string
+
   autoOpen: boolean
 }
 

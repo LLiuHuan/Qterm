@@ -44,4 +44,15 @@ export const appLockEn: Record<string, string> = {
   'applock.autoLock.decrease': 'Decrease auto-lock minutes',
   'applock.autoLock.increase': 'Increase auto-lock minutes',
   'applock.error.alreadyEnabled': 'App lock is already enabled. Enter the current passcode to change it.',
+  'applock.touchId.label': 'Unlock with Touch ID',
+  'applock.touchId.help':
+    'Tap the fingerprint button on the lock screen to unlock. Touch ID never starts on its own when the app locks.',
+  'applock.touchId.unavailable': 'Touch ID is not available on this device right now.',
+  'applock.screen.touchIdUnlock': 'Unlock with Touch ID',
+  'applock.screen.touchIdWaiting': 'Waiting for your fingerprint…',
+  'applock.screen.touchIdCancelled': 'Touch ID was cancelled. You can enter the passcode instead.',
+  'applock.screen.touchIdUnavailable': 'Touch ID is unavailable right now. Enter the passcode to unlock.',
+  'applock.screen.touchIdTimeout': 'Touch ID did not respond. Enter the passcode to unlock.',
+  'applock.screen.touchIdFailed': 'Touch ID did not verify. Try again or enter the passcode.',
+  'applock.error.notEnabled': 'App lock is not enabled.',
 }

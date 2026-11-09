@@ -31,7 +31,7 @@ func (s *Service) OpenNewWindow(ctx context.Context) error {
 
 const settingsWindowPrewarmDelay = 2 * time.Second
 
-func (s *Service) OpenSettingsWindow(ctx context.Context, kind, title, category string, resizable bool) error {
+func (s *Service) OpenSettingsWindow(ctx context.Context, kind, title, category, search string, resizable bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -42,6 +42,7 @@ func (s *Service) OpenSettingsWindow(ctx context.Context, kind, title, category 
 		return errors.New("原生窗口服务尚未就绪")
 	}
 	category = strings.TrimSpace(category)
+	search = strings.TrimSpace(search)
 
 	if !s.settingsWindowEnabled.Load() {
 		return errors.New("settings window is disabled")
@@ -56,7 +57,7 @@ func (s *Service) OpenSettingsWindow(ctx context.Context, kind, title, category 
 				applyDialogWindowSize(existing, kind, resizable)
 
 				focusAuxiliaryWindow(existing)
-				s.notifySettingsWindowOpened(kind, category)
+				s.notifySettingsWindowOpened(kind, category, search)
 				return nil
 			}
 		}
@@ -77,6 +78,9 @@ func (s *Service) OpenSettingsWindow(ctx context.Context, kind, title, category 
 	}
 	if category = strings.TrimSpace(category); category != "" {
 		params.Set("settingsCategory", category)
+	}
+	if search != "" {
+		params.Set("settingsSearch", search)
 	}
 	s.openWindow(ctx, "/?"+params.Encode(), nil)
 	return nil
@@ -116,7 +120,7 @@ const (
 	maskWindowKindHostEditor = "hostEditor"
 )
 
-func (s *Service) emitMaskState(kind, category string) {
+func (s *Service) emitMaskState(kind, category, search string) {
 	if s == nil {
 		return
 	}
@@ -124,6 +128,7 @@ func (s *Service) emitMaskState(kind, category string) {
 	if !open {
 		kind = ""
 		category = ""
+		search = ""
 	} else if kind == "" {
 		if s.hostEditorShown.Load() {
 			kind = maskWindowKindHostEditor
@@ -132,20 +137,20 @@ func (s *Service) emitMaskState(kind, category string) {
 		}
 	}
 	if app := application.Get(); app != nil {
-		app.Event.Emit(settingsWindowStateEvent, settingsWindowStatePayload{Open: open, Kind: kind, Category: category})
+		app.Event.Emit(settingsWindowStateEvent, settingsWindowStatePayload{Open: open, Kind: kind, Category: category, Search: search})
 	}
 }
 
-func (s *Service) markSettingsWindowOpen(open bool, kind, category string) {
+func (s *Service) markSettingsWindowOpen(open bool, kind, category, search string) {
 	if s == nil {
 		return
 	}
 	s.settingsWindowShown.Store(open)
-	s.emitMaskState(kind, category)
+	s.emitMaskState(kind, category, search)
 }
 
-func (s *Service) notifySettingsWindowOpened(kind, category string) {
-	s.markSettingsWindowOpen(true, kind, category)
+func (s *Service) notifySettingsWindowOpened(kind, category, search string) {
+	s.markSettingsWindowOpen(true, kind, category, search)
 }
 
 func (s *Service) FocusAuxiliaryWindow() error {
@@ -155,14 +160,14 @@ func (s *Service) FocusAuxiliaryWindow() error {
 	if s.hostEditorShown.Load() {
 		if window, ok := s.liveHostEditorWindow(); ok {
 			focusAuxiliaryWindow(window)
-			s.emitMaskState(maskWindowKindHostEditor, "")
+			s.emitMaskState(maskWindowKindHostEditor, "", "")
 			return nil
 		}
 	}
 	if s.settingsWindowEnabled.Load() && s.settingsWindowShown.Load() {
 		if window, ok := s.liveSettingsWindow(); ok {
 			focusAuxiliaryWindow(window)
-			s.emitMaskState(maskWindowKindSettings, "")
+			s.emitMaskState(maskWindowKindSettings, "", "")
 			return nil
 		}
 	}
@@ -177,7 +182,7 @@ func (s *Service) FocusAuxiliaryWindow() error {
 			s.settingsWindowShown.Store(false)
 		}
 	}
-	s.emitMaskState("", "")
+	s.emitMaskState("", "", "")
 	return nil
 }
 
@@ -269,7 +274,7 @@ func (s *Service) HideSettingsWindow() error {
 }
 
 func (s *Service) notifySettingsWindowHidden() {
-	s.markSettingsWindowOpen(false, "", "")
+	s.markSettingsWindowOpen(false, "", "", "")
 }
 
 func (s *Service) hideFocusedSettingsWindow() bool {

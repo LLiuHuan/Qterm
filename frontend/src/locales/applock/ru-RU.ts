@@ -45,4 +45,15 @@ export const appLockRu: Record<string, string> = {
   'applock.autoLock.decrease': 'Уменьшить время автоблокировки',
   'applock.autoLock.increase': 'Увеличить время автоблокировки',
   'applock.error.alreadyEnabled': 'Блокировка приложения уже включена. Введите текущий код, чтобы изменить его.',
+  'applock.touchId.label': 'Разблокировка по Touch ID',
+  'applock.touchId.help':
+    'Нажмите кнопку отпечатка на экране блокировки, чтобы разблокировать. При блокировке проверка Touch ID сама не запускается.',
+  'applock.touchId.unavailable': 'Touch ID сейчас недоступен на этом устройстве.',
+  'applock.screen.touchIdUnlock': 'Разблокировать по Touch ID',
+  'applock.screen.touchIdWaiting': 'Ожидание отпечатка…',
+  'applock.screen.touchIdCancelled': 'Проверка Touch ID отменена. Можно ввести код доступа.',
+  'applock.screen.touchIdUnavailable': 'Touch ID сейчас недоступен. Введите код доступа, чтобы разблокировать.',
+  'applock.screen.touchIdTimeout': 'Touch ID не отвечает. Введите код доступа, чтобы разблокировать.',
+  'applock.screen.touchIdFailed': 'Touch ID не подтверждён. Повторите попытку или введите код доступа.',
+  'applock.error.notEnabled': 'Блокировка приложения не включена.',
 }

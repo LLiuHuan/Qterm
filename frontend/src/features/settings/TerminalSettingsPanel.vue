@@ -115,7 +115,7 @@ const props = withDefaults(
     translateEndpoint: '',
     gutterShowTimestamps: true,
     gutterTimestampFormat: 'time',
-    batchCommand: false,
+    batchCommand: true,
     confirmClose: true,
     scrollback: 5000,
     confirmMultiLinePaste: true,
@@ -323,11 +323,6 @@ function selectTranslateProvider(value: string): void {
   emit('update:translateProvider', value)
 }
 
-const gutterModeOptions = computed(() => [
-  { value: 'off', label: t('terminal.core.gutterModeOff') },
-  { value: 'lines', label: t('terminal.core.gutterModeLines') },
-  { value: 'commands', label: t('terminal.core.gutterModeCommands') },
-])
 const tabDoubleClickBehaviorOptions = computed(() => [
   { value: 'rename', label: t('terminal.core.tabDoubleClickRename') },
   { value: 'duplicate', label: t('terminal.core.tabDoubleClickDuplicate') },
@@ -620,13 +615,16 @@ const ICON_FILE = '\u{F15B}'
           @update:model-value="emit('update:showMetrics', $event)"
         />
       </QtermSettingsRow>
-      <QtermSettingsRow :label="t('terminal.core.gutterMode')" :description="t('terminal.core.gutterModeHelp')">
-        <SegmentedTabs
-          id="settings-terminal-gutter-mode"
-          :label="t('terminal.core.gutterMode')"
-          :model-value="props.gutterMode"
-          :options="gutterModeOptions"
-          @update:model-value="emit('update:gutterMode', $event as TerminalGutterMode)"
+
+      <QtermSettingsRow
+        class="settings-switch-row c-p"
+        :label="t('terminal.core.gutterMode')"
+        :description="t('terminal.core.showLineNumbersHelp')"
+      >
+        <QtermSwitch
+          :model-value="props.gutterMode !== 'off'"
+          :aria-label="t('terminal.core.gutterMode')"
+          @update:model-value="emit('update:gutterMode', $event ? 'lines' : 'off')"
         />
       </QtermSettingsRow>
 
@@ -662,9 +660,6 @@ const ICON_FILE = '\u{F15B}'
           @update:model-value="(value) => emit('update:gutterTimestampFormat', String(value))"
         />
       </QtermSettingsRow>
-      <QtermHint v-if="props.gutterMode === 'commands'" class="mx-3.5 -mt-1 mb-3.5">
-        {{ t('terminal.core.commandApproximate') }}
-      </QtermHint>
       <QtermSettingsRow
         class="settings-switch-row c-p"
         :label="t('terminal.core.batchCommand')"

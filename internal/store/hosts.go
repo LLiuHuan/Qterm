@@ -530,6 +530,42 @@ func (s *Store) CreateHostWithPasswords(ctx context.Context, host model.Host, gr
 	return resultHost, nil
 }
 
+func (s *Store) DuplicateHost(ctx context.Context, id, newID, name string) (model.Host, error) {
+	if s == nil || s.db == nil {
+		return model.Host{}, ErrNotFound
+	}
+	original, err := s.GetHost(ctx, id)
+	if err != nil {
+		return model.Host{}, err
+	}
+	var payload []byte
+	if err := s.db.QueryRowContext(ctx, `SELECT encrypted_payload FROM hosts WHERE id = ?`, id).Scan(&payload); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.Host{}, ErrNotFound
+		}
+		return model.Host{}, fmt.Errorf("read host payload for duplicate: %w", err)
+	}
+	password, proxyPassword, err := s.openHostPasswords(id, payload)
+	clear(payload)
+	if err != nil {
+		return model.Host{}, err
+	}
+
+	now := time.Now()
+	duplicate := original
+	duplicate.ID = newID
+	duplicate.Name = name
+	duplicate.CreatedAt = now
+	duplicate.UpdatedAt = now
+
+	group := model.Group{Name: original.Group}
+	created, err := s.CreateHostWithPasswords(ctx, duplicate, group, []byte(password), []byte(proxyPassword))
+	if err != nil {
+		return model.Host{}, err
+	}
+	return created, nil
+}
+
 func (s *Store) UpdateHost(ctx context.Context, host model.Host, group model.Group) (model.Host, error) {
 	return s.UpdateHostWithPasswords(ctx, host, group, nil, false, nil, false)
 }

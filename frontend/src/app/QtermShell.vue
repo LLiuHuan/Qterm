@@ -130,6 +130,11 @@ function openOtpManagement(): void {
   if (openDialogWindowIfEnabled('settings', t('shell.toolbar.settings'), 'credentials:otp')) return
   void openSettings('credentials')
 }
+
+function openPortForwardManagement(): void {
+  void openSettings('portForwards')
+}
+
 const requestedSessionWindowTitle = new URLSearchParams(window.location.search).get('openTitle')
 const sessionWindowTitle = computed(() => {
   const base = requestedSessionWindowTitle || t('shell.app.sessionWindowTitle')
@@ -154,6 +159,8 @@ const dialogWindowKind = ref<DialogWindowKind>(
   (dialogWindowParams.get('kind') as DialogWindowKind | null) ?? 'settings',
 )
 const dialogWindowArg = ref(dialogWindowParams.get('settingsCategory') ?? '')
+
+const dialogWindowSearch = ref(dialogWindowParams.get('settingsSearch') ?? '')
 
 const dialogWindowTitle = computed(() => {
   if (dialogWindowKind.value === 'import') return t('shell.importConfig.title')
@@ -223,6 +230,9 @@ const {
   securityWorking,
   securityError,
   settingsCategory,
+  settingsSearch,
+  settingsSearchSeq,
+  applySettingsSearch,
   settingsLocked,
   themeMode,
   minimalAppearance,
@@ -1361,6 +1371,7 @@ function dispatchDialogWindow(): void {
       credentialView.value = requested === 'credentials:otp' ? 'otp' : 'credentials'
       void openSettings(
         (requested === 'credentials:otp' ? 'credentials' : requested || 'application') as SettingsCategory,
+        dialogWindowSearch.value,
       )
       break
     }
@@ -1474,6 +1485,18 @@ async function copyHost(
     toast.success(t('shell.app.copied'))
   } catch (error) {
     toast.error(hostErrorMessage(error, t('shell.app.copyFailed')))
+  }
+}
+
+async function duplicateHost(host: HostRecord): Promise<void> {
+  try {
+    const copy = await hostGateway.duplicate(host.id, host.name + t('shell.asset.duplicateSuffix'))
+    await loadHosts()
+
+    selectHost(copy.id)
+    toast.success(t('shell.asset.duplicateDone', { name: copy.name }))
+  } catch (error) {
+    toast.error(hostErrorMessage(error, t('shell.asset.duplicateFailed')))
   }
 }
 
@@ -1673,6 +1696,24 @@ function nextSftpTabTitle(baseTitle: string): string {
   let index = 1
   while (titles.has(`${baseTitle} (${index})`)) index += 1
   return `${baseTitle} (${index})`
+}
+
+async function openHostToolPanel(host: HostRecord, tool: 'tunnels' | 'sftp'): Promise<void> {
+  if (tool === 'tunnels') {
+    await openSettings('portForwards', host.name)
+    return
+  }
+
+  assetLibraryVisible.value = false
+  const tab = {
+    id: nextSftpTabId(),
+    title: nextSftpTabTitle(t('shell.app.sftpHostTitle', { name: host.name })),
+    hostId: host.id,
+    order: nextTabOrder(),
+  }
+  sftpTabs.value.push(tab)
+  activeRdpTabId.value = null
+  activeSftpTabId.value = tab.id
 }
 
 async function openSftpForSession(sessionId?: string): Promise<void> {
@@ -2079,7 +2120,14 @@ onMounted(() => {
 
       const sameKind = state.kind === dialogWindowKind.value
       const alreadyOpen = securityDialogOpen.value || importConfigOpen.value || exportConfigOpen.value
-      if (sameKind && alreadyOpen && (!state.category || state.category === dialogWindowArg.value)) return
+      const sameCategory = !state.category || state.category === settingsCategory.value
+      if (sameKind && alreadyOpen && sameCategory) {
+        if (state.search) applySettingsSearch(state.search)
+        return
+      }
+
+      if (state.search) applySettingsSearch(state.search)
+      dialogWindowSearch.value = state.search ?? ''
       dialogWindowKind.value = state.kind
       dialogWindowArg.value = state.category || dialogWindowArg.value
       dialogWindowSeq += 1
@@ -2263,6 +2311,8 @@ onBeforeUnmount(() => {
         @edit-host="requestEditHostDialog"
         @delete-host="requestDeleteHost"
         @copy-host="copyHost"
+        @duplicate-host="duplicateHost"
+        @tool-panel="openHostToolPanel"
         @move-asset="moveAsset"
         @move-group="moveGroup"
         @edit-group="openEditGroupDialog"
@@ -2440,6 +2490,7 @@ onBeforeUnmount(() => {
             :loading="loadingHosts"
             :load-error="hostLoadError"
             :selected-host-id="selectedHostId"
+            :selected-group-id="selectedGroupId"
             :show-host-address="showHostAddress"
             @create-host="requestCreateHostDialog"
             @create-host-in-group="createHostInGroup"
@@ -2454,6 +2505,10 @@ onBeforeUnmount(() => {
             @edit-host="requestEditHostDialog"
             @delete-host="requestDeleteHost"
             @copy-host="copyHost"
+            @duplicate-host="duplicateHost"
+            @tool-panel="openHostToolPanel"
+            @move-asset="moveAsset"
+            @move-group="moveGroup"
             @edit-group="openEditGroupDialog"
             @delete-group="requestDeleteGroup"
             @update-search-query="searchQuery = $event"
@@ -2484,6 +2539,7 @@ onBeforeUnmount(() => {
           :otp-entries="otpEntries"
           :credentials="credentialOptions"
           @manage-credentials="openOtpManagement"
+          @manage-forwards="openPortForwardManagement"
           :sftp-available="sftpAvailable"
           :directory-follow-mode="sftpDirectoryFollowMode"
           :auto-directory-follow="sftpAutoDirectoryFollow"
@@ -2611,6 +2667,8 @@ onBeforeUnmount(() => {
     <SettingsDialog
       :open="securityDialogOpen"
       :category="settingsCategory"
+      :port-forward-search="settingsSearch"
+      :port-forward-search-revision="settingsSearchSeq"
       :locked="settingsLocked"
       :status="credentialVaultStatus"
       :working="securityWorking"

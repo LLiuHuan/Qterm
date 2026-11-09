@@ -803,6 +803,22 @@ watch(visibleItems, (list) => {
   if (next.length !== selectedHistory.value.length) selectedHistory.value = next
 })
 
+function clearHistoryQuery(event: MouseEvent): void {
+  prepareSearchClear(event)
+  query.value = ''
+}
+
+function clearRecordingQuery(event: MouseEvent): void {
+  prepareSearchClear(event)
+  recordingQuery.value = ''
+}
+
+function prepareSearchClear(event: MouseEvent): void {
+  event.preventDefault()
+  event.stopPropagation()
+  ;(event.currentTarget as HTMLElement | null)?.closest('label')?.querySelector<HTMLInputElement>('input')?.focus()
+}
+
 onBeforeUnmount(() => {
   recordingLoadGeneration += 1
   recordingIndexGeneration += 1
@@ -835,10 +851,22 @@ onBeforeUnmount(() => {
           <Search class="pointer-events-none absolute left-2.5 z-1" :size="16" aria-hidden="true" />
           <QtermInput
             v-model="query"
-            class="qterm-reference-input w-full pl-8"
+            class="qterm-reference-input w-full pr-9 pl-8"
             :placeholder="t('history.search.placeholder')"
             :aria-label="t('history.search.aria')"
           />
+
+          <QtermButton
+            v-if="query"
+            variant="ghost"
+            size="icon-xs"
+            class="absolute top-1/2 right-1 z-1 -translate-y-1/2"
+            type="button"
+            :aria-label="t('history.search.clear')"
+            @click.prevent="clearHistoryQuery"
+          >
+            <X :size="16" aria-hidden="true" />
+          </QtermButton>
         </label>
       </div>
 
@@ -1045,10 +1073,22 @@ onBeforeUnmount(() => {
           <Search class="pointer-events-none absolute left-2.5 z-1" :size="16" aria-hidden="true" />
           <QtermInput
             v-model="recordingQuery"
-            class="qterm-reference-input w-full pl-8"
+            class="qterm-reference-input w-full pr-9 pl-8"
             :placeholder="t('history.recording.search.placeholder')"
             :aria-label="t('history.recording.search.aria')"
           />
+
+          <QtermButton
+            v-if="recordingQuery"
+            variant="ghost"
+            size="icon-xs"
+            class="absolute top-1/2 right-1 z-1 -translate-y-1/2"
+            type="button"
+            :aria-label="t('history.recording.search.clear')"
+            @click.prevent="clearRecordingQuery"
+          >
+            <X :size="16" aria-hidden="true" />
+          </QtermButton>
         </label>
       </div>
 

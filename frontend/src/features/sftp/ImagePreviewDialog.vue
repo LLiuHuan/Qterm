@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Loader2 } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { QtermButton, QtermFormMessage } from '../../components/common'
@@ -52,6 +52,57 @@ const pixelHeight = ref(0)
 
 const fitted = ref(true)
 const openingLocal = ref(false)
+
+const ZOOM_MIN = 0.1
+const ZOOM_MAX = 8
+const ZOOM_STEP = 1.15
+const zoom = ref(1)
+const stageRef = ref<HTMLElement | null>(null)
+
+const stageBox = ref({ width: 0, height: 0 })
+let stageObserver: ResizeObserver | undefined
+
+function measureStage(): void {
+  const stage = stageRef.value
+  if (!stage) return
+  stageBox.value = { width: stage.clientWidth, height: stage.clientHeight }
+}
+
+const imageStyle = computed(() => {
+  if (!pixelWidth.value || !pixelHeight.value) return undefined
+  const box = stageBox.value
+
+  if (!box.width || !box.height) return undefined
+  const fitScale = Math.min(box.width / pixelWidth.value, box.height / pixelHeight.value)
+  const scale = (fitted.value ? fitScale : 1) * zoom.value
+  return {
+    width: `${Math.max(1, Math.round(pixelWidth.value * scale))}px`,
+    height: `${Math.max(1, Math.round(pixelHeight.value * scale))}px`,
+  }
+})
+
+function clampZoom(value: number): number {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value))
+}
+
+function onWheelZoom(event: WheelEvent): void {
+  if (!imageUrl.value || !pixelWidth.value) return
+  const stage = stageRef.value
+  if (!stage) return
+  event.preventDefault()
+  const next = clampZoom(zoom.value * (event.deltaY > 0 ? 1 / ZOOM_STEP : ZOOM_STEP))
+  if (next === zoom.value) return
+  const rect = stage.getBoundingClientRect()
+  const offsetX = event.clientX - rect.left + stage.scrollLeft
+  const offsetY = event.clientY - rect.top + stage.scrollTop
+  const ratio = next / zoom.value
+  zoom.value = next
+
+  void nextTick(() => {
+    stage.scrollLeft = offsetX * ratio - (event.clientX - rect.left)
+    stage.scrollTop = offsetY * ratio - (event.clientY - rect.top)
+  })
+}
 
 const revokedUrls = new Set<string>()
 
@@ -121,6 +172,7 @@ async function load(): Promise<void> {
   pixelWidth.value = 0
   pixelHeight.value = 0
   fitted.value = true
+  zoom.value = 1
   releaseImageUrl()
 
   const result = await readRemoteImage(props.sessionId, props.remotePath)
@@ -145,7 +197,18 @@ async function load(): Promise<void> {
 }
 
 onMounted(() => {
+  measureStage()
+
+  if (typeof ResizeObserver !== 'undefined' && stageRef.value) {
+    stageObserver = new ResizeObserver(() => measureStage())
+    stageObserver.observe(stageRef.value)
+  }
   void load()
+})
+
+onBeforeUnmount(() => {
+  stageObserver?.disconnect()
+  stageObserver = undefined
 })
 
 watch(
@@ -163,11 +226,62 @@ function onImageLoad(event: Event): void {
   }
   pixelWidth.value = width
   pixelHeight.value = height
+
+  zoom.value = 1
+  measureStage()
 }
 
 function toggleFit(): void {
   if (!imageUrl.value) return
+
+  if (suppressClick.value) return
   fitted.value = !fitted.value
+  zoom.value = 1
+}
+
+const panning = ref(false)
+const suppressClick = ref(false)
+let panStart: { x: number; y: number; left: number; top: number; moved: boolean; pointerId: number } | null = null
+
+function onStagePointerDown(event: PointerEvent): void {
+  const stage = stageRef.value
+  if (!stage || !imageUrl.value || event.button !== 0 || event.isPrimary === false) return
+  panStart = {
+    x: event.clientX,
+    y: event.clientY,
+    left: stage.scrollLeft,
+    top: stage.scrollTop,
+    moved: false,
+    pointerId: event.pointerId,
+  }
+  stage.setPointerCapture?.(event.pointerId)
+  panning.value = true
+}
+
+function onStagePointerMove(event: PointerEvent): void {
+  const stage = stageRef.value
+  if (!stage || !panStart || event.pointerId !== panStart.pointerId) return
+  const dx = event.clientX - panStart.x
+  const dy = event.clientY - panStart.y
+  if (!panStart.moved && Math.hypot(dx, dy) < 3) return
+  panStart.moved = true
+
+  const overflows = stage.scrollWidth > stage.clientWidth + 1 || stage.scrollHeight > stage.clientHeight + 1
+  if (!overflows) return
+  stage.scrollLeft = panStart.left - dx
+  stage.scrollTop = panStart.top - dy
+}
+
+function endStagePan(event: PointerEvent): void {
+  const stage = stageRef.value
+  if (!stage || !panStart || event.pointerId !== panStart.pointerId) return
+  stage.releasePointerCapture?.(event.pointerId)
+  if (panStart.moved) {
+    suppressClick.value = true
+    window.setTimeout(() => (suppressClick.value = false), 0)
+  }
+  panStart = null
+  panning.value = false
 }
 
 async function openLocally(): Promise<void> {
@@ -215,8 +329,15 @@ const modTimeText = computed(() => formatModTime(snapshot.value?.modTime || prop
       <QtermDialogHeader :title="name" :description="remotePath" @close="emit('close')" />
       <div class="dialog-body flex-col">
         <div
-          class="relative flex h-[58vh] min-h-0 overflow-auto rounded-md border-d bg-qt-app"
+          ref="stageRef"
+          class="relative flex h-[58vh] min-h-0 overflow-auto rounded-md border-d bg-transparent"
           data-testid="image-preview-stage"
+          :class="panning ? 'cursor-grabbing' : 'cursor-grab'"
+          @wheel="onWheelZoom"
+          @pointerdown="onStagePointerDown"
+          @pointermove="onStagePointerMove"
+          @pointerup="endStagePan"
+          @pointercancel="endStagePan"
         >
           <img
             v-if="imageUrl"
@@ -224,11 +345,20 @@ const modTimeText = computed(() => formatModTime(snapshot.value?.modTime || prop
             :alt="t('preview.ui.imageAlt', { name })"
             :title="t('preview.ui.toggleFit')"
             class="m-auto select-none"
-            :class="
-              fitted ? 'max-h-full max-w-full cursor-zoom-in object-contain' : 'max-h-none max-w-none cursor-zoom-out'
-            "
+            :class="[
+              // 有显式像素尺寸时不能再叠 `max-*`：那会把放大后的盒子按舞台高度截断、比例失真。
+              // 还没量到尺寸（对话框入场、单测里的 jsdom）就退回 CSS 的 contain / 原始像素。
+              imageStyle
+                ? 'max-h-none max-w-none'
+                : fitted
+                  ? 'max-h-full max-w-full object-contain'
+                  : 'max-h-none max-w-none',
+              fitted ? 'cursor-zoom-in' : 'cursor-zoom-out',
+            ]"
+            :style="imageStyle"
             :draggable="false"
             :data-fit="fitted ? 'fit' : 'actual'"
+            :data-zoom="zoom"
             data-testid="image-preview-image"
             @load="onImageLoad"
             @error="markDecodeFailure"
@@ -275,6 +405,10 @@ const modTimeText = computed(() => formatModTime(snapshot.value?.modTime || prop
         <span v-if="modTimeText" class="text-qt-muted" data-testid="image-preview-modtime">{{
           t('preview.ui.modifiedAt', { time: modTimeText })
         }}</span>
+
+        <span v-if="imageUrl && zoom !== 1" class="text-qt-muted" data-testid="image-preview-zoom"
+          >{{ Math.round(zoom * 100) }}%</span
+        >
 
         <span v-if="imageUrl" class="text-qt-muted" data-testid="image-preview-fit">{{
           t(fitted ? 'preview.ui.fitWindow' : 'preview.ui.actualSize')

@@ -14,7 +14,7 @@ export type TabDoubleClickBehavior = 'duplicate' | 'rename'
 
 export type TerminalRenderEngine = 'webgl' | 'dom'
 
-export type TerminalGutterMode = 'off' | 'lines' | 'commands'
+export type TerminalGutterMode = 'off' | 'lines'
 
 export type TerminalGutterTimestampFormat = string
 export type TerminalThemeBackgroundScope = 'terminal' | 'shell' | 'derived'
@@ -194,7 +194,6 @@ export const SFTP_MAX_TRANSFERS_MIN = 1
 export const SFTP_MAX_TRANSFERS_MAX = 16
 export const TERMINAL_HISTORY_LENGTH_MIN = 0
 export const TERMINAL_HISTORY_LENGTH_MAX = 4096
-export const TERMINAL_GUTTER_MODES: TerminalGutterMode[] = ['off', 'lines', 'commands']
 
 export const THEME_MODES: ThemeMode[] = ['light', 'dark', 'system']
 
@@ -263,7 +262,7 @@ export const DEFAULT_SETTINGS: QtermSettings = {
   translateEndpoint: '',
   terminalGutterShowTimestamps: true,
   terminalGutterTimestampFormat: 'HH:mm:ss',
-  terminalBatchCommand: false,
+  terminalBatchCommand: true,
   terminalConfirmClose: true,
   terminalScrollback: 5000,
   terminalConfirmMultiLinePaste: true,
@@ -347,6 +346,10 @@ function normalizePortForwards(value: unknown): PortForwardConfig[] {
       listenPort,
       targetHost: typeof candidate.targetHost === 'string' ? candidate.targetHost : '127.0.0.1',
       targetPort,
+
+      ...(kind === 'dynamic' && (candidate.proxy === 'socks5' || candidate.proxy === 'http')
+        ? { proxy: candidate.proxy }
+        : {}),
       autoOpen: candidate.autoOpen === true,
     })
   }
@@ -487,13 +490,17 @@ export function normalizeSettings(value: unknown): QtermSettings {
   const cursorStyles: TerminalCursorStyle[] = ['block', 'underline', 'bar']
   const rightClickBehaviors: TerminalRightClickBehavior[] = ['none', 'paste', 'menu']
   const renderEngines: TerminalRenderEngine[] = ['webgl', 'dom']
-  const terminalGutterMode = TERMINAL_GUTTER_MODES.includes(candidate.terminalGutterMode as TerminalGutterMode)
-    ? (candidate.terminalGutterMode as TerminalGutterMode)
-    : typeof candidate.terminalShowLineNumbers === 'boolean'
-      ? candidate.terminalShowLineNumbers
-        ? 'lines'
-        : 'off'
-      : DEFAULT_SETTINGS.terminalGutterMode
+
+  const terminalGutterMode: TerminalGutterMode =
+    candidate.terminalGutterMode === 'lines' || candidate.terminalGutterMode === 'commands'
+      ? 'lines'
+      : candidate.terminalGutterMode === 'off'
+        ? 'off'
+        : typeof candidate.terminalShowLineNumbers === 'boolean'
+          ? candidate.terminalShowLineNumbers
+            ? 'lines'
+            : 'off'
+          : (DEFAULT_SETTINGS.terminalGutterMode ?? 'off')
 
   const legacyTimestampFormats: Record<string, string> = {
     time: 'HH:mm:ss',

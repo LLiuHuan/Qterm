@@ -148,6 +148,7 @@ export const appJa: Record<string, string> = {
   'about.update.bell.title': '新バージョン v{version} の準備ができました',
   'about.update.bell.body': 'ダウンロードと検証が完了しました。アプリを再起動すると更新が完了します。',
   'about.update.bell.dismiss': 'キャンセル',
+  'about.update.bell.dismissHint': 'このポップアップだけ閉じます（ベルは残ります）',
   'about.debug.title': 'デバッグログ',
   'about.debug.description': '問題の調査中に詳細な診断ログをローカルへ記録します。既定では無効です。',
   'about.debug.desktopOnly': 'デバッグログはデスクトップアプリでのみ利用できます。',
@@ -186,6 +187,7 @@ export const appJa: Record<string, string> = {
   'history.note.saveFailure': 'メモの保存に失敗しました。',
   'history.search.placeholder': 'ホスト、アドレス、状態、メモを検索',
   'history.search.aria': 'セッション履歴を検索',
+  'history.search.clear': '検索を消去',
   'history.empty.filtered': '一致するセッション履歴がありません。',
   'history.loading': 'セッション履歴を読み込み中…',
   'history.type.ssh': 'SSH',
@@ -205,6 +207,7 @@ export const appJa: Record<string, string> = {
   'history.recording.export.failure': '録画をエクスポートできませんでした。',
   'history.recording.search.placeholder': 'ホスト、状態、メモで検索',
   'history.recording.search.aria': 'ターミナル録画を検索',
+  'history.recording.search.clear': '検索を消去',
   'history.recording.loading': 'ターミナル録画を読み込み中…',
   'history.recording.directory.title': 'セッション録画の保存先ディレクトリ',
   'history.recording.directory.description':

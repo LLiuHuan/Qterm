@@ -144,6 +144,7 @@ export const appKo: Record<string, string> = {
   'about.update.bell.title': '새 버전 v{version} 준비 완료',
   'about.update.bell.body': '다운로드와 검증이 끝났습니다. 앱을 다시 시작하면 업데이트가 완료됩니다.',
   'about.update.bell.dismiss': '취소',
+  'about.update.bell.dismissHint': '이 창만 닫습니다. 알림 벨은 그대로 남습니다',
   'about.debug.title': '디버그 로그',
   'about.debug.description': '문제 해결 중 자세한 진단 로그를 로컬에 기록합니다. 기본값은 꺼짐입니다.',
   'about.debug.desktopOnly': '디버그 로그는 데스크톱 앱에서만 사용할 수 있습니다.',
@@ -182,6 +183,7 @@ export const appKo: Record<string, string> = {
   'history.note.saveFailure': '메모를 저장하지 못했습니다.',
   'history.search.placeholder': '호스트, 주소, 상태 또는 메모 검색',
   'history.search.aria': '세션 기록 검색',
+  'history.search.clear': '검색 지우기',
   'history.empty.filtered': '일치하는 세션 기록이 없습니다.',
   'history.loading': '세션 기록을 불러오는 중…',
   'history.type.ssh': 'SSH',
@@ -201,6 +203,7 @@ export const appKo: Record<string, string> = {
   'history.recording.export.failure': '녹화를 내보내지 못했습니다.',
   'history.recording.search.placeholder': '호스트, 상태 또는 메모 검색',
   'history.recording.search.aria': '터미널 녹화 검색',
+  'history.recording.search.clear': '검색 지우기',
   'history.recording.loading': '터미널 녹화를 불러오는 중…',
   'history.recording.directory.title': '세션 녹화 저장 디렉터리',
   'history.recording.directory.description':

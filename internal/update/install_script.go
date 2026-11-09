@@ -27,6 +27,8 @@ set -u
 pid="$1"
 bundle="$2"
 archive="$3"
+archive_dir=$(dirname "$archive")
+archive_root=$(dirname "$archive_dir")
 while kill -0 "$pid" 2>/dev/null; do
   sleep 0.2
 done
@@ -42,6 +44,8 @@ if unzip -q -o "$archive" -d "$parent" >/dev/null 2>&1; then
   xattr -dr com.apple.quarantine "$bundle" >/dev/null 2>&1 || true
   open "$bundle" 2>/dev/null || true
   rm -rf "$backup"
+  # 只回收暂存目录（…/qterm-update/<tag>）：避免自定义路径时误删上一层目录。
+  if [ -n "$archive_dir" ] && [ "$(basename "$archive_root")" = "qterm-update" ]; then rm -rf "$archive_dir"; fi
 else
   rm -rf "$bundle"
   mv "$backup" "$bundle"
@@ -57,6 +61,8 @@ set -u
 pid="$1"
 target="$2"
 archive="$3"
+archive_dir=$(dirname "$archive")
+archive_root=$(dirname "$archive_dir")
 while kill -0 "$pid" 2>/dev/null; do
   sleep 0.2
 done
@@ -84,6 +90,8 @@ fi
 rm -rf "$extract"
 # 用 setsid 脱离当前会话，父进程退出后仍能留在用户桌面会话里。
 setsid "$target" >/dev/null 2>&1 &
+# 只回收暂存目录（…/qterm-update/<tag>）：避免自定义路径时误删上一层目录。
+if [ -n "$archive_dir" ] && [ "$(basename "$archive_root")" = "qterm-update" ]; then rm -rf "$archive_dir"; fi
 `
 }
 
@@ -96,6 +104,11 @@ func windowsReplacerScript() string {
 $ErrorActionPreference = 'Stop'
 Wait-Process -Id $ProcessId -ErrorAction SilentlyContinue
 $work = Join-Path ([System.IO.Path]::GetTempPath()) ('qterm-update-' + [guid]::NewGuid().ToString('N'))
+# 暂存产物目录由助手回收；脚本自身在独立目录，不会边执行边删自己。
+$archiveRoot = Split-Path -Parent $Archive
+$archiveParent = Split-Path -Parent $archiveRoot
+# 只回收 …/qterm-update/<tag>：避免自定义路径时误删上一层目录。
+$stagingSafe = $archiveRoot -and $archiveParent -and ((Split-Path -Leaf $archiveParent) -eq 'qterm-update')
 try {
   New-Item -ItemType Directory -Path $work | Out-Null
   Expand-Archive -Path $Archive -DestinationPath $work -Force
@@ -109,8 +122,15 @@ try {
   exit 1
 } finally {
   Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+  if ($stagingSafe) {
+    Remove-Item -LiteralPath $archiveRoot -Recurse -Force -ErrorAction SilentlyContinue
+  }
 }
 `
+}
+
+func (s *Service) helperScriptDir() string {
+	return filepath.Join(s.tempRoot, "qterm-update-helper")
 }
 
 func writeHelperScript(dir, name, body string) (string, error) {

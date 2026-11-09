@@ -82,6 +82,7 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.credentials.filter.all': 'Все ({count})',
   'settings.credentials.search.placeholder': 'Поиск учётных данных по названию',
   'settings.credentials.search.aria': 'Поиск учётных данных по названию',
+  'settings.credentials.search.clear': 'Очистить поиск',
   'settings.credentials.loading': 'Загрузка учётных данных…',
   'settings.credentials.action.edit': 'Изменить учётные данные',
   'settings.credentials.action.delete': 'Удалить учётные данные',
@@ -868,11 +869,6 @@ export const settingsCoreRu: Record<string, string> = {
   'terminal.core.showLineNumbersHelp':
     'Показывать номера строк вывода в желобе слева от терминала. Продолжения перенесённых строк и пустые строки ниже курсора не нумеруются. Включение занимает одну колонку ширины терминала.',
   'terminal.core.gutterMode': 'Маркеры слева от терминала',
-  'terminal.core.gutterModeHelp':
-    'Выберите отсутствие отметок, номера строк вывода или отметки команд. Режим команд в первую очередь использует Shell Integration.',
-  'terminal.core.gutterModeOff': 'Выключено',
-  'terminal.core.gutterModeLines': 'Строки',
-  'terminal.core.gutterModeCommands': 'Команды',
   'terminal.core.showTimestamps': 'Показывать метки времени',
   'terminal.core.showTimestampsHelp':
     'Показывать время первого появления содержимого в логической строке. Если выключено, полное время видно только при наведении.',

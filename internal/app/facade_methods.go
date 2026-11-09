@@ -17,7 +17,6 @@ import (
 	"strings"
 
 	"changeme/internal/ai"
-	"changeme/internal/applock"
 	"changeme/internal/credential"
 	"changeme/internal/errno"
 	"changeme/internal/fonts"
@@ -27,7 +26,6 @@ import (
 	"changeme/internal/session"
 	"changeme/internal/sftp"
 	"changeme/internal/x11"
-	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func (s *Service) ListTerminalFonts(ctx context.Context, refresh bool) ([]fonts.Family, error) {
@@ -748,6 +746,12 @@ func (s *Service) CreateHost(input model.HostInput) (model.Host, error) {
 	return publicValue(s.hosts.CreateHost(input))
 }
 
+func (s *Service) DuplicateHost(id, name string) (model.Host, error) {
+	s.assetMu.RLock()
+	defer s.assetMu.RUnlock()
+	return publicValue(s.hosts.DuplicateHost(id, name))
+}
+
 func (s *Service) UpdateHost(id string, input model.HostInput) (model.Host, error) {
 	s.assetMu.RLock()
 	defer s.assetMu.RUnlock()
@@ -1371,43 +1375,6 @@ func (s *Service) DeleteSnippet(id string) error {
 
 func (s *Service) ResolveSFTPTransferConflict(ctx context.Context, id, action string) error {
 	return publicError(s.sftp.ResolveSFTPTransferConflict(ctx, id, action))
-}
-
-func (s *Service) GetAppLockStatus() (applock.Status, error) {
-	return s.appLock.Status(), nil
-}
-
-func (s *Service) EnableAppLock(password string, autoLockMinutes int, question, answer string) error {
-	return s.appLock.Enable(password, autoLockMinutes, question, answer)
-}
-
-func (s *Service) ResetAppLockPassword(answer, next string) error {
-	return s.appLock.ResetPasswordByRecovery(answer, next)
-}
-
-func (s *Service) NotifyAppLockState(locked bool) error {
-	if locked && s.agents != nil {
-
-		s.agents.CancelAll()
-	}
-	application.Get().Event.Emit(appLockEventName, locked)
-	return nil
-}
-
-func (s *Service) ChangeAppLockPassword(current, next string) error {
-	return s.appLock.ChangePassword(current, next)
-}
-
-func (s *Service) DisableAppLock(password string) error {
-	return s.appLock.Disable(password)
-}
-
-func (s *Service) SetAppLockAutoLockMinutes(minutes int) error {
-	return s.appLock.SetAutoLockMinutes(minutes)
-}
-
-func (s *Service) VerifyAppLockPassword(password string) (bool, error) {
-	return s.appLock.Verify(password), nil
 }
 
 func looksLikeInternalGroupRef(name string) bool {

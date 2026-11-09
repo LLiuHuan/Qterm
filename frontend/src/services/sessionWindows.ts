@@ -15,16 +15,19 @@ export interface SettingsWindowState {
   kind: DialogWindowKind
 
   category: string
+
+  search?: string
 }
 
 export function connectSettingsWindowState(handler: (state: SettingsWindowState) => void): () => void {
   try {
     return Events.On(SETTINGS_WINDOW_STATE_EVENT, (event: { data?: unknown }) => {
-      const payload = event?.data as { open?: unknown; kind?: unknown; category?: unknown } | null
+      const payload = event?.data as { open?: unknown; kind?: unknown; category?: unknown; search?: unknown } | null
       handler({
         open: payload?.open === true,
         kind: (typeof payload?.kind === 'string' ? payload.kind : 'settings') as DialogWindowKind,
         category: typeof payload?.category === 'string' ? payload.category : '',
+        search: typeof payload?.search === 'string' ? payload.search : '',
       })
     })
   } catch {
@@ -121,8 +124,8 @@ export async function closeHostEditorWindow(): Promise<void> {
   await CloseHostEditorWindow()
 }
 
-export async function openSettingsWindow(title: string, category?: string): Promise<void> {
-  await openDialogWindow('settings', title, category ?? '', true)
+export async function openSettingsWindow(title: string, category?: string, search?: string): Promise<void> {
+  await openDialogWindow('settings', title, category ?? '', true, search ?? '')
 }
 
 export async function openDialogWindow(
@@ -130,10 +133,11 @@ export async function openDialogWindow(
   title: string,
   arg = '',
   resizable = kind === 'settings',
+  search = '',
 ): Promise<void> {
   if (hasWailsRuntime()) {
     const { OpenSettingsWindow } = await import('../../bindings/changeme/internal/app/service')
-    await OpenSettingsWindow(kind, title, arg, resizable)
+    await OpenSettingsWindow(kind, title, arg, search, resizable)
     return
   }
 
@@ -142,6 +146,7 @@ export async function openDialogWindow(
   target.searchParams.set('settingsWindow', '1')
   target.searchParams.set('kind', kind)
   if (arg) target.searchParams.set('settingsCategory', arg)
+  if (search) target.searchParams.set('settingsSearch', search)
   const child = window.open(target.href, '_blank')
   if (!child) throw new Error('设置窗口被浏览器拦截')
   child.opener = null

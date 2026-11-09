@@ -84,6 +84,7 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.credentials.filter.all': 'Tous ({count})',
   'settings.credentials.search.placeholder': 'Rechercher des identifiants par nom',
   'settings.credentials.search.aria': 'Rechercher des identifiants par nom',
+  'settings.credentials.search.clear': 'Effacer la recherche',
   'settings.credentials.loading': 'Chargement des identifiants…',
   'settings.credentials.action.edit': 'Modifier l’identifiant',
   'settings.credentials.action.delete': 'Supprimer l’identifiant',
@@ -885,11 +886,6 @@ export const settingsCoreFr: Record<string, string> = {
   'terminal.core.showLineNumbersHelp':
     'Afficher les numéros de ligne de sortie dans une gouttière à gauche du terminal. Les lignes de continuation dues au retour à la ligne et les lignes vides sous le curseur ne sont pas numérotées. L’activation utilise une colonne de la largeur du terminal.',
   'terminal.core.gutterMode': 'Gouttière du terminal',
-  'terminal.core.gutterModeHelp':
-    'Choisissez de n’afficher aucun repère, les numéros de ligne de sortie ou les repères de commande. Le mode commandes privilégie Shell Integration.',
-  'terminal.core.gutterModeOff': 'Désactivé',
-  'terminal.core.gutterModeLines': 'Lignes',
-  'terminal.core.gutterModeCommands': 'Commandes',
   'terminal.core.showTimestamps': 'Afficher les horodatages',
   'terminal.core.showTimestampsHelp':
     'Afficher l’heure à laquelle chaque ligne logique a produit du contenu. Désactivé, l’heure complète n’apparaît qu’au survol.',

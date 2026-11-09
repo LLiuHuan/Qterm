@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, type Component } from 'vue'
+import { computed, onMounted, ref, watch, type Component } from 'vue'
 import { Check, Minus, Terminal, Upload } from '@lucide/vue'
 import {
   ElectermIcon,
@@ -147,9 +147,20 @@ const selectAllState = computed<boolean | 'indeterminate'>(() => {
   return selectedCount.value > 0 ? 'indeterminate' : false
 })
 
-onMounted(async () => {
+async function loadSources(): Promise<void> {
   sources.value = await gateway.listSources()
+}
+
+onMounted(() => {
+  if (props.open) void loadSources()
 })
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open) void loadSources()
+  },
+)
 
 function reset(): void {
   step.value = 'sources'

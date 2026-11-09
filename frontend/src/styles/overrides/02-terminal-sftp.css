@@ -372,10 +372,6 @@
   background-color: transparent !important;
 }
 
-.qterm-shell.has-page-background :is(.icon-button, .docker-icon-action):hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--qt-text) 12%, transparent) !important;
-}
-
 .qterm-shell.has-page-background
   :is(.icon-button.icon-button--danger, .docker-icon-action.icon-button--danger):hover:not(:disabled),
 .qterm-shell.has-page-background

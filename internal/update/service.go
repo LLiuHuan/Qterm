@@ -60,6 +60,8 @@ type Service struct {
 	cancel      context.CancelFunc
 	busy        bool
 	closed      bool
+
+	handoff bool
 }
 
 func NewService(options Options) *Service {
@@ -316,6 +318,10 @@ func (s *Service) Install(ctx context.Context) error {
 		s.failWith(StateFailed, err, release)
 		return err
 	}
+
+	s.mu.Lock()
+	s.handoff = true
+	s.mu.Unlock()
 	return nil
 }
 
@@ -331,11 +337,13 @@ func (s *Service) Close() error {
 	s.closed = true
 	cancel := s.cancel
 	dir := s.stagedDir
+	handoff := s.handoff
 	s.mu.Unlock()
 	if cancel != nil {
 		cancel()
 	}
-	if dir != "" {
+
+	if dir != "" && !handoff {
 		_ = os.RemoveAll(dir)
 	}
 	return nil
