@@ -66,7 +66,8 @@ func (m *SessionManager) ReadServices(ctx context.Context, id string) (model.Ser
 	}
 	snapshot, err := probe.ReadServices(ctx)
 	if err != nil {
-		return model.ServiceSnapshot{}, errno.Wrap(errno.CodeConnFailed, "services.list_failed", err)
+
+		return model.ServiceSnapshot{}, classifyServiceReadError("list", err)
 	}
 	return snapshot, nil
 }
@@ -123,6 +124,8 @@ func classifyServiceReadError(operation string, err error) error {
 			return errno.New(errno.CodeConnFailed, "services.manager_unavailable", "")
 		case sshclient.ServiceProbeJournalUnavailable:
 			return errno.New(errno.CodeConnFailed, "services.journal_unavailable", "")
+		case sshclient.ServiceProbeLogsUnsupported:
+			return errno.New(errno.CodeUnsupported, "services.logs_unsupported", "")
 		case sshclient.ServiceProbeUnitNotFound:
 			return errno.New(errno.CodeNotFound, "services.unit_not_found", "")
 		}

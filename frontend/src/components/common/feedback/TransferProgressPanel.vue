@@ -36,8 +36,14 @@ function actionLabel(action: NonNullable<TransferProgressItem['action']>): strin
   return t('shell.transferQueue.dismiss')
 }
 
+const stageKeys: Record<string, string> = {
+  extracting: 'sftp.ui.transfer.stage.extracting',
+  packing: 'sftp.ui.transfer.stage.packing',
+}
+
 function itemLabel(item: TransferProgressItem): string {
-  return item.stage === 'extracting' ? t('sftp.ui.transfer.stage.extracting') : item.label
+  const key = item.stage ? stageKeys[item.stage] : undefined
+  return key ? t(key) : item.label
 }
 </script>
 

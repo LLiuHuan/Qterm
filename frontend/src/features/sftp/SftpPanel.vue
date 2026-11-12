@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { FormField, QtermButton, QtermCheckbox, QtermFormMessage, QtermInput } from '../../components/common'
+import {
+  FormField,
+  QtermButton,
+  QtermCheckbox,
+  QtermFormMessage,
+  QtermInput,
+  RefreshIconButton,
+} from '../../components/common'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Undo2, Copy, LocateFixed, Eye, EyeOff, FolderPlus, FolderUp, Trash2, RefreshCw, Upload } from '@lucide/vue'
+import { Undo2, LocateFixed, Eye, EyeOff, FolderPlus, FolderUp, Trash2, Upload } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import {
   QtermDialog,
@@ -30,9 +37,8 @@ import { useI18n } from '@/locales'
 import { loadSettings, loadSettingsFromPreferences } from '../settings/settingsStore'
 import { useSftpPanelTransfers } from './useSftpPanelTransfers'
 import SftpBrowserPane, { type SftpBrowserEntry, type SftpBrowserSegment } from './SftpBrowserPane.vue'
+import SftpFileInfoDialog from './SftpFileInfoDialog.vue'
 import { writeClipboardText } from '../../services/clipboard'
-
-import { formatDateTime } from '../../lib/datetime'
 
 const props = withDefaults(
   defineProps<{
@@ -68,7 +74,7 @@ function resolveShowHidden(override: 'inherit' | 'enabled' | 'disabled' | undefi
   if (override === 'disabled') return false
   return globalValue
 }
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 const directory = ref('/')
 const pathDraft = ref('/')
@@ -117,6 +123,12 @@ function selectBrowserEntry(entry: SftpBrowserEntry, checked: boolean): void {
 }
 const deleteTargets = ref<RemoteFileEntry[]>([])
 
+const deleteElevated = ref(false)
+
+const deleteElevatedPassword = ref('')
+
+const archiveDownloading = ref(false)
+
 const deleteTargetsIncludeDirectory = computed(() => deleteTargets.value.some((entry) => entry.type === 'directory'))
 function toggleEntry(entry: RemoteFileEntry, checked: boolean): void {
   selectedEntries.value = checked
@@ -138,6 +150,8 @@ function openCreateFolder(): void {
   createFolderOpen.value = true
 }
 function openDeleteEntry(): void {
+  deleteElevated.value = false
+  deleteElevatedPassword.value = ''
   deleteTargets.value = [...selectedEntries.value]
   entryError.value = ''
   deleteEntryOpen.value = true
@@ -157,7 +171,11 @@ async function mutateEntry(kind: 'create' | 'delete'): Promise<void> {
       for (const entry of deleteTargets.value) {
         if (!isCurrentSessionOperation(generation, sessionID)) return
         try {
-          await props.gateway.deleteRemoteEntry(sessionID, entry.path)
+          if (deleteElevated.value && entry.type !== 'directory') {
+            await props.gateway.deleteRemoteEntryElevated(sessionID, entry.path, deleteElevatedPassword.value)
+          } else {
+            await props.gateway.deleteRemoteEntry(sessionID, entry.path)
+          }
         } catch (reason) {
           failed.push(entry)
           messages.push(entry.name + '：' + sftpErrorMessage(reason, t('sftp.ui.delete')))
@@ -182,6 +200,8 @@ async function mutateEntry(kind: 'create' | 'delete'): Promise<void> {
       entryError.value = sftpErrorMessage(reason, t('sftp.ui.operationFailed'))
   } finally {
     if (generation === sessionGeneration) entryBusy.value = false
+
+    deleteElevatedPassword.value = ''
   }
 }
 const canGoUp = computed(() => props.available && directory.value !== '/')
@@ -523,10 +543,6 @@ function normalizePathDraft(value: string): string | null {
   return `/${segments.join('/')}`
 }
 
-function formatModified(value: string): string {
-  return formatDateTime(value, { placeholder: t('sftp.ui.info.unknown') })
-}
-
 const nameDialog = ref({
   open: false,
   action: 'file' as 'file' | 'rename',
@@ -737,6 +753,8 @@ async function copyRemotePath(path: string): Promise<void> {
 }
 
 function deleteBrowserEntry(entry: SftpBrowserEntry): void {
+  deleteElevated.value = false
+  deleteElevatedPassword.value = ''
   const source = browserEntrySource(entry)
   if (!source) return
   selectedEntries.value = [source]
@@ -754,14 +772,54 @@ function downloadBrowserEntry(entry: SftpBrowserEntry): void {
   if (source) void selectDownload(source)
 }
 
+async function archiveDownloadBrowserEntry(entry: SftpBrowserEntry): Promise<void> {
+  const source = browserEntrySource(entry)
+  const sessionID = props.sessionId
+  if (!source || !sessionID || archiveDownloading.value) return
+  const canEnqueue = Boolean(props.gateway.enqueueDirectoryArchiveDownload)
+  if (!props.gateway.chooseDirectoryPath || (!canEnqueue && !props.gateway.downloadRemoteDirectoryArchive)) {
+    toast.error(t('sftp.ui.archiveDownloadUnavailable'))
+    return
+  }
+  let localDirectory: string
+  try {
+    localDirectory = await props.gateway.chooseDirectoryPath()
+  } catch (reason) {
+    toast.error(sftpErrorMessage(reason, t('sftp.ui.archiveDownloadFailed')))
+    return
+  }
+  if (!localDirectory) return
+  archiveDownloading.value = true
+  if (canEnqueue) {
+    try {
+      await props.gateway.enqueueDirectoryArchiveDownload!(sessionID, source.path, localDirectory)
+      toast.success(t('sftp.ui.archiveDownloadQueued', { name: entry.name }))
+    } catch (reason) {
+      toast.error(t('sftp.ui.archiveDownloadFailed'), {
+        description: sftpErrorMessage(reason, t('sftp.ui.archiveDownloadFailed')),
+      })
+    } finally {
+      archiveDownloading.value = false
+    }
+    return
+  }
+  const toastID = toast.loading(t('sftp.ui.archiveDownloadRunning', { name: entry.name }))
+  try {
+    await props.gateway.downloadRemoteDirectoryArchive!(sessionID, source.path, localDirectory)
+    toast.success(t('sftp.ui.archiveDownloadDone', { name: entry.name }), { id: toastID })
+  } catch (reason) {
+    toast.error(t('sftp.ui.archiveDownloadFailed'), {
+      id: toastID,
+      description: sftpErrorMessage(reason, t('sftp.ui.archiveDownloadFailed')),
+    })
+  } finally {
+    archiveDownloading.value = false
+  }
+}
+
 function openBrowserEntry(entry: SftpBrowserEntry): void {
   const source = browserEntrySource(entry)
   if (source) openEntry(source)
-}
-
-function formatInfoSize(entry: RemoteFileEntry | null): string {
-  if (!entry) return t('sftp.ui.info.unknown')
-  return `${entry.sizeText || t('sftp.ui.info.unknown')}（${new Intl.NumberFormat(locale.value).format(entry.size)} ${t('sftp.ui.bytes')}）`
 }
 </script>
 
@@ -804,19 +862,21 @@ function formatInfoSize(entry: RemoteFileEntry | null): string {
       @info="showBrowserInfo"
       @delete-entry="deleteBrowserEntry"
       @download="downloadBrowserEntry"
+      @archive-download="(entry) => void archiveDownloadBrowserEntry(entry)"
       @remote-edit-synced="loadDirectory(directory)"
     >
       <template #toolbar>
         <IconButton :label="t('sftp.ui.parentDirectory')" size="icon" :disabled="!canGoUp" @click="goUp"
           ><Undo2 :size="16"
         /></IconButton>
-        <IconButton
+        <RefreshIconButton
           :label="t('sftp.ui.refreshDirectory')"
           size="icon"
+          :spinning="loading"
           :disabled="!available || loading"
+          icon-class="size-4"
           @click="loadDirectory(directory)"
-          ><RefreshCw :class="{ spin: loading }" :size="16"
-        /></IconButton>
+        />
         <IconButton
           :label="showHidden ? t('sftp.ui.hideHidden') : t('sftp.ui.showHidden')"
           size="icon"
@@ -928,7 +988,41 @@ function formatInfoSize(entry: RemoteFileEntry | null): string {
       :loading="entryBusy"
       @close="deleteEntryOpen = false"
       @confirm="mutateEntry('delete')"
-    />
+    >
+      <label
+        v-if="!deleteTargetsIncludeDirectory"
+        class="flex cursor-pointer items-start gap-1.5 text-xs text-qt-muted"
+      >
+        <input
+          v-model="deleteElevated"
+          type="checkbox"
+          class="mt-0.5 size-3.5 accent-[var(--qt-accent)]"
+          data-sftp-delete-elevated
+          :disabled="entryBusy"
+        />
+        <span>
+          {{ t('sftp.ui.deleteElevated') }}
+          <span class="block text-qt-muted/70">{{ t('sftp.ui.deleteElevatedHint') }}</span>
+        </span>
+      </label>
+
+      <label v-if="deleteElevated && !deleteTargetsIncludeDirectory" class="flex flex-col gap-1 text-xs text-qt-muted">
+        <span>{{ t('sftp.ui.deletePassword') }}</span>
+        <input
+          v-model="deleteElevatedPassword"
+          type="password"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          class="h-7 rounded-md border border-qt-border bg-transparent px-2 text-xs text-qt-text outline-none focus:border-qt-accent"
+          :placeholder="t('sftp.ui.deletePasswordPlaceholder')"
+          :disabled="entryBusy"
+          data-sftp-delete-password
+        />
+        <span class="text-qt-muted/70">{{ t('sftp.ui.deletePasswordHint') }}</span>
+      </label>
+    </DeleteConfirmDialog>
 
     <QtermDialog :open="nameDialog.open" @update:open="(open) => !nameDialog.saving && (nameDialog.open = open)">
       <QtermDialogContent v-if="nameDialog.open">
@@ -1022,50 +1116,13 @@ function formatInfoSize(entry: RemoteFileEntry | null): string {
       </QtermDialogContent>
     </QtermDialog>
 
-    <QtermDialog :open="Boolean(infoEntry)" @update:open="(open) => !open && (infoEntry = null)">
-      <QtermDialogContent v-if="infoEntry" size="lg">
-        <QtermDialogHeader :title="t('sftp.ui.fileInfo')" @close="infoEntry = null" />
-        <div class="sftp-info-grid">
-          <div>
-            <span>{{ t('sftp.ui.info.name') }}</span
-            ><span>{{ infoEntry.name }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.type') }}</span
-            ><span>{{ entryIsDirectory(infoEntry) ? t('sftp.ui.folder') : t('sftp.ui.file') }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.path') }}</span>
-            <span class="sftp-info-path-value"
-              ><span>{{ infoEntry.path }}</span
-              ><QtermButton
-                variant="ghost"
-                size="icon"
-                type="button"
-                :aria-label="t('sftp.ui.copyPath')"
-                @click="copyRemotePath(infoEntry.path)"
-                ><Copy :size="14" /></QtermButton
-            ></span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.size') }}</span
-            ><span>{{ formatInfoSize(infoEntry) }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.modified') }}</span
-            ><span>{{ formatModified(infoEntry.modTime) }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.permissions') }}</span
-            ><span>{{ infoEntry.mode }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.symlink') }}</span
-            ><span>{{ infoEntry.type === 'symlink' ? t('sftp.ui.yes') : t('sftp.ui.no') }}</span>
-          </div>
-        </div>
-      </QtermDialogContent>
-    </QtermDialog>
+    <SftpFileInfoDialog
+      :open="Boolean(infoEntry)"
+      :entry="infoEntry"
+      :path="infoEntry?.path"
+      @update:open="(open) => !open && (infoEntry = null)"
+      @copy-path="copyRemotePath"
+    />
 
     <QtermDialog :open="followPromptOpen" @update:open="(open) => !open && dismissFollowPrompt()">
       <QtermDialogContent v-if="followPromptOpen" class="sm:max-w-[440px]" @pointer-down-outside.prevent>

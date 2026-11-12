@@ -684,12 +684,15 @@ func (c *Connector) Connect(
 		options, warning := resolveX11Forwarding(ctx, host, c.currentX11Settings())
 		configured.setX11Forwarding(options, warning)
 	}
-	if host.Icon == "" && host.AutoDetectOSIcon && ctx != nil {
+
+	if host.Icon == "" && host.AutoDetectOSIcon && host.ConnectionType != model.ConnectionTypeNetwork && ctx != nil {
 		if detector, ok := connection.(remoteOSDetector); ok {
+
 			probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 			icon, probeErr := detector.DetectRemoteOS(probeCtx)
 			cancel()
-			if probeErr == nil {
+
+			if probeErr == nil && icon != "" {
 				if updater, updateOK := c.hosts.(SessionHostIconUpdater); updateOK {
 
 					_ = updater.SetDetectedHostIcon(ctx, host.ID, icon)
@@ -1377,6 +1380,12 @@ func (d *productionSessionDialer) ConnectWithAuth(
 
 func (c *productionSessionConnection) Wait() error {
 	return c.connection.Wait()
+}
+
+func (c *productionSessionConnection) InterruptTerminalWrite() {
+	if c != nil && c.connection != nil {
+		c.connection.InterruptTerminalWrite()
+	}
 }
 
 func (c *productionSessionConnection) Close() error {

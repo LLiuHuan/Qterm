@@ -7,7 +7,7 @@ import { reactiveOmit } from '@vueuse/core'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, useForwardPropsEmits } from 'reka-ui'
 import { computed, inject } from 'vue'
 import { cn } from '@/lib/utils'
-import { avoidInitialScrollFocus } from './initialFocus'
+import { applyInitialDialogFocus } from './initialFocus'
 import { dialogThemeContextKey } from './themeContext'
 
 defineOptions({
@@ -44,7 +44,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
           ...forwarded,
           onOpenAutoFocus: (event: Event) => {
             emits('openAutoFocus', event)
-            avoidInitialScrollFocus(event)
+            applyInitialDialogFocus(event)
           },
           onEscapeKeyDown: (event: KeyboardEvent) => {
             event.preventDefault()

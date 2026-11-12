@@ -18,6 +18,7 @@ export type ToolPanel =
   | 'history'
   | 'themes'
   | 'docker'
+  | 'tmux'
   | 'ai'
 
 export type HostAuthMode = 'password' | 'manual' | 'credential' | 'none'

@@ -153,8 +153,17 @@
   flex: 0 0 auto;
 }
 
+#settings-terminal-render-engine .qterm-segmented-tabs__list {
+  width: 7.5rem;
+  flex: 0 0 auto;
+}
+#settings-terminal-render-engine .qterm-segmented-tabs__trigger {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
 .terminal-font-size {
-  width: 8rem;
+  width: 7.5rem;
   flex: 0 0 auto;
 }
 .terminal-font-status {

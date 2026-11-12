@@ -75,3 +75,11 @@ func (s *Service) VerifyAppLockTouchID(ctx context.Context) (bool, error) {
 	}
 	return true, nil
 }
+
+func (s *Service) SetAppLocked(locked bool) error {
+	if s == nil {
+		return errno.New(errno.CodeUnknown, "error.serviceNotReady", "")
+	}
+	s.appLocked.Store(locked)
+	return nil
+}

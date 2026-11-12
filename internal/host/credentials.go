@@ -138,6 +138,10 @@ func (s *HostService) sessionHost(ctx context.Context, id string) (model.Host, e
 	host, err := s.store.GetHost(ctx, id)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
+
+			if byCustom, customErr := s.store.GetHostByCustomID(ctx, id); customErr == nil {
+				return byCustom, nil
+			}
 			return model.Host{}, errno.New(errno.CodeNotFound, "host.not_found", "")
 		}
 		return model.Host{}, errno.New(errno.CodeStoreFailed, "host.session_read_failed", "")

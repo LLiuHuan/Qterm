@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -98,10 +100,16 @@ type Manager struct {
 }
 
 type agentRunState struct {
-	run          AgentRun
-	provider     Provider
-	approval     ApprovalMode
-	history      []AgentMessage
+	run      AgentRun
+	provider Provider
+	approval ApprovalMode
+	history  []AgentMessage
+
+	sessionKind string
+
+	targetLabel string
+
+	hostIDs      []string
 	maxSteps     int
 	channel      string
 	contextText  string
@@ -116,15 +124,25 @@ type agentRunState struct {
 	earliest     int
 	events       []AgentEvent
 	pending      map[string]*agentPending
+
+	allowedTools map[StepKind]bool
 }
 
 type agentPending struct {
-	stepID        string
-	sessionID     string
+	stepID    string
+	kind      StepKind
+	sessionID string
+
+	rememberable  bool
 	policyVersion string
 	expiresAt     time.Time
 
-	decision chan bool
+	decision chan agentDecision
+}
+
+type agentDecision struct {
+	Approved bool
+	Choice   string
 }
 
 func NewManager(options ...ManagerOption) *Manager {
@@ -153,8 +171,9 @@ func (m *Manager) Start(ctx context.Context, input StartInput) (AgentSnapshot, e
 	model := strings.TrimSpace(input.Model)
 	sessionID := strings.TrimSpace(input.SessionID)
 	prompt := strings.TrimSpace(input.Prompt)
-	if providerID == "" || model == "" || sessionID == "" || prompt == "" {
-		return AgentSnapshot{}, agentInvalidArg("provider, model, session and prompt are required")
+
+	if providerID == "" || model == "" || prompt == "" {
+		return AgentSnapshot{}, agentInvalidArg("provider, model and prompt are required")
 	}
 	if providerType != ProviderTypeOpenAI && providerType != ProviderTypeOpenAIResponse && providerType != ProviderTypeAnthropic {
 		return AgentSnapshot{}, agentInvalidArg("provider type is invalid")
@@ -227,6 +246,9 @@ func (m *Manager) Start(ctx context.Context, input StartInput) (AgentSnapshot, e
 		},
 		approval:     ParseApprovalMode(string(input.ApprovalMode)),
 		history:      capHistory(input.History),
+		sessionKind:  strings.TrimSpace(input.SessionKind),
+		targetLabel:  strings.TrimSpace(input.TargetLabel),
+		hostIDs:      normalizeHostScope(input.HostIDs),
 		maxSteps:     input.MaxSteps,
 		channel:      channel,
 		contextText:  contextText,
@@ -293,10 +315,30 @@ func (m *Manager) Decide(input DecideInput) (AgentSnapshot, error) {
 		return AgentSnapshot{}, agentApprovalNotFound()
 	}
 
+	choice := strings.TrimSpace(input.Choice)
+	if pending.kind == StepKindAskUser && input.Approve {
+		if choice == "" {
+			return AgentSnapshot{}, agentInvalidArg("choice is required for ask_user")
+		}
+		if len([]rune(choice)) > maxAgentChoiceRune {
+			choice = string([]rune(choice)[:maxAgentChoiceRune])
+		}
+	} else {
+		choice = ""
+	}
+
 	delete(state.pending, pendingID)
 	step.PendingID = ""
 	state.run.UpdatedAt = now
 
+	if input.Approve && input.Remember && pending.rememberable {
+
+		if state.allowedTools == nil {
+			state.allowedTools = make(map[StepKind]bool)
+		}
+		state.allowedTools[pending.kind] = true
+		refreshAllowedToolsLocked(state)
+	}
 	if input.Approve {
 		step.State = StepRunning
 		state.run.State = RunRunning
@@ -307,7 +349,7 @@ func (m *Manager) Decide(input DecideInput) (AgentSnapshot, error) {
 			entry.Decision = AuditDecisionApproved
 			entry.Risk = step.Risk
 		}
-		notifyDecision(pending, true)
+		notifyDecision(pending, agentDecision{Approved: true, Choice: choice})
 		return m.snapshotLocked(state, input.Since), nil
 	}
 	step.State = StepRejected
@@ -318,7 +360,7 @@ func (m *Manager) Decide(input DecideInput) (AgentSnapshot, error) {
 	}
 	m.finishAuditLocked(runID, step.ID, StepRejected, nil, now)
 	m.appendEventLocked(state, "approval", step.ID, "rejected")
-	notifyDecision(pending, false)
+	notifyDecision(pending, agentDecision{})
 
 	m.finishLocked(state, RunRejected, msgAgentRejected, "", now)
 	return m.snapshotLocked(state, input.Since), nil
@@ -385,7 +427,8 @@ func (m *Manager) BeginStep(runID string, spec StepSpec) (AgentStep, error) {
 			return AgentStep{}, agentInvalidState("a previous step is still active")
 		}
 	}
-	if spec.Kind != StepKindCommand && spec.Kind != StepKindAnswer {
+
+	if !KnownStepKind(spec.Kind) {
 		return AgentStep{}, agentInvalidArg("unknown step kind")
 	}
 	command := strings.TrimSpace(spec.Command)
@@ -409,6 +452,8 @@ func (m *Manager) BeginStep(runID string, spec StepSpec) (AgentStep, error) {
 	if err != nil {
 		return AgentStep{}, err
 	}
+
+	args := append(json.RawMessage(nil), spec.Args...)
 	step := AgentStep{
 		ID:              stepID,
 		Index:           len(state.run.Steps) + 1,
@@ -417,6 +462,7 @@ func (m *Manager) BeginStep(runID string, spec StepSpec) (AgentStep, error) {
 		State:           StepRunning,
 		Title:           strings.TrimSpace(spec.Title),
 		Command:         command,
+		Args:            args,
 		TargetSessionID: targetSessionID,
 		Risk:            normalizeRisk(spec.Risk),
 		RiskReason:      strings.TrimSpace(spec.RiskReason),
@@ -447,9 +493,6 @@ func (m *Manager) RequestApproval(runID, stepID string, request ApprovalRequest)
 		return "", agentInvalidArg("runId and stepId are required")
 	}
 	command := strings.TrimSpace(request.Command)
-	if command == "" {
-		return "", agentInvalidArg("command is required")
-	}
 	target := strings.TrimSpace(request.TargetSessionID)
 
 	m.mu.Lock()
@@ -470,8 +513,13 @@ func (m *Manager) RequestApproval(runID, stepID string, request ApprovalRequest)
 	if step == nil {
 		return "", agentInvalidArg("step not found")
 	}
-	if step.Kind != StepKindCommand {
-		return "", agentInvalidState("only command steps need approval")
+
+	if !StepKindNeedsApproval(step.Kind) {
+		return "", agentInvalidState("only tools with side effects need approval")
+	}
+
+	if step.Kind == StepKindCommand && command == "" {
+		return "", agentInvalidArg("command is required")
 	}
 	if step.State != StepRunning {
 		return "", agentInvalidState("step is not running")
@@ -482,10 +530,12 @@ func (m *Manager) RequestApproval(runID, stepID string, request ApprovalRequest)
 	}
 	state.pending[pendingID] = &agentPending{
 		stepID:        stepID,
+		kind:          step.Kind,
+		rememberable:  request.Rememberable,
 		sessionID:     state.run.SessionID,
 		policyVersion: state.run.PolicyVersion,
 		expiresAt:     now.Add(m.approvalTTL),
-		decision:      make(chan bool, 1),
+		decision:      make(chan agentDecision, 1),
 	}
 	step.State = StepWaitingApproval
 	step.PendingID = pendingID
@@ -494,6 +544,8 @@ func (m *Manager) RequestApproval(runID, stepID string, request ApprovalRequest)
 		entry.Risk = step.Risk
 	}
 	step.Command = command
+
+	step.Preview = cloneToolPreview(request.Preview)
 	step.TargetSessionID = target
 	step.Risk = normalizeRisk(request.Risk)
 	step.RiskReason = strings.TrimSpace(request.RiskReason)
@@ -649,12 +701,14 @@ func (m *Manager) finishLocked(state *agentRunState, next RunState, errorKey, de
 		m.appendEventLocked(state, "step", step.ID, string(stepState))
 	}
 	for pendingID, pending := range state.pending {
-		notifyDecision(pending, false)
+		notifyDecision(pending, agentDecision{})
 		delete(state.pending, pendingID)
 	}
 	state.run.State = next
 
 	state.run.Draft = ""
+
+	m.archiveReasoningLocked(state)
 	state.run.ErrorKey = errorKey
 	state.run.ErrorDetail = detail
 	state.run.UpdatedAt = now
@@ -739,7 +793,16 @@ func cloneTime(value *time.Time) *time.Time {
 func cloneStep(step AgentStep) AgentStep {
 	step.ExitCode = cloneInt(step.ExitCode)
 	step.FinishedAt = cloneTime(step.FinishedAt)
+	step.Preview = cloneToolPreview(step.Preview)
 	return step
+}
+
+func cloneToolPreview(preview *ToolPreview) *ToolPreview {
+	if preview == nil {
+		return nil
+	}
+	cloned := &ToolPreview{Kind: preview.Kind, Data: append(json.RawMessage(nil), preview.Data...)}
+	return cloned
 }
 
 func cloneSteps(steps []AgentStep) []AgentStep {
@@ -753,12 +816,12 @@ func cloneSteps(steps []AgentStep) []AgentStep {
 	return cloned
 }
 
-func notifyDecision(pending *agentPending, approved bool) {
+func notifyDecision(pending *agentPending, decision agentDecision) {
 	if pending == nil || pending.decision == nil {
 		return
 	}
 	select {
-	case pending.decision <- approved:
+	case pending.decision <- decision:
 	default:
 	}
 }
@@ -811,6 +874,10 @@ func (m *Manager) appendNote(runID, note string) {
 	}
 	note = strings.TrimSpace(note)
 	if note == "" {
+		return
+	}
+
+	if len(state.run.Notes) > 0 && state.run.Notes[len(state.run.Notes)-1] == note {
 		return
 	}
 	m.runNotes(state, note)
@@ -875,8 +942,21 @@ func (m *Manager) resetDraft(runID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if state, ok := m.runs[strings.TrimSpace(runID)]; ok {
+		m.archiveReasoningLocked(state)
 		state.run.Draft = ""
 		state.run.ModelCalls++
+	}
+}
+
+func (m *Manager) archiveReasoningLocked(state *agentRunState) {
+	reasoning := strings.TrimSpace(state.run.ReasoningDraft)
+	state.run.ReasoningDraft = ""
+	if reasoning == "" {
+		return
+	}
+	state.run.Reasonings = append(state.run.Reasonings, reasoning)
+	if len(state.run.Reasonings) > 20 {
+		state.run.Reasonings = state.run.Reasonings[len(state.run.Reasonings)-20:]
 	}
 }
 
@@ -898,19 +978,66 @@ func (m *Manager) appendDraft(runID, text string) {
 	state.run.UpdatedAt = m.now()
 }
 
-func (m *Manager) WaitDecision(ctx context.Context, runID, stepID, pendingID string) (bool, error) {
+func (m *Manager) DraftSnapshot(runID string) (draft, reasoning string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return "", ""
+	}
+	return state.run.Draft, state.run.ReasoningDraft
+}
+
+func (m *Manager) setDraft(runID, text string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return
+	}
+	if state.run.Draft == text {
+		return
+	}
+	state.run.Draft = text
+	if len(state.run.Draft) > 32<<10 {
+		trimmed, _ := truncateUTF8(state.run.Draft, 32<<10)
+		state.run.Draft = trimmed
+	}
+	state.run.UpdatedAt = m.now()
+}
+
+func (m *Manager) appendReasoningDraft(runID, text string) {
+	if text == "" {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return
+	}
+	state.run.ReasoningDraft += text
+	if len(state.run.ReasoningDraft) > 8<<10 {
+		trimmed, _ := truncateUTF8(state.run.ReasoningDraft, 8<<10)
+		state.run.ReasoningDraft = trimmed
+	}
+	state.run.UpdatedAt = m.now()
+}
+
+func (m *Manager) WaitDecision(ctx context.Context, runID, stepID, pendingID string) (agentDecision, error) {
 	m.mu.Lock()
 	state, ok := m.runs[strings.TrimSpace(runID)]
 	if !ok {
 		m.mu.Unlock()
-		return false, agentRunNotFound()
+		return agentDecision{}, agentRunNotFound()
 	}
 	pending, hasPending := state.pending[strings.TrimSpace(pendingID)]
 	if !hasPending {
 		step := findStep(state, strings.TrimSpace(stepID))
-		approved := step != nil && step.State == StepRunning
+		running := step != nil && step.State == StepRunning
 		m.mu.Unlock()
-		return approved, nil
+
+		return agentDecision{Approved: running}, nil
 	}
 	decision := pending.decision
 	m.mu.Unlock()
@@ -919,10 +1046,10 @@ func (m *Manager) WaitDecision(ctx context.Context, runID, stepID, pendingID str
 		ctx = context.Background()
 	}
 	select {
-	case approved := <-decision:
-		return approved, nil
+	case result := <-decision:
+		return result, nil
 	case <-ctx.Done():
-		return false, ctx.Err()
+		return agentDecision{}, ctx.Err()
 	}
 }
 
@@ -1003,4 +1130,77 @@ func (m *Manager) executionChannelFor(runID string) string {
 		return ExecutionBackground
 	}
 	return state.channel
+}
+
+func (m *Manager) toolApproved(runID string, kind StepKind) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return false
+	}
+	return state.allowedTools[kind]
+}
+
+func refreshAllowedToolsLocked(state *agentRunState) {
+	if state == nil {
+		return
+	}
+	if len(state.allowedTools) == 0 {
+		state.run.AllowedTools = nil
+		return
+	}
+	names := make([]string, 0, len(state.allowedTools))
+	for kind := range state.allowedTools {
+		names = append(names, string(kind))
+	}
+	sort.Strings(names)
+	state.run.AllowedTools = names
+}
+
+func (m *Manager) targetLabelFor(runID string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return ""
+	}
+	return state.targetLabel
+}
+
+func (m *Manager) sessionKindFor(runID string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return ""
+	}
+	return state.sessionKind
+}
+
+func normalizeHostScope(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := make(map[string]bool, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		out = append(out, trimmed)
+	}
+	return out
+}
+
+func (m *Manager) hostScopeFor(runID string) []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return nil
+	}
+	return append([]string(nil), state.hostIDs...)
 }

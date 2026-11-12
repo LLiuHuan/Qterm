@@ -33,6 +33,8 @@ const { t } = useI18n()
 const { settings, settingsReady, isDark } = useSettingsState()
 const { pageBackgroundStyle, dialogThemeContext } = useWindowTheme({
   ...toRefs(settings),
+
+  pageBackgroundSize: computed(() => settings.pageBackgroundSize ?? 'cover'),
   isDark,
   terminalLightTheme: computed(() => settings.terminalLightTheme ?? 'default-light'),
   terminalDarkTheme: computed(() => settings.terminalDarkTheme ?? 'default-dark'),

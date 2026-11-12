@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowUp, Paperclip, Bot, Check, ChevronDown, MessageCircle, ShieldCheck, Square } from '@lucide/vue'
+import {
+  ArrowUp,
+  ImagePlus,
+  Paperclip,
+  Bot,
+  Check,
+  ChevronDown,
+  MessageCircle,
+  ShieldCheck,
+  Square,
+  X,
+} from '@lucide/vue'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +40,10 @@ const props = defineProps<{
   locked?: boolean
   disabled?: boolean
   placeholder?: string
+
+  images?: string[]
+
+  imagesEnabled?: boolean
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -38,6 +53,8 @@ const emit = defineEmits<{
   submit: []
   stop: []
   context: []
+  'add-images': [dataUrls: string[]]
+  'remove-image': [index: number]
 }>()
 const { t } = useI18n()
 const approvalModes: AIApprovalMode[] = ['strict', 'balanced', 'review', 'automatic']
@@ -48,6 +65,43 @@ const providerLabel = computed(() =>
 )
 
 const currentLogo = computed(() => providerLogo(props.provider))
+
+function readImageFile(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(file)
+  })
+}
+
+async function addImageFiles(files: File[]): Promise<void> {
+  if (!props.imagesEnabled) return
+  const images = files.filter((file) => file.type.startsWith('image/'))
+  if (!images.length) return
+  const dataUrls = (await Promise.all(images.map(readImageFile))).filter((url): url is string => Boolean(url))
+  if (dataUrls.length) emit('add-images', dataUrls)
+}
+
+function pickImages(): void {
+  if (!props.imagesEnabled || props.disabled || props.busy || props.locked) return
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/png,image/jpeg,image/webp,image/gif'
+  input.multiple = true
+  input.addEventListener('change', () => {
+    if (input.files) void addImageFiles(Array.from(input.files))
+  })
+  input.click()
+}
+
+function onPaste(event: ClipboardEvent): void {
+  if (!props.imagesEnabled) return
+  const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith('image/'))
+  if (!files.length) return
+  event.preventDefault()
+  void addImageFiles(files)
+}
 
 function submit(): void {
   if (!props.busy && !props.locked && !props.disabled && props.modelValue.trim()) emit('submit')
@@ -63,8 +117,26 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <div class="@container/ai-composer w-full min-w-0" data-ai-composer-control>
     <InputGroup
-      class="ai-composer-group overflow-hidden rounded-xl border-qt-border bg-qt-panel shadow-none transition-colors has-disabled:bg-qt-panel! has-disabled:opacity-100!"
+      class="ai-composer-group overflow-hidden rounded-xl border-qt-border bg-qt-panel shadow-none has-disabled:opacity-100!"
     >
+      <slot name="scope" />
+      <div v-if="props.images?.length" class="flex flex-wrap gap-1.5 px-2 pt-2" data-ai-composer-images>
+        <div
+          v-for="(image, index) in props.images"
+          :key="index"
+          class="group relative size-14 overflow-hidden rounded-md border border-qt-border"
+        >
+          <img :src="image" alt="" class="size-full object-cover" />
+          <button
+            type="button"
+            class="absolute end-0.5 top-0.5 rounded-full bg-qt-panel/90 p-0.5 text-qt-muted opacity-0 transition-opacity hover:text-qt-danger group-hover:opacity-100"
+            :aria-label="t('shell.aiChat.composer.removeImage')"
+            @click="emit('remove-image', index)"
+          >
+            <X class="size-3" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
       <InputGroupTextarea
         :model-value="props.modelValue"
         :placeholder="props.placeholder || t('shell.aiChat.placeholder')"
@@ -74,6 +146,7 @@ function onKeydown(event: KeyboardEvent): void {
         data-ai-composer-input
         @update:model-value="emit('update:modelValue', String($event))"
         @keydown="onKeydown"
+        @paste="onPaste"
       />
       <InputGroupAddon align="block-end" class="gap-1 px-2 py-2">
         <InputGroupButton
@@ -88,6 +161,20 @@ function onKeydown(event: KeyboardEvent): void {
         >
           <Paperclip class="size-3.5" aria-hidden="true" />
           <span v-if="props.contextCount" class="text-[10px] tabular-nums">{{ props.contextCount }}</span>
+        </InputGroupButton>
+        <InputGroupButton
+          v-if="props.imagesEnabled"
+          size="icon-sm"
+          class="size-7 shrink-0 rounded-md text-qt-muted"
+          :class="props.images?.length ? 'text-qt-accent' : ''"
+          :disabled="props.busy || props.locked || props.disabled"
+          :aria-label="t('shell.aiChat.composer.attachImage')"
+          :title="t('shell.aiChat.composer.attachImage')"
+          data-ai-attach-image
+          @click="pickImages"
+        >
+          <ImagePlus class="size-3.5" aria-hidden="true" />
+          <span v-if="props.images?.length" class="text-[10px] tabular-nums">{{ props.images.length }}</span>
         </InputGroupButton>
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
@@ -238,6 +325,16 @@ function onKeydown(event: KeyboardEvent): void {
 </template>
 
 <style scoped>
+[data-ai-composer-control] .ai-composer-group {
+  background-color: var(--qt-app) !important;
+
+  transition: none !important;
+}
+
+[data-ai-composer-control] .ai-composer-group > * {
+  background-color: transparent !important;
+}
+
 [data-ai-composer-control] .ai-composer-group:focus-within {
   border-color: var(--qt-focus) !important;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--qt-focus) 25%, transparent) !important;

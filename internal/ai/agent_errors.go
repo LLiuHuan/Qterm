@@ -21,6 +21,8 @@ const (
 	msgAgentCapabilityUnavail = "ai.agent.capability_unavailable"
 	msgAgentModelFailed       = "ai.agent.model_failed"
 
+	msgAgentToolRepeated = "ai.agent.tool_failed_repeatedly"
+
 	msgAgentRejected        = "ai.agent.rejected"
 	msgAgentCancelled       = "ai.agent.cancelled"
 	msgAgentRunTimedOut     = "ai.agent.run_timed_out"

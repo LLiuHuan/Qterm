@@ -13,6 +13,17 @@
 .qterm-shell.has-page-background .tool-panel {
   background: color-mix(in srgb, var(--qt-panel) 30%, transparent);
 }
+
+.qterm-shell:not(.has-page-background) .terminal-control-bar,
+.qterm-shell:not(.has-page-background) [data-terminal-sync-status],
+.qterm-shell:not(.has-page-background) [data-terminal-batch-panel] {
+  background: var(--qt-glass-surface, var(--qt-panel));
+}
+.qterm-shell.has-page-background .terminal-control-bar,
+.qterm-shell.has-page-background [data-terminal-sync-status],
+.qterm-shell.has-page-background [data-terminal-batch-panel] {
+  background: color-mix(in srgb, var(--qt-panel) 30%, transparent);
+}
 .qterm-shell:not(.has-page-background)
   :is(.topbar, .session-window-titlebar, .sidebar, .workspace, .tool-rail, .terminal-stage, .session-tabs) {
   -webkit-backdrop-filter: none;
@@ -68,12 +79,6 @@
 .qterm-shell.has-page-background
   :is(.topbar, .session-window-titlebar, .sidebar, .session-tabs, .pane-titlebar, .tool-rail, .tool-panel) {
   text-shadow: var(--qt-background-text-shadow);
-}
-
-.qterm-shell.has-page-background
-  :is(.session-window-titlebar, .sidebar, .session-tabs, .pane-titlebar, .tool-rail, .tool-panel)
-  svg {
-  filter: var(--qt-background-icon-shadow);
 }
 
 .qterm-shell.has-page-background :is(.topbar, .session-window-titlebar),
@@ -135,7 +140,7 @@
 }
 
 .qterm-shell.has-page-background
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([data-ai-inline-field]),
 .qterm-shell.has-page-background select,
 .qterm-shell.has-page-background textarea,
 .qterm-shell.has-page-background [data-slot='input'],
@@ -149,7 +154,9 @@
 }
 
 .qterm-shell.has-page-background
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):focus,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+    [data-ai-inline-field]
+  ):focus,
 .qterm-shell.has-page-background select:focus,
 .qterm-shell.has-page-background textarea:focus,
 .qterm-shell.has-page-background [data-slot='input']:focus,
@@ -176,7 +183,8 @@
 .qterm-shell.has-page-background .path-bar.is-editing {
   padding: 0;
 }
-.path-bar.is-editing #sftp-path {
+
+.path-bar.is-editing .sftp-path-input {
   background-color: transparent !important;
   box-shadow: none !important;
 }
@@ -216,7 +224,8 @@
 .qterm-dialog [data-slot='textarea'],
 .qterm-dialog [data-slot='input-group'],
 .qterm-dialog .tags-input-shell,
-.qterm-dialog input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+.qterm-dialog
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([data-ai-inline-field]),
 .qterm-dialog select,
 .qterm-dialog textarea {
   background-color: color-mix(in srgb, var(--qt-panel) 16%, transparent) !important;
@@ -227,7 +236,10 @@
 .qterm-dialog [data-slot='input']:focus,
 .qterm-dialog [data-slot='select-trigger']:focus,
 .qterm-dialog [data-slot='textarea']:focus,
-.qterm-dialog input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):focus,
+.qterm-dialog
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+    [data-ai-inline-field]
+  ):focus,
 .qterm-dialog select:focus,
 .qterm-dialog textarea:focus {
   background-color: color-mix(in srgb, var(--qt-panel) 25%, transparent) !important;
@@ -449,20 +461,20 @@
 
 .terminal-metrics-separator {
   position: absolute;
-  inset: auto 12px 34px;
+  inset: auto 12px 26px;
   z-index: 2;
   background: var(--qt-border);
 }
 .terminal-metrics {
   position: absolute;
-  inset: auto 12px 6px;
+  inset: auto 12px 2px;
   z-index: 2;
   display: flex;
 
   flex-wrap: wrap;
   column-gap: 8px;
   row-gap: 8px;
-  height: 22px;
+  height: 18px;
   align-items: center;
   align-content: flex-start;
   padding: 0 2px;

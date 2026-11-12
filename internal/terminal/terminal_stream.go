@@ -79,6 +79,28 @@ func ServeStream(
 	tokens TokenVerifier,
 	commitReady func(sessionID string, activate func() error) error,
 ) {
+	serveStream(stream, owner, tokens, commitReady, nil, "")
+}
+
+func ServeStreamWithInputRouter(
+	stream Stream,
+	owner SessionOwner,
+	tokens TokenVerifier,
+	commitReady func(sessionID string, activate func() error) error,
+	router InputRouter,
+	windowID string,
+) {
+	serveStream(stream, owner, tokens, commitReady, router, windowID)
+}
+
+func serveStream(
+	stream Stream,
+	owner SessionOwner,
+	tokens TokenVerifier,
+	commitReady func(sessionID string, activate func() error) error,
+	router InputRouter,
+	windowID string,
+) {
 	if stream == nil || owner == nil || tokens == nil {
 		return
 	}
@@ -141,12 +163,23 @@ func ServeStream(
 	} else if err := activate(); err != nil {
 		return
 	}
+	if router != nil {
+		bound, release, err := router.Bind(windowID, bind.sessionID)
+		if err != nil {
+			_ = stream.Send(terminalErrorFrame(terminalErrorBinding, "终端窗口绑定无效"))
+			return
+		}
+		router = bound
+		defer release()
+	}
 
 	pumpCtx, cancel := context.WithCancel(stream.Context())
 	window := newTerminalOutputWindow()
 	results := make(chan terminalPumpResult, 3)
 	go func() { results <- pumpTerminalOutput(pumpCtx, stream, terminal, window) }()
-	go func() { results <- pumpTerminalInput(pumpCtx, stream, terminal, window) }()
+	go func() {
+		results <- pumpTerminalInput(pumpCtx, stream, terminal, window, router, windowID, bind.sessionID)
+	}()
 	go func() {
 		err := terminal.Wait()
 		results <- terminalPumpResult{
@@ -230,6 +263,9 @@ func pumpTerminalInput(
 	stream Stream,
 	terminal sessionapp.SessionTerminal,
 	window *terminalOutputWindow,
+	router InputRouter,
+	windowID string,
+	sessionID string,
 ) terminalPumpResult {
 	for {
 		if err := ctx.Err(); err != nil {
@@ -244,18 +280,33 @@ func pumpTerminalInput(
 			return terminalPumpResult{protocol: true}
 		}
 		switch op {
-		case terminalOpInput, terminalOpZmodem:
+		case terminalOpInput:
+			if router != nil {
+				if err := router.DirectInput(ctx, windowID, sessionID, payload); err != nil {
+					return terminalPumpResult{}
+				}
+			} else if err := writeTerminalInput(terminal, payload); err != nil {
+				return terminalPumpResult{}
+			}
+		case terminalOpLocalInput:
+			if router != nil {
+				if err := router.LocalInput(ctx, windowID, sessionID, payload); err != nil {
+
+					return terminalPumpResult{}
+				}
+			} else if err := writeTerminalInput(terminal, payload); err != nil {
+				return terminalPumpResult{}
+			}
+		case terminalOpZmodem:
 			if err := writeTerminalInput(terminal, payload); err != nil {
 				return terminalPumpResult{}
 			}
-			if op == terminalOpZmodem {
 
-				ack := make([]byte, 4)
-				binary.BigEndian.PutUint32(ack, uint32(len(payload)))
-				frame, _ := terminalFrame(terminalOpZmodemAck, ack)
-				if err := stream.Send(frame); err != nil {
-					return terminalPumpResult{}
-				}
+			ack := make([]byte, 4)
+			binary.BigEndian.PutUint32(ack, uint32(len(payload)))
+			frame, _ := terminalFrame(terminalOpZmodemAck, ack)
+			if err := stream.Send(frame); err != nil {
+				return terminalPumpResult{}
 			}
 		case terminalOpResize:
 			columns, rows, err := parseTerminalResize(payload)

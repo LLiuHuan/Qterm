@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconButton, QtermButton, QtermEmptyState, QtermInput } from '../common'
+import { IconButton, QtermButton, QtermEmptyState, QtermInput, RefreshIconButton } from '../common'
 import {
   Pin,
   Check,
@@ -12,7 +12,6 @@ import {
   Network,
   HardDrive,
   Plus,
-  RefreshCw,
   Search,
   SearchX,
   X,
@@ -21,9 +20,12 @@ import {
   Folder,
   Unplug,
 } from '@lucide/vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import SftpPanel from '../../features/sftp/SftpPanel.vue'
 import DockerPanel from '../../features/docker/DockerPanel.vue'
+import TmuxPanel from '../../features/tmux/TmuxPanel.vue'
+import TmuxHelp from '../../features/tmux/TmuxHelp.vue'
+import { createTmuxGateway } from '../../services/tmux'
 import AiPanel from '../../features/ai/AiPanel.vue'
 import PortForwardPanel from '../../features/forwards/PortForwardPanel.vue'
 import AuthenticationPanel from '../../features/otp/AuthenticationPanel.vue'
@@ -32,6 +34,8 @@ import AcceleratorCards from '../../features/monitor/AcceleratorCards.vue'
 import ServicePanel from '../../features/services/ServicePanel.vue'
 import DeleteConfirmDialog from '../dialogs/DeleteConfirmDialog.vue'
 import CommandHistoryContextMenu from './CommandHistoryContextMenu.vue'
+import RemoteHistoryPanel from '../../features/history/RemoteHistoryPanel.vue'
+import SnippetContextMenu from './SnippetContextMenu.vue'
 import { errorMessage } from '../../services/errors'
 import type { HostRecord } from '@/services/hosts.ts'
 import type { SessionGateway } from '../../services/sessions'
@@ -44,6 +48,8 @@ import { ScrollArea } from '../common/control-primitives'
 import { createSnippetGateway, type Snippet } from '../../services/snippets'
 import { sendTerminalInput } from '../../services/terminal'
 import { clearCommandHistory, deleteCommandHistory, listCommandHistory } from '../../services/command-history'
+import { writeClipboardText } from '../../services/clipboard'
+import { toast } from 'vue-sonner'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../common/control-primitives'
 import {
   getTerminalTheme,
@@ -55,7 +61,7 @@ import {
 import { useI18n } from '@/locales'
 import SnippetIcon from '../../features/snippets/SnippetIcon.vue'
 import ResourceSparkline from './ResourceSparkline.vue'
-import { createResourceHistory } from '../../composables/useResourceHistory'
+import { createResourceHistory, resourceHistoryFor } from '../../composables/useResourceHistory'
 import { formatByteRate, formatPercent } from '../../lib/format'
 import { snippetColorStyle } from '../../features/snippets/appearance'
 import { useSnippetGroupPagination } from '../../features/snippets/useSnippetGroupPagination'
@@ -71,6 +77,8 @@ const props = defineProps<{
 
   dockerGateway: DockerGateway
   sftpAvailable: boolean
+
+  availableHosts?: Array<{ id: string; name: string; address?: string }>
   dark?: boolean
   terminalLightTheme?: TerminalThemeId
   terminalDarkTheme?: TerminalThemeId
@@ -97,7 +105,8 @@ watch(
   },
 )
 
-const SESSION_BOUND_TOOLS: readonly ToolPanel[] = ['resources', 'sftp', 'services', 'processes', 'docker']
+const tmuxGateway = createTmuxGateway()
+const SESSION_BOUND_TOOLS: readonly ToolPanel[] = ['resources', 'sftp', 'services', 'processes', 'docker', 'tmux']
 
 const sessionClosed = computed(() => {
   const state = props.activeSession?.state
@@ -105,6 +114,36 @@ const sessionClosed = computed(() => {
 })
 
 const showSessionClosed = computed(() => sessionClosed.value && SESSION_BOUND_TOOLS.includes(props.tool))
+
+const tmuxPrefix = ref('')
+let tmuxPrefixSession = ''
+let tmuxPrefixPending: Promise<void> | null = null
+async function refreshTmuxPrefix(): Promise<void> {
+  const sessionId = props.activeSession?.id ?? ''
+  tmuxPrefixSession = sessionId
+
+  tmuxPrefix.value = ''
+  if (tmuxPrefixPending) return
+  if (props.tool !== 'tmux' || !sessionId || sessionClosed.value || !tmuxGateway.prefixKeys) return
+  tmuxPrefixPending = (async () => {
+    try {
+      const raw = await tmuxGateway.prefixKeys?.(sessionId)
+      if (tmuxPrefixSession !== sessionId) return
+
+      tmuxPrefix.value = raw === '\x02' ? 'Ctrl+B' : raw === '\x01' ? 'Ctrl+A' : ''
+    } catch {
+      if (tmuxPrefixSession === sessionId) tmuxPrefix.value = ''
+    } finally {
+      tmuxPrefixPending = null
+    }
+  })()
+  await tmuxPrefixPending
+}
+watch(
+  () => [props.tool, props.activeSession?.id ?? '', sessionClosed.value] as const,
+  () => void refreshTmuxPrefix(),
+  { immediate: true },
+)
 
 const effectiveDirectoryFollowMode = computed(() => {
   const mode = props.directoryFollowMode ?? 'remote'
@@ -123,16 +162,26 @@ const emit = defineEmits<{
   'update:otp-entries': [value: import('../../services/otp').OtpEntry[]]
 
   createSnippet: [content?: string]
+
+  editSnippet: [snippet: Snippet]
   updateTerminalTheme: [kind: 'light' | 'dark', id: TerminalThemeId]
+
+  'focus-terminal': []
 }>()
 const resource = ref<ResourceSnapshot | null>(null)
 const resourceError = ref('')
 const resourceLoading = ref(false)
 
-const resourceHistory = createResourceHistory()
-const cpuTrend = computed(() => resourceHistory.points.value.map((point) => point.cpu))
-const networkRxTrend = computed(() => resourceHistory.points.value.map((point) => point.rx))
-const networkTxTrend = computed(() => resourceHistory.points.value.map((point) => point.tx))
+const resourceHistory = shallowRef(resourceHistoryFor(props.activeSession?.id ?? ''))
+watch(
+  () => props.activeSession?.id,
+  (id) => {
+    resourceHistory.value = id ? resourceHistoryFor(id) : createResourceHistory()
+  },
+)
+const cpuTrend = computed(() => resourceHistory.value.points.value.map((point) => point.cpu))
+const networkRxTrend = computed(() => resourceHistory.value.points.value.map((point) => point.rx))
+const networkTxTrend = computed(() => resourceHistory.value.points.value.map((point) => point.tx))
 
 const loadItems = computed(() => {
   const values = [resource.value?.loadAverage1, resource.value?.loadAverage5, resource.value?.loadAverage15]
@@ -146,7 +195,7 @@ const loadItems = computed(() => {
     }
   })
 })
-const memoryTrend = computed(() => resourceHistory.points.value.map((point) => point.memory))
+const memoryTrend = computed(() => resourceHistory.value.points.value.map((point) => point.memory))
 
 const memoryCells = computed(() => {
   const value = resource.value
@@ -159,7 +208,7 @@ const memoryCells = computed(() => {
 })
 
 const historyCaption = computed(() => {
-  const points = resourceHistory.points.value
+  const points = resourceHistory.value.points.value
   if (points.length < 2) return ''
   const spanMs = points[points.length - 1].timestamp - points[0].timestamp
   const minutes = Math.max(1, Math.round(spanMs / 60000))
@@ -192,6 +241,8 @@ watch(
 
 const commands = ref<CommandHistory[]>([])
 const commandQuery = ref('')
+
+const historyMode = ref<'local' | 'remote'>('local')
 const commandError = ref('')
 const commandLoading = ref(false)
 const commandBusy = ref(false)
@@ -254,7 +305,7 @@ async function pollResource(version: number, sessionId: string) {
     if (version !== pollingVersion) return
     resource.value = next
     resourceError.value = ''
-    resourceHistory.push(next)
+    resourceHistory.value.push(next)
   } catch (error) {
     if (version !== pollingVersion) return
     resource.value = null
@@ -273,15 +324,9 @@ function restartResourcePolling() {
   resource.value = null
   resourceError.value = ''
   resourceLoading.value = false
-  resourceHistory.reset()
   const session = props.activeSession
 
-  if (
-    props.tool === 'resources' &&
-    session?.kind !== 'local' &&
-    session?.state === 'connected' &&
-    props.sessionGateway.readResources
-  ) {
+  if (session?.kind !== 'local' && session?.state === 'connected' && props.sessionGateway.readResources) {
     void pollResource(pollingVersion, session.id)
   }
 }
@@ -339,6 +384,34 @@ async function loadSnippets(): Promise<void> {
     snippetsError.value = errorMessage(cause, t('shell.toolPanel.snippetsFailed'))
   } finally {
     snippetsLoading.value = false
+  }
+}
+
+const pendingSnippetDelete = ref<Snippet | null>(null)
+
+async function copySnippetContent(item: Snippet): Promise<void> {
+  try {
+    await writeClipboardText(item.content)
+    toast.success(t('settings.snippets.toast.copied'))
+  } catch {
+    toast.error(t('settings.snippets.toast.copyFailed'))
+  }
+}
+
+function requestRemoveSnippet(item: Snippet): void {
+  pendingSnippetDelete.value = item
+}
+
+async function confirmRemoveSnippet(): Promise<void> {
+  const target = pendingSnippetDelete.value
+  if (!target) return
+  try {
+    await snippetGateway.remove(target.id)
+    pendingSnippetDelete.value = null
+    await loadSnippets()
+    toast.success(t('shell.toolPanel.snippetDeleted'))
+  } catch (cause) {
+    toast.error(errorMessage(cause, t('shell.toolPanel.snippetDeleteFailed')))
   }
 }
 function runSnippet(item: Snippet): void {
@@ -419,7 +492,8 @@ function commandTime(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
 }
-watch(() => [props.tool, props.activeSession?.id, props.activeSession?.state], restartResourcePolling, {
+
+watch(() => [props.activeSession?.id, props.activeSession?.state, props.activeSession?.kind], restartResourcePolling, {
   immediate: true,
 })
 watch(() => props.tool, loadSnippets, { immediate: true })
@@ -464,12 +538,39 @@ function handleAssetsImported(): void {
 <template>
   <aside class="tool-panel" :aria-label="displayedTitle">
     <header class="tool-panel-header">
-      <strong class="text-sm"
-        >{{ displayedTitle
-        }}<span v-if="props.tool === 'otp'" class="ml-2 text-xs font-normal text-qt-muted">{{
-          t('shell.otp.quickHint')
-        }}</span></strong
+      <strong class="text-sm">
+        {{ displayedTitle }}
+        <span v-if="props.tool === 'otp'" class="ml-2 text-xs font-normal text-qt-muted">
+          {{ t('shell.otp.quickHint') }}
+        </span>
+        <span v-if="props.tool === 'tmux'" class="ml-1 inline-flex align-middle">
+          <TmuxHelp :prefix="tmuxPrefix" />
+        </span>
+      </strong>
+
+      <div
+        v-if="props.tool === 'history'"
+        class="flex flex-none items-center gap-1 pr-1"
+        role="group"
+        :aria-label="t('history.remote.tabRemote')"
       >
+        <QtermButton
+          size="xs"
+          :variant="historyMode === 'local' ? 'secondary' : 'ghost'"
+          :pressed="historyMode === 'local'"
+          data-history-mode-local
+          @click="historyMode = 'local'"
+          >{{ t('history.remote.tabLocal') }}</QtermButton
+        >
+        <QtermButton
+          size="xs"
+          :variant="historyMode === 'remote' ? 'secondary' : 'ghost'"
+          :pressed="historyMode === 'remote'"
+          data-history-mode-remote
+          @click="historyMode = 'remote'"
+          >{{ t('history.remote.tabRemote') }}</QtermButton
+        >
+      </div>
       <IconButton class="tool-panel-close" size="icon" :label="t('shell.toolPanel.close')" @click="emit('close')"
         ><X :size="16"
       /></IconButton>
@@ -769,13 +870,14 @@ function handleAssetsImported(): void {
                   :aria-label="t('shell.toolPanel.createSnippet')"
                   @click="emit('createSnippet')"
                   ><Plus :size="16" /></QtermButton
-                ><QtermButton
+                ><RefreshIconButton
                   variant="ghost"
                   size="icon"
-                  :aria-label="t('shell.toolPanel.refreshSnippets')"
+                  :label="t('shell.toolPanel.refreshSnippets')"
+                  :spinning="snippetsLoading"
+                  icon-class="size-4"
                   @click="loadSnippets"
-                  ><RefreshCw :size="16"
-                /></QtermButton>
+                />
               </div>
             </header>
           </div>
@@ -804,26 +906,33 @@ function handleAssetsImported(): void {
                       </span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <QtermButton
+                      <SnippetContextMenu
                         v-for="item in visibleToolSnippetGroupItems(
                           group.id,
                           group.items,
                           toolSnippetGroupExpanded(group.id),
                         )"
                         :key="item.id"
-                        variant="ghost"
-                        class="snippet-panel-row flex w-full min-w-0 items-start text-left"
-                        :class="{ 'has-snippet-color': !!snippetColorStyle(item.color) }"
-                        :style="snippetColorStyle(item.color)"
-                        type="button"
-                        :disabled="!props.activeSession || props.activeSession.state !== 'connected'"
-                        @click="runSnippet(item)"
+                        :can-edit="!!props.activeSession"
+                        @copy="copySnippetContent(item)"
+                        @edit="emit('editSnippet', item)"
+                        @remove="requestRemoveSnippet(item)"
                       >
-                        <SnippetIcon :icon="item.icon" /><span
-                          ><strong>{{ item.name }}</strong
-                          ><small>{{ item.content }}</small></span
+                        <QtermButton
+                          variant="ghost"
+                          class="snippet-panel-row flex w-full min-w-0 items-start text-left"
+                          :class="{ 'has-snippet-color': !!snippetColorStyle(item.color) }"
+                          :style="snippetColorStyle(item.color)"
+                          type="button"
+                          :disabled="!props.activeSession || props.activeSession.state !== 'connected'"
+                          @click="runSnippet(item)"
                         >
-                      </QtermButton>
+                          <SnippetIcon :icon="item.icon" /><span
+                            ><strong>{{ item.name }}</strong
+                            ><small>{{ item.content }}</small></span
+                          >
+                        </QtermButton>
+                      </SnippetContextMenu>
                       <QtermLoadMore
                         v-if="toolSnippetGroupExpanded(group.id) && group.items.length"
                         class="px-2 py-1.5"
@@ -919,17 +1028,26 @@ function handleAssetsImported(): void {
         :host-id="props.activeHost?.id ?? ''"
       />
 
+      <TmuxPanel
+        v-else-if="props.tool === 'tmux'"
+        :gateway="tmuxGateway"
+        :session-id="props.activeSession?.id ?? ''"
+        :connected="!sessionClosed && props.activeSession?.state === 'connected'"
+        @focus-terminal="emit('focus-terminal')"
+      />
+
       <AiPanel
         v-else-if="props.tool === 'ai'"
         :host-id="props.activeSession?.hostId ?? ''"
         :session-id="props.activeSession?.id ?? ''"
         :session-title="props.activeSession?.title ?? ''"
         :session-state="props.activeSession?.state ?? 'closed'"
+        :available-hosts="props.availableHosts"
       />
 
       <div
-        v-else-if="props.tool === 'history'"
-        class="command-history-panel flex flex-col h-full min-h-0 pt-2 pb-2 bg-(--qt-glass-surface,var(--qt-bar,var(--qt-panel)))"
+        v-else-if="props.tool === 'history' && historyMode === 'local'"
+        class="command-history-panel flex w-full min-w-0 flex-col h-full min-h-0 pt-2 pb-2 bg-(--qt-glass-surface,var(--qt-bar,var(--qt-panel)))"
       >
         <div class="command-history-fixed grid flex-none gap-3 px-2 pb-2">
           <QtermInput
@@ -1004,9 +1122,9 @@ function handleAssetsImported(): void {
           </div>
         </ScrollArea>
 
-        <div v-else class="command-history-list relative ml-2 mr-0 mb-2 flex min-h-0 flex-[1_1_auto]">
+        <div v-else class="command-history-list relative ml-2 mr-0 mb-2 flex w-full min-w-0 min-h-0 flex-[1_1_auto]">
           <ScrollArea class="command-history-scroll min-h-0 w-full flex-1">
-            <div class="flex flex-col space-y-0.5 py-1 pl-2 pr-4">
+            <div class="flex w-full min-w-0 flex-col space-y-0.5 py-1 pl-2 pr-4">
               <CommandHistoryContextMenu
                 v-for="item in paginatedCommands"
                 :key="item.id"
@@ -1015,7 +1133,7 @@ function handleAssetsImported(): void {
                 @remove="removeCommand(item.id)"
               >
                 <div
-                  class="command-history-item c-p grid grid-cols-[minmax(0,_1fr)_auto] items-center gap-[9px] min-h-[32px] rounded-md px-1.5 py-2"
+                  class="command-history-item c-p grid w-full min-w-0 grid-cols-[minmax(0,_1fr)_auto] items-center gap-[9px] min-h-[32px] rounded-md px-1.5 py-2"
                 >
                   <button
                     class="command-history-text text-xs"
@@ -1061,7 +1179,25 @@ function handleAssetsImported(): void {
           @close="clearCommandsOpen = false"
           @confirm="clearCommands"
         />
+        <DeleteConfirmDialog
+          :open="!!pendingSnippetDelete"
+          :title="t('settings.snippets.delete.snippetTitle')"
+          :message="
+            pendingSnippetDelete ? t('settings.snippets.delete.message', { name: pendingSnippetDelete.name }) : ''
+          "
+          :confirm-text="t('shell.toolPanel.snippetDelete')"
+          @close="pendingSnippetDelete = null"
+          @confirm="confirmRemoveSnippet"
+        />
       </div>
+
+      <RemoteHistoryPanel
+        v-else-if="props.tool === 'history'"
+        :session-id="props.activeSession?.id ?? ''"
+        :session-state="props.activeSession?.state ?? 'closed'"
+        :host-name="props.activeHost?.name ?? ''"
+        @create-snippet="emit('createSnippet', $event)"
+      />
     </div>
   </aside>
 </template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Eye, EyeOff, FolderPlus, FolderUp, RefreshCw, Trash2, Undo2, Upload } from '@lucide/vue'
+import { Eye, EyeOff, FolderPlus, FolderUp, Trash2, Undo2, Upload } from '@lucide/vue'
 import IconButton from '../../components/common/button/IconButton.vue'
+import RefreshIconButton from '../../components/common/button/RefreshIconButton.vue'
 import { useI18n } from '@/locales'
 
 const props = withDefaults(
@@ -46,14 +47,13 @@ const canWriteRemote = () => isRemote() && props.available
     >
       <Undo2 :size="15" aria-hidden="true" />
     </IconButton>
-    <IconButton
+    <RefreshIconButton
       :label="t('sftp.ui.refreshDirectory')"
-      size="icon-sm"
+      :spinning="props.loading"
       :disabled="!props.available || props.loading"
+      icon-class="size-[15px]"
       @click="emit('refresh')"
-    >
-      <RefreshCw :class="{ spin: props.loading }" :size="15" aria-hidden="true" />
-    </IconButton>
+    />
     <IconButton
       :label="t(props.showHidden ? 'sftp.ui.hideHidden' : 'sftp.ui.showHidden')"
       size="icon-sm"

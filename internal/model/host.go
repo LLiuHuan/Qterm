@@ -12,7 +12,33 @@ const (
 	maxCredentialIDSize  = 1024
 	maxHostNotesSize     = 4096
 	maxSSHOTPEntryIDSize = 1024
+
+	maxHostAliasSize = 128
+
+	maxHostCustomIDSize = 64
 )
+
+func validateHostCustomID(value string) error {
+	if value == "" {
+		return nil
+	}
+	if len(value) > maxHostCustomIDSize {
+		return hostValidationError("customId", "长度不能超过 64")
+	}
+	for index, char := range value {
+		switch {
+		case char >= 'a' && char <= 'z':
+		case char >= '0' && char <= '9':
+		case char == '-' || char == '_':
+			if index == 0 {
+				return hostValidationError("customId", "不能以符号开头")
+			}
+		default:
+			return hostValidationError("customId", "只能包含小写字母、数字、下划线或短横线")
+		}
+	}
+	return nil
+}
 
 var (
 	ErrInvalidHost = errors.New("invalid host")
@@ -60,9 +86,13 @@ const (
 )
 
 type HostInput struct {
-	Color          string `json:"color,omitempty"`
-	Icon           string `json:"icon"`
-	Name           string `json:"name"`
+	Color string `json:"color,omitempty"`
+	Icon  string `json:"icon"`
+	Name  string `json:"name"`
+
+	Alias string `json:"alias,omitempty"`
+
+	CustomID       string `json:"customId,omitempty"`
 	Protocol       string `json:"protocol"`
 	Address        string `json:"address"`
 	Port           int    `json:"port"`
@@ -177,8 +207,12 @@ type Host struct {
 	ID   string `json:"id"`
 	Icon string `json:"icon"`
 
-	Color              string `json:"color,omitempty"`
-	Name               string `json:"name"`
+	Color string `json:"color,omitempty"`
+	Name  string `json:"name"`
+
+	Alias string `json:"alias,omitempty"`
+
+	CustomID           string `json:"customId,omitempty"`
 	Protocol           string `json:"protocol"`
 	Address            string `json:"address"`
 	Port               int    `json:"port"`
@@ -459,6 +493,9 @@ const maxSFTPDefaultDirectoryLength = 1024
 func NewHost(id string, input HostInput, now time.Time) (Host, error) {
 	id = strings.TrimSpace(id)
 	input.Name = strings.TrimSpace(input.Name)
+	input.Alias = strings.TrimSpace(input.Alias)
+
+	input.CustomID = strings.ToLower(strings.TrimSpace(input.CustomID))
 	input.Icon = strings.TrimSpace(input.Icon)
 	input.Color = strings.TrimSpace(input.Color)
 	input.Protocol = strings.TrimSpace(input.Protocol)
@@ -953,12 +990,28 @@ func NewHost(id string, input HostInput, now time.Time) (Host, error) {
 		return Host{}, hostValidationError("notes", "格式无效")
 	}
 
+	if err := validateHostCustomID(input.CustomID); err != nil {
+		return Host{}, err
+	}
+
+	if len(input.Alias) > maxHostAliasSize || !utf8.ValidString(input.Alias) || strings.IndexByte(input.Alias, 0) >= 0 {
+		return Host{}, hostValidationError("alias", "格式无效")
+	}
+	for _, char := range input.Alias {
+
+		if char < 0x20 || char == 0x7f {
+			return Host{}, hostValidationError("alias", "不能包含控制字符")
+		}
+	}
+
 	now = now.UTC()
 	return Host{
 		ID:                  id,
 		Icon:                input.Icon,
 		Color:               input.Color,
 		Name:                input.Name,
+		Alias:               input.Alias,
+		CustomID:            input.CustomID,
 		Protocol:            input.Protocol,
 		Address:             input.Address,
 		Port:                input.Port,

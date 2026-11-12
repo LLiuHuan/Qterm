@@ -30,6 +30,8 @@ func (m *Manager) snapshotLocked(state *agentRunState, since int) AgentSnapshot 
 	run := state.run
 	run.Steps = cloneSteps(state.run.Steps)
 
+	run.AllowedTools = append([]string(nil), state.run.AllowedTools...)
+
 	if state.run.Context != nil {
 		breakdown := *state.run.Context
 		run.Context = &breakdown

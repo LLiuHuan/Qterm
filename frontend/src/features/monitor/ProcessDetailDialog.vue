@@ -159,7 +159,11 @@ onBeforeUnmount(stopCopiedTimer)
         @close="emit('close')"
       />
       <div class="min-h-0 px-4">
-        <ScrollArea class="max-h-[min(62vh,620px)] w-full min-w-0 max-w-full" type="scroll" :scroll-hide-delay="600">
+        <ScrollArea
+          class="max-h-[min(62vh,620px)] w-full min-w-0 max-w-full overflow-hidden [&>[data-reka-scroll-area-viewport]]:max-h-[min(62vh,620px)]"
+          type="scroll"
+          :scroll-hide-delay="600"
+        >
           <div class="flex flex-col gap-4 py-3">
             <section class="grid gap-2">
               <h3 class="m-0 text-sm font-medium text-qt-text">{{ t('shell.monitor.detailSection') }}</h3>
@@ -185,8 +189,9 @@ onBeforeUnmount(stopCopiedTimer)
                   {{ copied === 'command' ? t('shell.monitor.detailCopied') : t('shell.monitor.detailCopyCommand') }}
                 </QtermButton>
               </div>
+
               <pre
-                class="m-0 min-w-0 whitespace-pre-wrap break-all rounded-lg border border-qt-border px-3 py-2 font-mono text-xs text-qt-text"
+                class="m-0 min-w-0 max-h-[min(30vh,220px)] overflow-auto whitespace-pre-wrap break-all rounded-lg border border-qt-border px-3 py-2 font-mono text-xs text-qt-text"
                 >{{ props.process.command || '—' }}</pre>
             </section>
 

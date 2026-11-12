@@ -17,7 +17,12 @@ type remoteArchiveExtractor interface {
 	ProbeRemoteTar(ctx context.Context) error
 }
 
+type remoteArchiveCreator interface {
+	CreateRemoteArchive(ctx context.Context, archivePath string, sourceDirectory string) error
+}
+
 var _ remoteArchiveExtractor = (*productionSessionConnection)(nil)
+var _ remoteArchiveCreator = (*productionSessionConnection)(nil)
 
 func (c *productionSessionConnection) ExtractRemoteArchive(
 	ctx context.Context,
@@ -28,6 +33,17 @@ func (c *productionSessionConnection) ExtractRemoteArchive(
 		return ErrSessionNotConnected
 	}
 	return c.connection.ExtractRemoteArchive(ctx, archivePath, targetDirectory)
+}
+
+func (c *productionSessionConnection) CreateRemoteArchive(
+	ctx context.Context,
+	archivePath string,
+	sourceDirectory string,
+) error {
+	if c == nil || c.connection == nil {
+		return ErrSessionNotConnected
+	}
+	return c.connection.CreateRemoteArchive(ctx, archivePath, sourceDirectory)
 }
 
 func (c *productionSessionConnection) ProbeRemoteTar(ctx context.Context) error {
@@ -50,6 +66,19 @@ func (m *SessionManager) ExtractRemoteArchive(
 	return worker.extractRemoteArchive(ctx, archivePath, targetDirectory)
 }
 
+func (m *SessionManager) CreateRemoteArchive(
+	ctx context.Context,
+	sessionID string,
+	archivePath string,
+	sourceDirectory string,
+) error {
+	worker, err := m.lookup(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	return worker.createRemoteArchive(ctx, archivePath, sourceDirectory)
+}
+
 func (m *SessionManager) ProbeRemoteTar(ctx context.Context, sessionID string) error {
 	worker, err := m.lookup(ctx, sessionID)
 	if err != nil {
@@ -68,6 +97,22 @@ func (s *managedSession) extractRemoteArchive(
 		return err
 	}
 	return extractor.ExtractRemoteArchive(ctx, archivePath, targetDirectory)
+}
+
+func (s *managedSession) createRemoteArchive(
+	ctx context.Context,
+	archivePath string,
+	sourceDirectory string,
+) error {
+	connection, err := s.connectedConnection(ctx)
+	if err != nil {
+		return err
+	}
+	creator, ok := connection.(remoteArchiveCreator)
+	if !ok {
+		return ErrRemoteArchiveUnsupported
+	}
+	return creator.CreateRemoteArchive(ctx, archivePath, sourceDirectory)
 }
 
 func (s *managedSession) probeRemoteTar(ctx context.Context) error {

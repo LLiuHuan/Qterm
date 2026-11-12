@@ -17,6 +17,8 @@ const (
 
 	terminalOpZmodem byte = 0x06
 
+	terminalOpLocalInput byte = 0x07
+
 	terminalOpReady  byte = 0x81
 	terminalOpOutput byte = 0x82
 	terminalOpError  byte = 0x83
@@ -130,8 +132,8 @@ func terminalErrorFrame(code byte, reason string) []byte {
 }
 
 func terminalClientOpcode(op byte) bool {
-	return op == terminalOpBind || op == terminalOpInput || op == terminalOpResize ||
-		op == terminalOpAck || op == terminalOpClose || op == terminalOpZmodem
+	return op == terminalOpBind || op == terminalOpInput || op == terminalOpLocalInput ||
+		op == terminalOpResize || op == terminalOpAck || op == terminalOpClose || op == terminalOpZmodem
 }
 
 func terminalServerOpcode(op byte) bool {
@@ -143,7 +145,7 @@ func terminalPayloadSizeValid(op byte, size int) bool {
 	switch op {
 	case terminalOpBind:
 		return size >= 8 && size <= 8+terminalMaxIDSize+terminalMaxTokenSize
-	case terminalOpZmodem, terminalOpInput, terminalOpOutput, terminalOpZmodemOutput:
+	case terminalOpZmodem, terminalOpInput, terminalOpLocalInput, terminalOpOutput, terminalOpZmodemOutput:
 		return size > 0 && size <= terminalMaxDataSize
 	case terminalOpResize, terminalOpAck, terminalOpZmodemAck:
 		return size == 4

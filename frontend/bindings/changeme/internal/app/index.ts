@@ -7,6 +7,7 @@ export type {
   AIChatResult,
   AIChatStreamPollResult,
   AIChatStreamResult,
+  AIConversationCompaction,
   AIModelListInput,
   AIProviderPreviewInput,
   AIUsage,
@@ -16,6 +17,8 @@ export type {
   ImportHostsResult,
   OpenSerialSessionInput,
   RecordingSettings,
+  RemoteHistory,
+  RemoteHistoryEntry,
   SerialPortInfo,
   TrayMenuState,
 } from './models.js'

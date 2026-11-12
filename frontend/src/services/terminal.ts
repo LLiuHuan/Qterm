@@ -1,4 +1,5 @@
 import { Stream } from '@wailsio/runtime'
+import { clearTmuxRuntimeState, consumeTmuxRuntimeOutput } from './tmuxRuntime'
 
 export interface TerminalChannelHandlers {
   onReady(): void
@@ -12,6 +13,10 @@ export interface TerminalChannelHandlers {
 export interface TerminalChannel {
   sendInput(data: string): boolean | void
 
+  sendLocalInput?(data: string): boolean | void
+
+  sendRawInput?(data: Uint8Array): boolean
+
   sendBinary(data: Uint8Array): Promise<void>
   resize(columns: number, rows: number): void
   close(): void
@@ -24,11 +29,16 @@ export function registerTerminalChannel(
   channel: TerminalChannel,
   canSend: () => boolean = () => true,
 ): void {
+  const previous = activeChannels.get(sessionId)
+  if (previous && previous.channel !== channel) clearTmuxRuntimeState(sessionId)
   activeChannels.set(sessionId, { channel, canSend })
 }
 
 export function unregisterTerminalChannel(sessionId: string, channel: TerminalChannel): void {
-  if (activeChannels.get(sessionId)?.channel === channel) activeChannels.delete(sessionId)
+  if (activeChannels.get(sessionId)?.channel === channel) {
+    activeChannels.delete(sessionId)
+    clearTmuxRuntimeState(sessionId)
+  }
 }
 
 export function sendTerminalInput(sessionId: string, data: string): boolean {
@@ -44,6 +54,7 @@ export function sendTerminalInput(sessionId: string, data: string): boolean {
 const PROTOCOL_VERSION = 1
 const OP_BIND = 0x01
 const OP_INPUT = 0x02
+const OP_LOCAL_INPUT = 0x07
 const OP_RESIZE = 0x03
 const OP_ACK = 0x04
 const OP_CLOSE = 0x05
@@ -100,6 +111,7 @@ export function connectTerminalChannel(
   }
 
   const deliverOutput = (output: Uint8Array) => {
+    if (activeChannels.get(sessionId)?.channel === channelRef) consumeTmuxRuntimeOutput(sessionId, output)
     let acknowledged = false
     try {
       handlers.onOutput(output, () => {
@@ -146,19 +158,9 @@ export function connectTerminalChannel(
       fail('无法绑定终端数据通道')
     }
   }
-  socket.onclose = (event: CloseEvent) => {
-    if (import.meta.env.DEV) {
-      console.info('[terminal-channel] socket closed', {
-        sessionId,
-        ready,
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-      })
-    }
-  }
-  socket.onerror = () => {
-    if (import.meta.env.DEV) console.warn('[terminal-channel] socket error', { sessionId })
+  let channelRef: TerminalChannel | null = null
+  const clearRuntimeIfCurrent = () => {
+    if (activeChannels.get(sessionId)?.channel === channelRef) clearTmuxRuntimeState(sessionId)
   }
   socket.onmessage = (event: MessageEvent) => {
     if (!(event.data instanceof ArrayBuffer)) {
@@ -247,8 +249,21 @@ export function connectTerminalChannel(
         fail('终端返回了未知数据帧')
     }
   }
-  socket.onerror = () => fail('终端数据通道连接失败')
-  socket.onclose = () => {
+  socket.onerror = () => {
+    clearRuntimeIfCurrent()
+    fail('终端数据通道连接失败')
+  }
+  socket.onclose = (event: CloseEvent) => {
+    clearRuntimeIfCurrent()
+    if (import.meta.env.DEV) {
+      console.info('[terminal-channel] socket closed', {
+        sessionId,
+        ready,
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      })
+    }
     if (!closing) {
       closing = true
       rejectBinary()
@@ -256,21 +271,22 @@ export function connectTerminalChannel(
     }
   }
 
-  return {
-    sendInput(data: string) {
-      if (!ready || closing) return false
-      const value = encoder.encode(data)
-      try {
-        for (let offset = 0; offset < value.length; offset += MAX_DATA_SIZE) {
-          const chunk = value.subarray(offset, offset + MAX_DATA_SIZE)
-          socket.send(createDataFrame(OP_INPUT, chunk))
-        }
-        return true
-      } catch {
-        fail('无法发送终端输入')
-        return false
+  const sendBytes = (value: Uint8Array, op: number): boolean => {
+    if (!ready || closing) return false
+    try {
+      for (let offset = 0; offset < value.length; offset += MAX_DATA_SIZE) {
+        socket.send(createDataFrame(op, value.subarray(offset, offset + MAX_DATA_SIZE)))
       }
-    },
+      return true
+    } catch {
+      fail('无法发送终端输入')
+      return false
+    }
+  }
+  channelRef = {
+    sendInput: (data) => sendBytes(encoder.encode(data), OP_INPUT),
+    sendLocalInput: (data) => sendBytes(encoder.encode(data), OP_LOCAL_INPUT),
+    sendRawInput: (data) => sendBytes(data, OP_INPUT),
 
     sendBinary(data: Uint8Array) {
       if (!ready || closing) return Promise.reject(new Error('终端数据通道未就绪'))
@@ -314,6 +330,7 @@ export function connectTerminalChannel(
       socket.close()
     },
   }
+  return channelRef
 }
 function createBindFrame(sessionId: string, streamToken: string, columns: number, rows: number): Uint8Array {
   const id = encoder.encode(sessionId)

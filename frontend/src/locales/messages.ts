@@ -5,6 +5,7 @@ import { remoteEditMessages } from './remote-edit'
 import { settingsMessages } from './settings'
 import { sftpMessages } from './sftp'
 import { shellMessages } from './shell'
+import { terminalControlMessages } from './terminal-control'
 
 export const SUPPORTED_LOCALES = ['zh-CN', 'zh-Hant', 'en-US', 'ko-KR', 'ja-JP', 'ru-RU', 'fr-FR'] as const
 
@@ -20,6 +21,7 @@ const DOMAIN_TABLES: readonly Record<AppLocale, MessageTable>[] = [
   sftpMessages,
   appLockMessages,
   appMessages,
+  terminalControlMessages,
 ]
 
 function assembleLocale(locale: AppLocale): MessageTable {

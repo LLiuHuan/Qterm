@@ -18,6 +18,8 @@ const (
 
 	remoteTarProbeTimeout = 30 * time.Second
 
+	remoteArchiveCreateTimeout = 10 * time.Minute
+
 	remoteRemoveTimeout = 10 * time.Minute
 
 	remoteCommandStderrLimit = 4 * 1024
@@ -25,6 +27,7 @@ const (
 	shellNotFoundExitCode = 127
 
 	remoteCommandTarExtract = "tar-extract"
+	remoteCommandTarCreate  = "tar-create"
 	remoteCommandTarProbe   = "tar-probe"
 	remoteCommandRemoveTree = "rm-tree"
 )
@@ -67,6 +70,28 @@ func (c *Connection) ExtractRemoteArchive(
 		command,
 		remoteArchiveExtractTimeout,
 		remoteCommandTarExtract,
+	)
+}
+
+func (c *Connection) CreateRemoteArchive(
+	ctx context.Context,
+	archivePath string,
+	sourceDirectory string,
+) error {
+
+	command, err := buildTarCreateCommand(archivePath, sourceDirectory)
+	if err != nil {
+		return err
+	}
+	if c == nil || c.client == nil {
+		return errors.New("SSH connection is not ready")
+	}
+	return runFixedRemoteCommand(
+		ctx,
+		sshCommandExecutor{client: c.client},
+		command,
+		remoteArchiveCreateTimeout,
+		remoteCommandTarCreate,
 	)
 }
 
@@ -115,6 +140,22 @@ func buildTarExtractCommand(archivePath, targetDirectory string) (string, error)
 		return "", err
 	}
 	return "tar -xzf " + quotePOSIXShellArgument(archive) + " -C " + quotePOSIXShellArgument(target), nil
+}
+
+func buildTarCreateCommand(archivePath, sourceDirectory string) (string, error) {
+	archive, err := model.NormalizeRemotePath(archivePath)
+	if err != nil {
+		return "", err
+	}
+	source, err := model.NormalizeRemoteDirectory(sourceDirectory)
+	if err != nil {
+		return "", err
+	}
+	if source == "/" {
+		return "", model.ErrInvalidRemotePath
+	}
+	return "tar -czf " + quotePOSIXShellArgument(archive) +
+		" -C " + quotePOSIXShellArgument(source) + " .", nil
 }
 
 func buildTarProbeCommand() string {

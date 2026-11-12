@@ -5,6 +5,7 @@ import { builtinHostIcons, hostIconPickerOptions } from '../../features/hosts/bu
 import { customHostIconSrc, readCustomHostIcon } from '../../features/hosts/customHostIcon'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../common/overlay-controls'
 import { QtermButton } from '../common'
+import { ScrollArea } from '../common/control-primitives'
 import DeleteConfirmDialog from './DeleteConfirmDialog.vue'
 import { useI18n } from '@/locales'
 import { toast } from 'vue-sonner'
@@ -101,45 +102,48 @@ async function importIcon(event: Event): Promise<void> {
       </QtermButton>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="start" class="host-icon-menu">
-      <div
-        class="host-icon-grid grid grid-cols-[repeat(8,_34px)] justify-center gap-[5px]"
-        role="group"
-        :aria-label="t('shell.hostIcon.options')"
-      >
-        <DropdownMenuItem
-          v-for="option in iconOptions"
-          :key="option.value"
-          class="host-icon-option cursor-pointer!"
-          :class="{ 'is-selected': props.modelValue === option.value }"
-          :title="option.label"
-          @select="selectIcon(option.value)"
+      <ScrollArea type="hover" :scroll-hide-delay="600" class="host-icon-scroll">
+        <div
+          class="host-icon-grid grid grid-cols-[repeat(8,_34px)] justify-center gap-[5px] py-1.5"
+          role="group"
+          :aria-label="t('shell.hostIcon.options')"
         >
-          <img
-            :src="option.src"
-            :alt="t('shell.hostIcon.alt', { label: option.label })"
-            class="host-icon-image w-[22px] h-[22px] block flex-none object-contain"
-            :class="{ 'qterm-theme-aware-logo': option.themeAware }"
-          />
-          <span class="sr-only">{{ option.label }}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          class="host-icon-action host-icon-action--danger cursor-pointer! data-[disabled]:cursor-default!"
-          :disabled="!props.modelValue"
-          :title="t('shell.hostIcon.remove')"
-          @select="requestRemoveIcon"
-        >
-          <Trash2 :size="15" aria-hidden="true" />
-          <span class="sr-only">{{ t('shell.hostIcon.remove') }}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          class="host-icon-action cursor-pointer!"
-          :title="t('shell.hostIcon.import')"
-          @select="requestImportIcon"
-        >
-          <Upload :size="15" aria-hidden="true" />
-          <span class="sr-only">{{ t('shell.hostIcon.import') }}</span>
-        </DropdownMenuItem>
-      </div>
+          <DropdownMenuItem
+            v-for="option in iconOptions"
+            :key="option.value"
+            class="host-icon-option cursor-pointer!"
+            :class="{ 'is-selected': props.modelValue === option.value }"
+            :title="option.label"
+            @select="selectIcon(option.value)"
+          >
+            <img
+              :src="option.src"
+              :alt="t('shell.hostIcon.alt', { label: option.label })"
+              class="host-icon-image w-[22px] h-[22px] block flex-none object-contain"
+              :class="{ 'qterm-theme-aware-logo': option.themeAware }"
+            />
+            <span class="sr-only">{{ option.label }}</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            class="host-icon-action host-icon-action--danger cursor-pointer! data-[disabled]:cursor-default!"
+            :disabled="!props.modelValue"
+            :title="t('shell.hostIcon.remove')"
+            @select="requestRemoveIcon"
+          >
+            <Trash2 :size="15" aria-hidden="true" />
+            <span class="sr-only">{{ t('shell.hostIcon.remove') }}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="host-icon-action cursor-pointer!"
+            :title="t('shell.hostIcon.import')"
+            @select="requestImportIcon"
+          >
+            <Upload :size="15" aria-hidden="true" />
+            <span class="sr-only">{{ t('shell.hostIcon.import') }}</span>
+          </DropdownMenuItem>
+        </div>
+      </ScrollArea>
     </DropdownMenuContent>
   </DropdownMenu>
   <input

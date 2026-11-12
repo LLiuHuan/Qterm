@@ -92,6 +92,17 @@ export async function settingsWindowVisible(): Promise<boolean> {
   }
 }
 
+export function isSessionWindowMode(): boolean {
+  if (typeof window === 'undefined') return false
+  const params = new URLSearchParams(window.location.search)
+  return params.has('openHost') || params.has('openSession') || params.get('openLocal') === '1'
+}
+
+export function isNewWorkspaceWindowMode(): boolean {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('newWindow') === '1'
+}
+
 export function isSettingsWindowMode(): boolean {
   if (typeof window === 'undefined') return false
   return new URLSearchParams(window.location.search).get('settingsWindow') === '1'
@@ -158,7 +169,11 @@ export async function openNewWorkspaceWindow(persistent: boolean): Promise<void>
     await OpenNewWindow()
     return
   }
-  const child = window.open(window.location.href, '_blank')
+
+  const target = new URL(window.location.href)
+  target.search = ''
+  target.searchParams.set('newWindow', '1')
+  const child = window.open(target.href, '_blank')
   if (!child) throw new Error('新窗口被浏览器拦截')
   child.opener = null
 }
@@ -216,6 +231,7 @@ interface WindowBoundsSnapshot {
 
 interface WindowMaximumState {
   restore: WindowBoundsSnapshot
+
   target: WindowBoundsSnapshot
 }
 
@@ -285,25 +301,29 @@ async function applyWindowBounds(
   }
 }
 
+async function readWindowBounds(Window: typeof import('@wailsio/runtime').Window): Promise<WindowBoundsSnapshot> {
+  const [position, size] = await Promise.all([Window.Position(), Window.Size()])
+  return {
+    x: Math.round(position.x),
+    y: Math.round(position.y),
+    width: Math.round(size.width),
+    height: evenWindowHeight(size.height),
+  }
+}
+
 export async function toggleCurrentWindowMaximise(): Promise<void> {
   if (changingMaximumBounds) return
   changingMaximumBounds = true
   try {
     const { Window } = await import('@wailsio/runtime')
-    const [position, size, screen] = await Promise.all([Window.Position(), Window.Size(), Window.GetScreen()])
-    const current = {
-      x: Math.round(position.x),
-      y: Math.round(position.y),
-      width: Math.round(size.width),
-      height: evenWindowHeight(size.height),
-    }
-
-    const screenScale = Math.max(1, screen.ScaleFactor || 1)
-    const target = {
-      x: Math.round(screen.WorkArea.X / screenScale),
-      y: Math.round(screen.WorkArea.Y / screenScale),
-      width: Math.round(screen.WorkArea.Width / screenScale),
-      height: evenWindowHeight(screen.WorkArea.Height / screenScale),
+    const [current, screen] = await Promise.all([readWindowBounds(Window), Window.GetScreen()])
+    const workArea = screen ? screenWorkAreaInPoints(screen) : undefined
+    if (!workArea) return
+    const target: WindowBoundsSnapshot = {
+      x: Math.round(workArea.x),
+      y: Math.round(workArea.y),
+      width: Math.round(workArea.width),
+      height: evenWindowHeight(workArea.height),
     }
     const savedState = readWindowMaximumState()
     if (savedState && boundsAreClose(current, savedState.target)) {
@@ -323,8 +343,11 @@ export async function toggleCurrentWindowMaximise(): Promise<void> {
       }
     }
 
-    writeWindowMaximumState({ restore: current, target })
     await applyWindowBounds(Window, target, true)
+
+    const settledTarget = await readWindowBounds(Window)
+
+    if (!boundsAreClose(settledTarget, current)) writeWindowMaximumState({ restore: current, target: settledTarget })
   } catch {
   } finally {
     changingMaximumBounds = false
@@ -385,6 +408,7 @@ export interface WindowScreenRect {
 
 interface RuntimeScreenLike {
   ScaleFactor?: number
+  Bounds?: { X: number; Y: number; Width: number; Height: number }
   WorkArea?: { X: number; Y: number; Width: number; Height: number }
 }
 
@@ -408,15 +432,27 @@ function intersectArea(
   }
 }
 
+export function screenWorkAreaInPoints(screen: RuntimeScreenLike): WindowScreenRect | undefined {
+  const area = screen.WorkArea
+  if (!area || ![area.X, area.Y, area.Width, area.Height].every(Number.isFinite)) return undefined
+  const scale = Math.max(1, screen.ScaleFactor || 1)
+  const bounds = screen.Bounds
+  const alreadyInPoints =
+    !bounds ||
+    !Number.isFinite(bounds.Width) ||
+    !Number.isFinite(bounds.Height) ||
+    (area.Width <= bounds.Width + 1 && area.Height <= bounds.Height + 1)
+  const divisor = alreadyInPoints ? 1 : scale
+  return {
+    x: area.X / divisor,
+    y: area.Y / divisor,
+    width: area.Width / divisor,
+    height: area.Height / divisor,
+  }
+}
+
 export function screenWorkAreasInPoints(screens: RuntimeScreenLike[]): WindowScreenRect[] {
-  return screens
-    .map((screen) => {
-      const area = screen.WorkArea
-      if (!area || ![area.X, area.Y, area.Width, area.Height].every(Number.isFinite)) return undefined
-      const scale = Math.max(1, screen.ScaleFactor || 1)
-      return { x: area.X / scale, y: area.Y / scale, width: area.Width / scale, height: area.Height / scale }
-    })
-    .filter((rect): rect is WindowScreenRect => rect !== undefined)
+  return screens.map(screenWorkAreaInPoints).filter((rect): rect is WindowScreenRect => rect !== undefined)
 }
 
 export function isWindowGeometryVisible(

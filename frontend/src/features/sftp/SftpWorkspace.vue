@@ -5,13 +5,11 @@ import DeleteConfirmDialog from '../../components/dialogs/DeleteConfirmDialog.vu
 import { toast } from 'vue-sonner'
 import {
   CheckCircle2,
-  Copy,
   Eye,
   EyeOff,
   FolderPlus,
   FolderUp,
   Laptop,
-  RefreshCw,
   Search,
   Server,
   Trash2,
@@ -24,7 +22,9 @@ import { ScrollArea } from '../../components/common/control-primitives'
 import { Separator } from '../../components/common/control-primitives'
 import HostIcon from '../../components/common/icon/HostIcon.vue'
 import IconButton from '../../components/common/button/IconButton.vue'
+import RefreshIconButton from '../../components/common/button/RefreshIconButton.vue'
 import SftpBrowserPane, { type SftpBrowserEntry, type SftpBrowserSegment } from './SftpBrowserPane.vue'
+import SftpFileInfoDialog from './SftpFileInfoDialog.vue'
 import type { HostRecord } from '@/services/hosts.ts'
 import { sftpErrorMessage, type SFTPTransferRecord, type SftpGateway } from '../../services/sftp'
 import { translateErrorKey } from '../../services/errors'
@@ -34,8 +34,6 @@ import { useSftpWorkspaceTransfers } from './useSftpWorkspaceTransfers'
 import { useI18n } from '@/locales'
 import { loadSettingsFromPreferences } from '../settings/settingsStore'
 
-import { formatDateTime } from '../../lib/datetime'
-
 const props = defineProps<{
   gateway: SftpGateway
   hosts: HostRecord[]
@@ -43,7 +41,7 @@ const props = defineProps<{
 
   transfers?: SFTPTransferRecord[]
 }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const left = useSftpWorkspacePane('local')
 
 const right = useSftpWorkspacePane('remote')
@@ -445,30 +443,6 @@ function entryDisplayPath(pane: SftpWorkspacePaneState | null, entry: SftpBrowse
   return base === '/' ? `/${entry.name}` : `${base}/${entry.name}`
 }
 
-function formatInfoDate(value: string | undefined): string {
-  return formatDateTime(value, { placeholder: t('sftp.ui.info.unknown') })
-}
-
-function formatInfoSize(entry: SftpBrowserEntry | null): string {
-  if (!entry) return t('sftp.ui.info.unknown')
-  return `${entry.sizeText || t('sftp.ui.info.unknown')}（${new Intl.NumberFormat(locale.value).format(entry.size)} ${t('sftp.ui.bytes')}）`
-}
-
-function entryTypeLabel(entry: SftpBrowserEntry | null): string {
-  switch (entry?.type) {
-    case 'directory':
-      return t('sftp.ui.folder')
-    case 'symlink':
-      return t('sftp.ui.info.symlink')
-    case 'other':
-      return t('sftp.ui.permissionOther')
-    case 'file':
-      return t('sftp.ui.file')
-    default:
-      return t('sftp.ui.info.unknown')
-  }
-}
-
 function requestDelete(pane: SftpWorkspacePaneState, targets: DeleteTarget[]): void {
   if (targets.length === 0) return
   const localDirectory = pane.kind === 'local' ? pane.localDirectory : null
@@ -506,6 +480,50 @@ function notifyUnsupportedEntry(entry: SftpBrowserEntry): void {
   toast.info(t('sftp.ui.openEntryFailed'), {
     description: `${entry.name}：${translateErrorKey('sftp.entry_not_directory', t('sftp.ui.entryNotDirectory'))}`,
   })
+}
+
+const archiveDownloading = ref(false)
+async function archiveDownloadEntry(pane: SftpWorkspacePaneState, entry: SftpBrowserEntry): Promise<void> {
+  if (pane.kind !== 'remote' || !pane.selectedSessionId || archiveDownloading.value) return
+  const canEnqueue = Boolean(props.gateway.enqueueDirectoryArchiveDownload)
+  if (!props.gateway.chooseDirectoryPath || (!canEnqueue && !props.gateway.downloadRemoteDirectoryArchive)) {
+    toast.error(t('sftp.ui.archiveDownloadUnavailable'))
+    return
+  }
+  let localDirectory: string
+  try {
+    localDirectory = await props.gateway.chooseDirectoryPath()
+  } catch (error) {
+    toast.error(sftpErrorMessage(error, t('sftp.ui.archiveDownloadFailed')))
+    return
+  }
+  if (!localDirectory) return
+  archiveDownloading.value = true
+  if (canEnqueue) {
+    try {
+      await props.gateway.enqueueDirectoryArchiveDownload!(pane.selectedSessionId, entry.key, localDirectory)
+      toast.success(t('sftp.ui.archiveDownloadQueued', { name: entry.name }))
+    } catch (error) {
+      toast.error(t('sftp.ui.archiveDownloadFailed'), {
+        description: sftpErrorMessage(error, t('sftp.ui.archiveDownloadFailed')),
+      })
+    } finally {
+      archiveDownloading.value = false
+    }
+    return
+  }
+  const toastID = toast.loading(t('sftp.ui.archiveDownloadRunning', { name: entry.name }))
+  try {
+    await props.gateway.downloadRemoteDirectoryArchive!(pane.selectedSessionId, entry.key, localDirectory)
+    toast.success(t('sftp.ui.archiveDownloadDone', { name: entry.name }), { id: toastID })
+  } catch (error) {
+    toast.error(t('sftp.ui.archiveDownloadFailed'), {
+      id: toastID,
+      description: sftpErrorMessage(error, t('sftp.ui.archiveDownloadFailed')),
+    })
+  } finally {
+    archiveDownloading.value = false
+  }
 }
 
 function showEntryInfo(pane: SftpWorkspacePaneState, entry: SftpBrowserEntry): void {
@@ -841,13 +859,13 @@ onBeforeUnmount(() => {
               @click="goUp(left)"
               ><Undo2 :size="15"
             /></IconButton>
-            <IconButton
+            <RefreshIconButton
               :label="t('sftp.ui.refreshDirectory')"
-              size="icon-sm"
+              :spinning="left.localLoading"
               :disabled="left.localLoading"
+              icon-class="size-[15px]"
               @click="refresh(left)"
-              ><RefreshCw :class="{ spin: left.localLoading }" :size="15"
-            /></IconButton>
+            />
             <IconButton
               :label="left.localShowHidden ? t('sftp.ui.hideHidden') : t('sftp.ui.showHidden')"
               size="icon-sm"
@@ -917,6 +935,7 @@ onBeforeUnmount(() => {
           @info="showEntryInfo(left, $event)"
           @delete-entry="deleteEntry(left, $event)"
           @download="(e) => void downloadEntry(left, e)"
+          @archive-download="(e) => void archiveDownloadEntry(left, e)"
           @remote-edit-synced="refresh(left)"
         >
           <template #toolbar>
@@ -927,13 +946,13 @@ onBeforeUnmount(() => {
               @click="goUp(left)"
               ><Undo2 :size="15"
             /></IconButton>
-            <IconButton
+            <RefreshIconButton
               :label="t('sftp.ui.refreshDirectory')"
-              size="icon-sm"
+              :spinning="left.remoteLoading"
               :disabled="left.remoteLoading"
+              icon-class="size-[15px]"
               @click="refresh(left)"
-              ><RefreshCw :class="{ spin: left.remoteLoading }" :size="15"
-            /></IconButton>
+            />
             <IconButton
               :label="left.remoteShowHidden ? t('sftp.ui.hideHidden') : t('sftp.ui.showHidden')"
               size="icon-sm"
@@ -1030,13 +1049,13 @@ onBeforeUnmount(() => {
               @click="goUp(right)"
               ><Undo2 :size="15"
             /></IconButton>
-            <IconButton
+            <RefreshIconButton
               :label="t('sftp.ui.refreshDirectory')"
-              size="icon-sm"
+              :spinning="right.localLoading"
               :disabled="right.localLoading"
+              icon-class="size-[15px]"
               @click="refresh(right)"
-              ><RefreshCw :class="{ spin: right.localLoading }" :size="15"
-            /></IconButton>
+            />
             <IconButton
               :label="right.localShowHidden ? t('sftp.ui.hideHidden') : t('sftp.ui.showHidden')"
               size="icon-sm"
@@ -1106,6 +1125,7 @@ onBeforeUnmount(() => {
           @info="showEntryInfo(right, $event)"
           @delete-entry="deleteEntry(right, $event)"
           @download="(e) => void downloadEntry(right, e)"
+          @archive-download="(e) => void archiveDownloadEntry(right, e)"
           @remote-edit-synced="refresh(right)"
         >
           <template #toolbar>
@@ -1116,13 +1136,13 @@ onBeforeUnmount(() => {
               @click="goUp(right)"
               ><Undo2 :size="15"
             /></IconButton>
-            <IconButton
+            <RefreshIconButton
               :label="t('sftp.ui.refreshDirectory')"
-              size="icon-sm"
+              :spinning="right.remoteLoading"
               :disabled="right.remoteLoading"
+              icon-class="size-[15px]"
               @click="refresh(right)"
-              ><RefreshCw :class="{ spin: right.remoteLoading }" :size="15"
-            /></IconButton>
+            />
             <IconButton
               :label="right.remoteShowHidden ? t('sftp.ui.hideHidden') : t('sftp.ui.showHidden')"
               size="icon-sm"
@@ -1315,57 +1335,12 @@ onBeforeUnmount(() => {
         </form>
       </QtermDialogContent>
     </QtermDialog>
-    <QtermDialog :open="infoDialog.open" @update:open="(open) => !open && (infoDialog.open = false)">
-      <QtermDialogContent v-if="infoDialog.open" size="lg">
-        <QtermDialogHeader :title="t('sftp.ui.fileInfo')" @close="infoDialog.open = false" />
-        <div class="sftp-info-grid">
-          <div>
-            <span>{{ t('sftp.ui.info.name') }}</span
-            ><span>{{ infoDialog.entry?.name || t('sftp.ui.unknown') }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.type') }}</span
-            ><span>{{ entryTypeLabel(infoDialog.entry) }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.path') }}</span>
-            <span class="sftp-info-path-value">
-              <span>{{ entryDisplayPath(infoDialog.pane, infoDialog.entry) || t('sftp.ui.unknown') }}</span>
-              <QtermButton
-                variant="ghost"
-                size="icon-sm"
-                type="button"
-                :aria-label="t('sftp.ui.copyPath')"
-                @click="infoDialog.pane && infoDialog.entry && copyEntryPath(infoDialog.pane, infoDialog.entry)"
-                ><Copy :size="14"
-              /></QtermButton>
-            </span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.size') }}</span
-            ><span>{{ formatInfoSize(infoDialog.entry) }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.modified') }}</span
-            ><span>{{ formatInfoDate(infoDialog.entry?.modTime) }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.permissions') }}</span
-            ><span>{{ infoDialog.entry?.mode || t('sftp.ui.unknown') }}</span>
-          </div>
-          <div>
-            <span>{{ t('sftp.ui.info.symlink') }}</span>
-            <span>{{
-              infoDialog.entry
-                ? (infoDialog.entry.symlink ?? infoDialog.entry.type === 'symlink')
-                  ? t('sftp.ui.yes')
-                  : t('sftp.ui.no')
-                : t('sftp.ui.unknown')
-            }}</span>
-          </div>
-        </div>
-      </QtermDialogContent>
-    </QtermDialog>
+    <SftpFileInfoDialog
+      v-model:open="infoDialog.open"
+      :entry="infoDialog.entry"
+      :path="infoDialog.pane && infoDialog.entry ? entryDisplayPath(infoDialog.pane, infoDialog.entry) : ''"
+      @copy-path="() => infoDialog.pane && infoDialog.entry && copyEntryPath(infoDialog.pane, infoDialog.entry)"
+    />
     <QtermDialog :open="pickerOpen" @update:open="pickerOpen = $event">
       <QtermDialogContent v-if="pickerOpen" class="sftp-workspace-session-dialog">
         <QtermDialogHeader

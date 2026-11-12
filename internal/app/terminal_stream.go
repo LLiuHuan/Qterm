@@ -1,7 +1,10 @@
 package app
 
 import (
+	"strconv"
+
 	"changeme/internal/terminal"
+
 	wailsapp "github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -19,5 +22,26 @@ func (s *Service) handleTerminalStream(stream *wailsapp.StreamConn) {
 		_ = stream.Close()
 		return
 	}
-	terminal.ServeStream(stream, manager, s.tokens, s.commitSessionWindowTerminal)
+	window := stream.Window()
+	if window == nil {
+		_ = stream.Send(terminal.OpenErrorFrame("终端窗口已关闭"))
+		_ = stream.Close()
+		return
+	}
+	s.mu.Lock()
+	control := s.terminalControl
+	s.mu.Unlock()
+	if control == nil {
+		_ = stream.Send(terminal.OpenErrorFrame("终端服务尚未就绪"))
+		_ = stream.Close()
+		return
+	}
+	terminal.ServeStreamWithInputRouter(
+		stream,
+		manager,
+		s.tokens,
+		s.commitSessionWindowTerminal,
+		control,
+		strconv.FormatUint(uint64(window.ID()), 10),
+	)
 }

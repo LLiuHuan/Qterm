@@ -14,6 +14,8 @@ export interface ServiceInfo {
   subState: string
   enabledState: string
   custom: boolean
+
+  scope?: string
 }
 
 export interface ServiceSnapshot {

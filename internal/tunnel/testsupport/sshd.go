@@ -26,6 +26,8 @@ type Options struct {
 	DenyForwarding bool
 
 	EnableSFTP bool
+
+	ExecCommands map[string]string
 }
 
 type Server struct {
@@ -335,13 +337,21 @@ func (s *Server) handleSession(newChannel ssh.NewChannel) {
 func (s *Server) runExec(channel ssh.Channel, command string) {
 	status := uint32(0)
 	switch {
+	case s.hasExecOverride(command):
+		_, _ = io.WriteString(channel, s.options.ExecCommands[command])
 	case strings.HasPrefix(command, "echo "):
 		_, _ = io.WriteString(channel, strings.TrimPrefix(command, "echo ")+"\n")
 	case command == "uname -s":
+
 		_, _ = io.WriteString(channel, "Linux\n")
 	default:
 		status = 127
 	}
 	_, _ = channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{status}))
 	_ = channel.CloseWrite()
+}
+
+func (s *Server) hasExecOverride(command string) bool {
+	_, ok := s.options.ExecCommands[command]
+	return ok
 }

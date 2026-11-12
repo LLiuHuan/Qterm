@@ -168,3 +168,22 @@ func RequiresApproval(mode ApprovalMode, command, modelRisk, modelReason string)
 		return true, risk, reason
 	}
 }
+
+type ApprovalRequirement struct {
+	Required bool
+
+	Rememberable bool
+}
+
+func ToolApproval(effect ToolSideEffect, kind StepKind, remembered bool) ApprovalRequirement {
+	switch effect {
+	case SideEffectReadOnly:
+		return ApprovalRequirement{Required: false, Rememberable: false}
+	case SideEffectDestructive:
+		return ApprovalRequirement{Required: true, Rememberable: false}
+	default:
+
+		rememberable := kind != StepKindCommand
+		return ApprovalRequirement{Required: !(rememberable && remembered), Rememberable: rememberable}
+	}
+}

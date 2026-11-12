@@ -33,6 +33,7 @@ import (
 	"changeme/internal/session"
 	"changeme/internal/sftp"
 	"changeme/internal/terminal"
+	"changeme/internal/tmux"
 	"changeme/internal/zmodem"
 )
 
@@ -116,6 +117,7 @@ func Run(assets embed.FS) error {
 		tokens,
 		rdpTokens,
 		zmodem.NewManager(),
+		tmux.NewService(nil),
 	)
 
 	service.adhoc = adhocRegistry
@@ -136,6 +138,8 @@ func Run(assets embed.FS) error {
 		Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: false},
 	})
 	ConfigureRuntime(service, app)
+
+	app.Menu.SetApplicationMenu(newApplicationMenu())
 	var windowCreationMu sync.Mutex
 	primaryWindowCreated := false
 	service.openWindow = func(ctx context.Context, target string, onClose func()) func() {

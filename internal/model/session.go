@@ -30,6 +30,8 @@ const (
 	SessionPurposeTerminal SessionPurpose = "terminal"
 
 	SessionPurposeSftp SessionPurpose = "sftp"
+
+	SessionPurposeAI SessionPurpose = "ai"
 )
 
 const (
@@ -160,6 +162,15 @@ func NewSftpSession(id, hostID string, now time.Time) (Session, error) {
 		return Session{}, err
 	}
 	session.Purpose = SessionPurposeSftp
+	return session, nil
+}
+
+func NewAISession(id, hostID string, now time.Time) (Session, error) {
+	session, err := NewSession(id, hostID, now)
+	if err != nil {
+		return Session{}, err
+	}
+	session.Purpose = SessionPurposeAI
 	return session, nil
 }
 

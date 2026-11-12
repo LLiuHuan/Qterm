@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { QtermButton } from '../common'
-import { ChevronDown, FolderPlus, Pencil, Plus, Trash2 } from '@lucide/vue'
+import { ChevronDown, FolderPlus, Link2, Pencil, Plus, Trash2 } from '@lucide/vue'
 import { computed, ref } from 'vue'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../common/control-primitives'
 import AssetContextMenu from '../common/overlay-controls/AssetContextMenu.vue'
@@ -14,6 +14,8 @@ const props = defineProps<{
   selectedHostId: string | null
   selectedGroupId?: string | null
   showAddress?: boolean
+
+  bulkConnectBusy?: boolean
 }>()
 const emit = defineEmits<{
   selectHost: [string]
@@ -25,18 +27,29 @@ const emit = defineEmits<{
   createSubgroup: [string]
   editGroup: [GroupedHosts]
   deleteGroup: [GroupedHosts]
-  copyHost: [HostRecord, 'ip' | 'id']
+  copyHost: [HostRecord]
   duplicateHost: [HostRecord]
 
   toolPanel: [HostRecord, 'tunnels' | 'sftp']
   moveAsset: [string, string, string, 'before' | 'after' | 'inside']
   moveGroup: [string, string, string, 'before' | 'after' | 'inside']
+
+  connectGroup: [GroupedHosts]
 }>()
 const { t } = useI18n()
 
 const open = ref(true)
+const total = computed(() => hostCount(props.group))
 const actions = computed(() => [
-  { id: 'add-host', label: t('shell.asset.addHostInGroup'), icon: Plus },
+  {
+    id: 'connect-all',
+    label: props.bulkConnectBusy
+      ? t('shell.asset.connectGroupRunning')
+      : t('shell.asset.connectGroupHosts', { count: total.value }),
+    icon: Link2,
+    disabled: props.bulkConnectBusy || total.value === 0,
+  },
+  { id: 'add-host', label: t('shell.asset.addHostInGroup'), icon: Plus, separatorBefore: true },
   { id: 'create-subgroup', label: t('shell.asset.createSubgroup'), icon: FolderPlus },
   {
     id: 'edit',
@@ -53,8 +66,8 @@ const actions = computed(() => [
     disabled: props.group.id === 'default',
   },
 ])
-function forwardCopy(host: HostRecord, kind: 'ip' | 'id'): void {
-  emit('copyHost', host, kind)
+function forwardCopy(host: HostRecord): void {
+  emit('copyHost', host)
 }
 
 function forwardDuplicate(host: HostRecord): void {
@@ -73,13 +86,15 @@ function hostCount(group: GroupedHosts): number {
         :actions="actions"
         @action="
           (id) =>
-            id === 'add-host'
-              ? emit('createHostInGroup', props.group.id)
-              : id === 'create-subgroup'
-                ? emit('createSubgroup', props.group.id)
-                : id === 'edit'
-                  ? emit('editGroup', props.group)
-                  : emit('deleteGroup', props.group)
+            id === 'connect-all'
+              ? emit('connectGroup', props.group)
+              : id === 'add-host'
+                ? emit('createHostInGroup', props.group.id)
+                : id === 'create-subgroup'
+                  ? emit('createSubgroup', props.group.id)
+                  : id === 'edit'
+                    ? emit('editGroup', props.group)
+                    : emit('deleteGroup', props.group)
         "
       >
         <CollapsibleTrigger as-child
@@ -120,6 +135,7 @@ function hostCount(group: GroupedHosts): number {
             :selected-host-id="props.selectedHostId"
             :selected-group-id="props.selectedGroupId"
             :show-address="props.showAddress"
+            :bulk-connect-busy="props.bulkConnectBusy"
             @select-host="emit('selectHost', $event)"
             @open-host="emit('openHost', $event)"
             @edit-host="emit('editHost', $event)"
@@ -134,6 +150,7 @@ function hostCount(group: GroupedHosts): number {
             @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
             @move-asset="(...args) => emit('moveAsset', ...args)"
             @move-group="(...args) => emit('moveGroup', ...args)"
+            @connect-group="emit('connectGroup', $event)"
           />
         </template>
       </div>

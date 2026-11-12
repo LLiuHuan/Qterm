@@ -4,6 +4,7 @@ import { isTranslateProvider, type TranslateProvider } from '../../services/tran
 import { TERMINAL_THEMES, type TerminalThemeId } from '../sessions/terminalThemes'
 import { getPreference, PREFERENCE_KEYS, readCachedPreference, setPreference } from '../../services/preferences'
 import { isSupportedLocale, type AppLocale } from '@/locales'
+import { KEYWORD_HIGHLIGHT_PRESETS } from './keywordHighlightPresets'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export type TerminalCursorStyle = 'block' | 'underline' | 'bar'
@@ -31,11 +32,27 @@ export const HOST_COLOR_STYLES: HostColorStyle[] = ['block', 'background']
 
 export type AssetLibraryLayout = 'sidebar' | 'workspace'
 
+export type PageBackgroundSize = 'cover' | 'contain' | 'stretch' | 'tile'
+
+export const PAGE_BACKGROUND_SIZES: PageBackgroundSize[] = ['cover', 'contain', 'stretch', 'tile']
+
 export interface KeywordHighlightRule {
   enabled: boolean
   pattern: string
   note: string
+
   color: string
+
+  backgroundColor?: string
+
+  caseSensitive?: boolean
+}
+
+export const TERMINAL_FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const
+export type TerminalFontWeight = (typeof TERMINAL_FONT_WEIGHTS)[number]
+
+export function normalizeTerminalFontWeight(value: unknown): TerminalFontWeight {
+  return TERMINAL_FONT_WEIGHTS.includes(value as TerminalFontWeight) ? (value as TerminalFontWeight) : 400
 }
 
 export interface QtermSettings {
@@ -90,7 +107,10 @@ export interface QtermSettings {
   darkBackgroundOpacity: number
   darkBackgroundImage: string
   darkBackgroundColor: string
+
+  pageBackgroundSize?: PageBackgroundSize
   terminalFontSize: number
+  terminalFontWeight?: TerminalFontWeight
 
   terminalLineHeight: number
 
@@ -199,9 +219,16 @@ export const THEME_MODES: ThemeMode[] = ['light', 'dark', 'system']
 
 export const TAB_DOUBLE_CLICK_BEHAVIORS: TabDoubleClickBehavior[] = ['rename', 'duplicate']
 
-export const DEFAULT_KEYWORD_HIGHLIGHT_RULES: KeywordHighlightRule[] = [
-  { enabled: true, pattern: 'ERROR', note: '错误警告', color: '#ff0000' },
-]
+export const DEFAULT_KEYWORD_HIGHLIGHT_RULES: KeywordHighlightRule[] = KEYWORD_HIGHLIGHT_PRESETS.map(({ rule }) => ({
+  ...rule,
+}))
+
+const LEGACY_DEFAULT_KEYWORD_HIGHLIGHT_RULE: KeywordHighlightRule = {
+  enabled: true,
+  pattern: 'ERROR',
+  note: '错误警告',
+  color: '#ff0000',
+}
 
 export const DEFAULT_SETTINGS: QtermSettings = {
   locale: 'zh-CN',
@@ -242,7 +269,9 @@ export const DEFAULT_SETTINGS: QtermSettings = {
   darkBackgroundOpacity: 100,
   darkBackgroundImage: '',
   darkBackgroundColor: '#111113',
+  pageBackgroundSize: 'cover',
   terminalFontSize: 13,
+  terminalFontWeight: 400,
   terminalLineHeight: 1.25,
   terminalFontFamily: '',
   terminalLightTheme: 'default-light',
@@ -283,7 +312,8 @@ export const DEFAULT_SETTINGS: QtermSettings = {
   autoReconnect: false,
   localShellPath: '',
   localShellWorkingDirectory: '',
-  keywordHighlightEnabled: false,
+
+  keywordHighlightEnabled: true,
   keywordHighlightRules: DEFAULT_KEYWORD_HIGHLIGHT_RULES,
   layoutSidebarWidth: 224,
   layoutToolPanelWidth: 360,
@@ -532,24 +562,48 @@ export function normalizeSettings(value: unknown): QtermSettings {
   const normalizeImage = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
   const normalizeColor = (value: unknown, fallback: string): string =>
     typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : fallback
+
+  const normalizeOptionalColor = (value: unknown): string | undefined =>
+    typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value.trim()) ? value.trim() : undefined
   const normalizeDimension = (value: unknown, fallback: number, min: number, max: number): number => {
     const dimension = Number(value)
     return Number.isFinite(dimension) ? Math.min(max, Math.max(min, Math.round(dimension))) : fallback
   }
+  const isLegacyDefaultKeywordHighlightRule = (value: unknown): boolean => {
+    if (!value || typeof value !== 'object') return false
+    const candidateRule = value as Record<string, unknown>
+    return (
+      candidateRule.enabled === LEGACY_DEFAULT_KEYWORD_HIGHLIGHT_RULE.enabled &&
+      candidateRule.pattern === LEGACY_DEFAULT_KEYWORD_HIGHLIGHT_RULE.pattern &&
+      candidateRule.note === LEGACY_DEFAULT_KEYWORD_HIGHLIGHT_RULE.note &&
+      candidateRule.color === LEGACY_DEFAULT_KEYWORD_HIGHLIGHT_RULE.color &&
+      !Object.prototype.hasOwnProperty.call(candidateRule, 'backgroundColor') &&
+      !Object.prototype.hasOwnProperty.call(candidateRule, 'caseSensitive')
+    )
+  }
   const normalizeKeywordHighlightRules = (value: unknown): KeywordHighlightRule[] => {
     if (!Array.isArray(value)) return DEFAULT_KEYWORD_HIGHLIGHT_RULES.map((rule) => ({ ...rule }))
+
+    if (value.length === 1 && isLegacyDefaultKeywordHighlightRule(value[0])) {
+      return DEFAULT_KEYWORD_HIGHLIGHT_RULES.map((rule) => ({ ...rule }))
+    }
     return value.slice(0, 100).flatMap((item): KeywordHighlightRule[] => {
       if (!item || typeof item !== 'object') return []
       const candidateRule = item as Record<string, unknown>
       const pattern = typeof candidateRule.pattern === 'string' ? candidateRule.pattern.slice(0, 512) : ''
       const note = typeof candidateRule.note === 'string' ? candidateRule.note.trim().slice(0, 256) : ''
       const color = normalizeColor(candidateRule.color, '#ff0000')
+      const backgroundColor = normalizeOptionalColor(candidateRule.backgroundColor)
       return [
         {
           enabled: typeof candidateRule.enabled === 'boolean' ? candidateRule.enabled : true,
           pattern,
           note,
           color,
+
+          ...(backgroundColor ? { backgroundColor } : {}),
+
+          ...(candidateRule.caseSensitive === false ? { caseSensitive: false } : {}),
         },
       ]
     })
@@ -851,7 +905,12 @@ export function normalizeSettings(value: unknown): QtermSettings {
     darkBackgroundOpacity: normalizeOpacity(candidate.darkBackgroundOpacity, DEFAULT_SETTINGS.darkBackgroundOpacity),
     darkBackgroundImage: normalizeImage(candidate.darkBackgroundImage),
     darkBackgroundColor: normalizeColor(candidate.darkBackgroundColor, DEFAULT_SETTINGS.darkBackgroundColor),
+
+    pageBackgroundSize: PAGE_BACKGROUND_SIZES.includes(candidate.pageBackgroundSize as PageBackgroundSize)
+      ? (candidate.pageBackgroundSize as PageBackgroundSize)
+      : DEFAULT_SETTINGS.pageBackgroundSize,
     terminalFontSize,
+    terminalFontWeight: normalizeTerminalFontWeight(candidate.terminalFontWeight),
     terminalLineHeight,
     terminalFontFamily,
     terminalLightTheme,

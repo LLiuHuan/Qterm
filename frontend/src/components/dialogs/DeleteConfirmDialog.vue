@@ -49,6 +49,8 @@ const { t } = useI18n()
         <ul v-if="props.items.length" class="delete-confirm-items m-0 p-0 list-none grid gap-[4px] wrap-anywhere">
           <li v-for="item in props.items" :key="item">{{ item }}</li>
         </ul>
+
+        <slot />
         <QtermFormMessage v-if="props.hint">{{ props.hint }}</QtermFormMessage>
         <QtermFormMessage v-if="props.error" variant="error">{{ props.error }}</QtermFormMessage>
       </div>

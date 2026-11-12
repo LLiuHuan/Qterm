@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"changeme/internal/model"
@@ -21,6 +22,13 @@ const (
 const processesWithStartCommand = `LC_ALL=C ps -eo pid,ppid,user,pcpu,pmem,rss,vsz,tty,stat,pri,ni,etime,time,lstart,args 2>/dev/null`
 const processesCommand = `LC_ALL=C ps -eo pid,ppid,user,pcpu,pmem,rss,stat,args 2>/dev/null`
 const processesBasicCommand = `LC_ALL=C ps -eo pid,user,args 2>/dev/null`
+
+const processesBusyBoxCommand = `LC_ALL=C ps -eo pid,ppid,user,rss,vsz,tty,stat,nice,etime,time,args 2>/dev/null
+awk '/^MemTotal:/{print "mem_total=" $2}' /proc/meminfo 2>/dev/null`
+
+const processCPUTicksCommand = `awk '{ rest=$0; sub(/^.*\) /,"",rest); n=split(rest,a," "); if (n >= 13) print $1, a[12], a[13] }' /proc/[0-9]*/stat 2>/dev/null`
+
+const processClockTicks = 100.0
 
 var errProcessListUnavailable = errors.New("tunnel: remote process list is unavailable")
 
@@ -41,6 +49,7 @@ func (c *Connection) ReadProcesses(ctx context.Context) (model.ProcessSnapshot, 
 	}{
 		{processesWithStartCommand, parseProcessListWithStart},
 		{processesCommand, parseProcessList},
+		{processesBusyBoxCommand, parseBusyBoxProcessList},
 		{processesBasicCommand, parseBasicProcessList},
 	}
 	var lastErr error
@@ -61,6 +70,10 @@ func (c *Connection) ReadProcesses(ctx context.Context) (model.ProcessSnapshot, 
 			return model.ProcessSnapshot{}, lastErr
 		}
 		return model.ProcessSnapshot{}, errProcessListUnavailable
+	}
+
+	if !processes[0].CPUAvailable {
+		c.applyProcessCPUSample(probeCtx, processes)
 	}
 	sort.SliceStable(processes, func(i, j int) bool {
 		if processes[i].CPU == processes[j].CPU {
@@ -144,7 +157,7 @@ func parseProcessListFields(output string, withStart bool) []model.ProcessInfo {
 				startTime = started.Format("2006-01-02 15:04:05")
 			}
 		}
-		command := strings.Join(fields[commandIndex:], " ")
+		command := normalizePSCommand(strings.Join(fields[commandIndex:], " "))
 		result = append(result, model.ProcessInfo{
 			PID:              pid,
 			PPID:             ppid,
@@ -162,7 +175,137 @@ func parseProcessListFields(output string, withStart bool) []model.ProcessInfo {
 			Command:          command,
 			StartTime:        startTime,
 			MetricsAvailable: true,
+			CPUAvailable:     true,
 		})
+	}
+	return result
+}
+
+func normalizePSCommand(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if len(trimmed) >= 2 && strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
+		return strings.TrimSpace(trimmed[1 : len(trimmed)-1])
+	}
+	return trimmed
+}
+
+type processCPUSampler struct {
+	mu     sync.Mutex
+	prev   map[int]uint64
+	prevAt time.Time
+}
+
+func (c *Connection) applyProcessCPUSample(ctx context.Context, processes []model.ProcessInfo) {
+	output, err := c.runProbe(ctx, processCPUTicksCommand, processProbeOutputLimit)
+	if err != nil {
+		return
+	}
+	ticks := parseProcessCPUTicks(output)
+	if len(ticks) == 0 {
+		return
+	}
+	now := time.Now()
+	c.processCPU.mu.Lock()
+	prev, prevAt := c.processCPU.prev, c.processCPU.prevAt
+	c.processCPU.prev, c.processCPU.prevAt = ticks, now
+	c.processCPU.mu.Unlock()
+	applyProcessCPUTicks(processes, prev, prevAt, ticks, now)
+}
+
+func parseProcessCPUTicks(output string) map[int]uint64 {
+	ticks := make(map[int]uint64, 64)
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		pid, err := strconv.Atoi(fields[0])
+		if err != nil || pid <= 0 {
+			continue
+		}
+		utime, utimeErr := strconv.ParseUint(fields[1], 10, 64)
+		stime, stimeErr := strconv.ParseUint(fields[2], 10, 64)
+
+		if utimeErr != nil || stimeErr != nil {
+			continue
+		}
+		ticks[pid] = utime + stime
+	}
+	return ticks
+}
+
+func applyProcessCPUTicks(
+	processes []model.ProcessInfo,
+	prev map[int]uint64,
+	prevAt time.Time,
+	current map[int]uint64,
+	now time.Time,
+) {
+	elapsed := now.Sub(prevAt).Seconds()
+	for index := range processes {
+		processes[index].CPUAvailable = true
+		tickCount, found := current[processes[index].PID]
+		if !found {
+			processes[index].CPU = 0
+			continue
+		}
+		before, seen := prev[processes[index].PID]
+
+		if prev == nil || !seen || tickCount < before || elapsed <= 0 {
+			processes[index].CPU = 0
+			continue
+		}
+		processes[index].CPU = float64(tickCount-before) / processClockTicks / elapsed * 100
+	}
+}
+
+func parseBusyBoxProcessList(output string) []model.ProcessInfo {
+	result := make([]model.ProcessInfo, 0, 64)
+	memTotalKB := int64(0)
+	for _, line := range strings.Split(output, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if value, found := strings.CutPrefix(trimmed, "mem_total="); found {
+			memTotalKB, _ = strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+			continue
+		}
+		fields := strings.Fields(trimmed)
+
+		pid, err := strconv.Atoi(fields[0])
+		if err != nil || pid <= 0 {
+			continue
+		}
+		if len(fields) < 11 {
+			continue
+		}
+		ppid, _ := strconv.Atoi(fields[1])
+		rss, _ := strconv.ParseInt(fields[3], 10, 64)
+		vsz, _ := strconv.ParseInt(fields[4], 10, 64)
+		nice, _ := strconv.Atoi(fields[7])
+		result = append(result, model.ProcessInfo{
+			PID:     pid,
+			PPID:    ppid,
+			User:    fields[2],
+			RSSKB:   rss,
+			VSZKB:   vsz,
+			TTY:     fields[5],
+			State:   fields[6],
+			Nice:    nice,
+			Elapsed: fields[8],
+			CPUTime: fields[9],
+			Command: normalizePSCommand(strings.Join(fields[10:], " ")),
+
+			MetricsAvailable: true,
+
+			CPUAvailable: false,
+		})
+	}
+	if memTotalKB > 0 {
+		for index := range result {
+			result[index].Memory = float64(result[index].RSSKB) / float64(memTotalKB) * 100
+		}
 	}
 	return result
 }
@@ -178,7 +321,11 @@ func parseBasicProcessList(output string) []model.ProcessInfo {
 		if err != nil || pid <= 0 {
 			continue
 		}
-		result = append(result, model.ProcessInfo{PID: pid, User: fields[1], Command: strings.Join(fields[2:], " ")})
+		result = append(result, model.ProcessInfo{
+			PID:     pid,
+			User:    fields[1],
+			Command: normalizePSCommand(strings.Join(fields[2:], " ")),
+		})
 	}
 	return result
 }

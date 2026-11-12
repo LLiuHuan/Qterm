@@ -17,6 +17,8 @@ const (
 	CodeCancelled        Code = "CANCELLED"
 	CodeTimeout          Code = "TIMEOUT"
 	CodePermissionDenied Code = "PERMISSION_DENIED"
+
+	CodeUnsupported Code = "UNSUPPORTED"
 )
 
 type AppError struct {

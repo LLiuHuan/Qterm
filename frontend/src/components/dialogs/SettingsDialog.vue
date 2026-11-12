@@ -96,12 +96,15 @@ const props = withDefaults(
     darkBackgroundOpacity: number
     darkBackgroundImage: string
 
+    pageBackgroundSize?: import('../../features/settings/settingsStore').PageBackgroundSize
+
     dark?: boolean
     terminalLightTheme?: import('../../features/sessions/terminalThemes').TerminalThemeId
     terminalDarkTheme?: import('../../features/sessions/terminalThemes').TerminalThemeId
     terminalThemeBackgroundScope?: import('../../features/settings/settingsStore').TerminalThemeBackgroundScope
     backgroundEnabled?: boolean
     terminalFontSize: number
+    terminalFontWeight?: import('../../features/settings/settingsStore').TerminalFontWeight
     terminalLineHeight?: number
     terminalFontFamily: string
     autoCopySelection?: boolean
@@ -297,6 +300,8 @@ const props = withDefaults(
     uiScale: 1,
     uiFont: '',
     terminalLineHeight: 1.25,
+    terminalFontWeight: 400,
+    pageBackgroundSize: 'cover',
     shortcuts: () => ({ ...DEFAULT_SHORTCUTS }),
     hosts: () => [],
   },
@@ -319,12 +324,14 @@ const emit = defineEmits<{
   'update:darkBackgroundEnabled': [value: boolean]
   'update:darkBackgroundOpacity': [value: number]
   'update:darkBackgroundImage': [value: string]
+  'update:pageBackgroundSize': [value: import('../../features/settings/settingsStore').PageBackgroundSize]
   'update:terminalLightTheme': [value: import('../../features/sessions/terminalThemes').TerminalThemeId]
   'update:terminalDarkTheme': [value: import('../../features/sessions/terminalThemes').TerminalThemeId]
   'update:terminalThemeBackgroundScope': [
     value: import('../../features/settings/settingsStore').TerminalThemeBackgroundScope,
   ]
   'update:terminalFontSize': [size: number]
+  'update:terminalFontWeight': [weight: number]
   'update:terminalLineHeight': [lineHeight: number]
   'update:terminalFontFamily': [family: string]
   'update:autoCopySelection': [value: boolean]
@@ -738,6 +745,7 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :dark-background-enabled="props.darkBackgroundEnabled"
                 :dark-background-opacity="props.darkBackgroundOpacity"
                 :dark-background-image="props.darkBackgroundImage"
+                :page-background-size="props.pageBackgroundSize"
                 :terminal-light-theme="props.terminalLightTheme"
                 :terminal-dark-theme="props.terminalDarkTheme"
                 :terminal-theme-background-scope="props.terminalThemeBackgroundScope"
@@ -754,6 +762,7 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 @update:dark-background-enabled="emit('update:darkBackgroundEnabled', $event)"
                 @update:dark-background-opacity="emit('update:darkBackgroundOpacity', $event)"
                 @update:dark-background-image="emit('update:darkBackgroundImage', $event)"
+                @update:page-background-size="emit('update:pageBackgroundSize', $event)"
                 @update:terminal-light-theme="emit('update:terminalLightTheme', $event)"
                 @update:terminal-dark-theme="emit('update:terminalDarkTheme', $event)"
                 @update:terminal-theme-background-scope="emit('update:terminalThemeBackgroundScope', $event)"
@@ -807,6 +816,7 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
               <TerminalSettingsPanel
                 v-else-if="props.category === 'terminal'"
                 :font-size="props.terminalFontSize"
+                :font-weight="props.terminalFontWeight ?? 400"
                 :line-height="props.terminalLineHeight"
                 :font-family="props.terminalFontFamily"
                 :auto-copy-selection="props.autoCopySelection"
@@ -843,6 +853,7 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :local-shell-path="props.localShellPath"
                 :local-shell-working-directory="props.localShellWorkingDirectory"
                 @update:font-size="emit('update:terminalFontSize', $event)"
+                @update:font-weight="emit('update:terminalFontWeight', $event)"
                 @update:line-height="emit('update:terminalLineHeight', $event)"
                 @update:font-family="emit('update:terminalFontFamily', $event)"
                 @update:auto-copy-selection="emit('update:autoCopySelection', $event)"

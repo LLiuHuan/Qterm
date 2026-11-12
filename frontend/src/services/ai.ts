@@ -5,6 +5,8 @@ export type AIProviderType = import('../../bindings/changeme/internal/ai/models'
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
+
+  images?: string[]
 }
 
 export interface AIChatInput {
@@ -209,6 +211,43 @@ export function normalizeContextBreakdown(value: unknown): AIContextBreakdown | 
 }
 
 const STREAM_POLL_MS = 60
+
+export interface AIContextCompaction {
+  compacted: boolean
+  reason?: string
+  summary?: string
+  keptMessages?: AIMessage[]
+  beforeBytes: number
+  afterBytes: number
+}
+
+export async function compactAIConversation(
+  input: AIChatInput,
+  keepRecent: number,
+  priorSummary = '',
+): Promise<AIContextCompaction> {
+  const { CompactAIConversation } = await import('../../bindings/changeme/internal/app/service')
+  const result = await CompactAIConversation(
+    {
+      providerId: input.providerId,
+      type: input.type,
+      baseUrl: input.baseUrl,
+      model: input.model,
+      messages: input.messages,
+      contextText: '',
+    },
+    keepRecent,
+    priorSummary,
+  )
+  return {
+    compacted: Boolean(result?.compacted),
+    reason: result?.reason || undefined,
+    summary: result?.summary || undefined,
+    keptMessages: (result?.keptMessages ?? []) as AIMessage[],
+    beforeBytes: result?.beforeBytes ?? 0,
+    afterBytes: result?.afterBytes ?? 0,
+  }
+}
 
 export async function startChatStream(
   input: AIChatInput,

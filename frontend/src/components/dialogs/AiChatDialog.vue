@@ -14,6 +14,10 @@ const props = defineProps<{
   sessionId?: string
   sessionTitle?: string
   sessionState?: SessionState
+
+  global?: boolean
+
+  availableHosts?: Array<{ id: string; name: string; address?: string }>
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -47,7 +51,8 @@ const { t } = useI18n()
           :host-id="props.hostId"
           :session-id="props.sessionId"
           :session-title="props.sessionTitle"
-          :session-state="props.sessionState ?? 'closed'"
+          :session-state="props.global ? 'connected' : (props.sessionState ?? 'closed')"
+          :available-hosts="props.availableHosts"
         />
       </div>
     </QtermDialogContent>

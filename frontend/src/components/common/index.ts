@@ -1,4 +1,5 @@
 export { default as IconButton } from './button/IconButton.vue'
+export { default as RefreshIconButton } from './button/RefreshIconButton.vue'
 export { default as QtermButton } from './button/QtermButton.vue'
 export { default as MorphingIcon } from './icon/MorphingIcon.vue'
 export { default as HostIcon } from './icon/HostIcon.vue'

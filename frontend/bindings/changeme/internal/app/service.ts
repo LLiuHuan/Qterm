@@ -28,10 +28,19 @@ import * as session$0 from '../session/models.js'
 import * as sftp$0 from '../sftp/models.js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as terminal$0 from '../terminal/models.js'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as tmux$0 from '../tmux/models.js'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as translate$0 from '../translate/models.js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as update$0 from '../update/models.js'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as webfetch$0 from '../webfetch/models.js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as x11$0 from '../x11/models.js'
@@ -111,6 +120,10 @@ export function CancelSFTPTransfer(id: string): $CancellablePromise<void> {
   return $Call.ByID(91425590, id)
 }
 
+export function CancelTerminalBatch(taskID: string): $CancellablePromise<terminal$0.BatchTaskState> {
+  return $Call.ByID(754600876, taskID)
+}
+
 export function ChangeAppLockPassword(current: string, next: string): $CancellablePromise<void> {
   return $Call.ByID(3277894939, current, next)
 }
@@ -171,6 +184,14 @@ export function CloseToTray(): $CancellablePromise<boolean> {
   return $Call.ByID(411676227)
 }
 
+export function CompactAIConversation(
+  input: $models.AIChatInput,
+  keepRecent: number,
+  priorSummary: string,
+): $CancellablePromise<$models.AIConversationCompaction> {
+  return $Call.ByID(419269662, input, keepRecent, priorSummary)
+}
+
 export function ConfirmSFTPTransferOverwrite(id: string): $CancellablePromise<model$0.SFTPTransfer> {
   return $Call.ByID(4063224497, id)
 }
@@ -219,6 +240,10 @@ export function CreateSnippet(input: model$0.SnippetInput): $CancellablePromise<
 
 export function CreateSnippetGroup(name: string): $CancellablePromise<model$0.Group> {
   return $Call.ByID(1404906746, name)
+}
+
+export function CreateTmuxSession(sessionID: string, name: string): $CancellablePromise<void> {
+  return $Call.ByID(1693617716, sessionID, name)
 }
 
 export function CredentialStatus(): $CancellablePromise<credential$0.CredentialVaultStatus> {
@@ -425,6 +450,14 @@ export function DockerVolumes(sessionID: string): $CancellablePromise<model$0.Do
   return $Call.ByID(2740883837, sessionID)
 }
 
+export function DownloadSFTPDirectoryArchive(
+  sessionID: string,
+  remoteDirectory: string,
+  localDirectory: string,
+): $CancellablePromise<void> {
+  return $Call.ByID(2554499276, sessionID, remoteDirectory, localDirectory)
+}
+
 export function DuplicateHost(id: string, name: string): $CancellablePromise<model$0.Host> {
   return $Call.ByID(2519449577, id, name)
 }
@@ -436,6 +469,14 @@ export function EnableAppLock(
   answer: string,
 ): $CancellablePromise<void> {
   return $Call.ByID(2556552779, password, autoLockMinutes, question, answer)
+}
+
+export function EnqueueSFTPDirectoryArchiveDownload(
+  sessionID: string,
+  remoteDirectory: string,
+  localDirectory: string,
+): $CancellablePromise<model$0.SFTPTransfer> {
+  return $Call.ByID(104868354, sessionID, remoteDirectory, localDirectory)
 }
 
 export function ExportCredentialVaultKey(input: credential$0.ExportCredentialVaultKeyInput): $CancellablePromise<void> {
@@ -536,6 +577,10 @@ export function GetSessionWarnings(id: string): $CancellablePromise<string[] | n
   return $Call.ByID(2986836979, id)
 }
 
+export function GetTerminalControl(): $CancellablePromise<terminal$0.ControlSnapshot> {
+  return $Call.ByID(998635879)
+}
+
 export function HideSettingsWindow(): $CancellablePromise<void> {
   return $Call.ByID(2087786787)
 }
@@ -562,6 +607,10 @@ export function ImportResourceBundle(password: string): $CancellablePromise<bool
 
 export function ImportResourceBundleData(data: string | null, password: string): $CancellablePromise<boolean> {
   return $Call.ByID(2260233215, data, password)
+}
+
+export function KillTmuxSession(sessionID: string, name: string): $CancellablePromise<void> {
+  return $Call.ByID(1605746620, sessionID, name)
 }
 
 export function KnownHostsPath(): $CancellablePromise<string> {
@@ -623,8 +672,16 @@ export function ListRemoteDirectory(
   return $Call.ByID(314599347, sessionID, directory)
 }
 
+export function ListRemoteHistory(sessionID: string): $CancellablePromise<$models.RemoteHistory> {
+  return $Call.ByID(3479835752, sessionID)
+}
+
 export function ListRemotePrincipals(sessionID: string): $CancellablePromise<model$0.RemotePrincipals> {
   return $Call.ByID(3699595763, sessionID)
+}
+
+export function ListSFTPFavorites(hostID: string): $CancellablePromise<model$0.SFTPFavoritePath[] | null> {
+  return $Call.ByID(1479392736, hostID)
 }
 
 export function ListSFTPTransfers(): $CancellablePromise<model$0.SFTPTransfer[] | null> {
@@ -669,6 +726,10 @@ export function ListTerminalRecordingsPage(
   query: string,
 ): $CancellablePromise<model$0.TerminalRecordingPage> {
   return $Call.ByID(535855101, page, pageSize, query)
+}
+
+export function ListTmuxSessions(sessionID: string): $CancellablePromise<tmux$0.Session[] | null> {
+  return $Call.ByID(3301103893, sessionID)
 }
 
 export function ListTranslationProviderCredentials(): $CancellablePromise<translate$0.CredentialStatus[] | null> {
@@ -1043,6 +1104,10 @@ export function ReleaseZmodemFile(token: string): $CancellablePromise<void> {
   return $Call.ByID(1943757433, token)
 }
 
+export function RemoveSFTPEntryElevated(sessionID: string, path: string, password: string): $CancellablePromise<void> {
+  return $Call.ByID(2419819003, sessionID, path, password)
+}
+
 export function RenameCredential(
   id: string,
   input: credential$0.RenameCredentialInput,
@@ -1060,6 +1125,10 @@ export function RenameRemoteEntry(sessionID: string, remotePath: string, newName
 
 export function RenameSnippetGroup(id: string, name: string): $CancellablePromise<model$0.Group> {
   return $Call.ByID(32802628, id, name)
+}
+
+export function RenameTmuxSession(sessionID: string, name: string, newName: string): $CancellablePromise<void> {
+  return $Call.ByID(3640724682, sessionID, name, newName)
 }
 
 export function ReorderGroup(
@@ -1238,6 +1307,10 @@ export function SetAppLockTouchIDEnabled(enabled: boolean): $CancellablePromise<
   return $Call.ByID(3693842441, enabled)
 }
 
+export function SetAppLocked(locked: boolean): $CancellablePromise<void> {
+  return $Call.ByID(639633499, locked)
+}
+
 export function SetAutoUnlock(
   input: credential$0.SetAutoUnlockInput,
 ): $CancellablePromise<credential$0.CredentialVaultStatus> {
@@ -1283,6 +1356,13 @@ export function SetRemoteEntryPermissions(
   return $Call.ByID(869198628, sessionID, remotePath, mode, uid, gid)
 }
 
+export function SetSFTPFavorites(
+  hostID: string,
+  favorites: model$0.SFTPFavoritePath[] | null,
+): $CancellablePromise<void> {
+  return $Call.ByID(291554604, hostID, favorites)
+}
+
 export function SetSessionHistoryArchived(
   ids: string[] | null,
   archived: boolean,
@@ -1298,8 +1378,16 @@ export function SetSettingsWindowEnabled(enabled: boolean): $CancellablePromise<
   return $Call.ByID(2251456864, enabled)
 }
 
+export function SetTerminalSync(request: terminal$0.SyncRequest): $CancellablePromise<terminal$0.ControlSnapshot> {
+  return $Call.ByID(3096214293, request)
+}
+
 export function SetTrayMenuState(state: $models.TrayMenuState): $CancellablePromise<void> {
   return $Call.ByID(304239774, state)
+}
+
+export function SetWebFetchSettings(settings: webfetch$0.Settings): $CancellablePromise<void> {
+  return $Call.ByID(1328670997, settings)
 }
 
 export function SettingsWindowVisible(): $CancellablePromise<boolean> {
@@ -1322,6 +1410,10 @@ export function StartFullRecording(id: string): $CancellablePromise<model$0.Term
 
 export function StartRecording(id: string): $CancellablePromise<model$0.TerminalRecording> {
   return $Call.ByID(3896940013, id)
+}
+
+export function StartTerminalBatch(request: terminal$0.BatchRequest): $CancellablePromise<terminal$0.BatchTaskState> {
+  return $Call.ByID(2365790250, request)
 }
 
 export function StopRecording(id: string): $CancellablePromise<model$0.TerminalRecording> {
@@ -1357,6 +1449,22 @@ export function TestHostRoute(hostID: string): $CancellablePromise<model$0.Route
 
 export function TestHostRouteDraft(input: model$0.RouteDraftInput): $CancellablePromise<model$0.RouteTestResult> {
   return $Call.ByID(3825896580, input)
+}
+
+export function TmuxAttachCommand(name: string, trackingToken: string): $CancellablePromise<string> {
+  return $Call.ByID(3924049622, name, trackingToken)
+}
+
+export function TmuxDetachKeys(sessionID: string): $CancellablePromise<string> {
+  return $Call.ByID(1012096651, sessionID)
+}
+
+export function TmuxPrefixKeys(sessionID: string): $CancellablePromise<string> {
+  return $Call.ByID(4208749236, sessionID)
+}
+
+export function TmuxVersion(sessionID: string): $CancellablePromise<string> {
+  return $Call.ByID(394347464, sessionID)
 }
 
 export function TranslateLanguages(): $CancellablePromise<string[] | null> {
@@ -1473,6 +1581,10 @@ export function VncOpenHost(hostID: string): $CancellablePromise<model$0.VncOpen
 
 export function VncStreamTicket(sessionID: string): $CancellablePromise<model$0.VncStreamTicket> {
   return $Call.ByID(2982464867, sessionID)
+}
+
+export function WebFetchSettings(): $CancellablePromise<webfetch$0.Settings> {
+  return $Call.ByID(3986766493)
 }
 
 export function WriteRemoteFileText(

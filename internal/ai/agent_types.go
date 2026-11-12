@@ -1,6 +1,9 @@
 package ai
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type RunState string
 
@@ -28,6 +31,28 @@ const (
 	StepKindCommand StepKind = "execute_command"
 
 	StepKindAnswer StepKind = "final_answer"
+
+	StepKindListHosts StepKind = "list_hosts"
+
+	StepKindGetHost StepKind = "get_host"
+
+	StepKindSftpList StepKind = "sftp_list"
+
+	StepKindSftpReadFile StepKind = "sftp_read_file"
+
+	StepKindSftpWriteFile StepKind = "sftp_write_file"
+
+	StepKindSftpUploadFile StepKind = "sftp_upload_file"
+
+	StepKindSftpDownloadFile StepKind = "sftp_download_file"
+
+	StepKindLocalListDir StepKind = "local_list_dir"
+
+	StepKindLocalReadFile StepKind = "local_read_file"
+
+	StepKindWebFetch StepKind = "web_fetch"
+
+	StepKindAskUser StepKind = "ask_user"
 )
 
 type StepState string
@@ -62,6 +87,12 @@ type StartInput struct {
 
 	SessionID string
 
+	HostIDs []string `json:"hostIds,omitempty"`
+
+	SessionKind string `json:"sessionKind,omitempty"`
+
+	TargetLabel string `json:"targetLabel,omitempty"`
+
 	Prompt string
 
 	PolicyVersion string
@@ -88,6 +119,10 @@ type DecideInput struct {
 	SessionID     string
 	PolicyVersion string
 
+	Choice string
+
+	Remember bool
+
 	Since int
 }
 
@@ -97,7 +132,9 @@ type StepSpec struct {
 
 	Title string
 
-	Command         string
+	Command string
+
+	Args            json.RawMessage
 	TargetSessionID string
 	Risk            string
 	RiskReason      string
@@ -107,10 +144,21 @@ type StepResult struct {
 	Observation string
 
 	ExitCode *int
+
+	Failure string
+}
+
+type ToolPreview struct {
+	Kind string          `json:"kind"`
+	Data json.RawMessage `json:"data,omitempty"`
 }
 
 type ApprovalRequest struct {
-	Command         string
+	Command string
+
+	Preview *ToolPreview
+
+	Rememberable    bool
 	TargetSessionID string
 	Risk            string
 	RiskReason      string
@@ -124,10 +172,14 @@ type AgentStep struct {
 	State  StepState `json:"state"`
 	Title  string    `json:"title,omitempty"`
 
-	Command         string `json:"command,omitempty"`
-	TargetSessionID string `json:"targetSessionId,omitempty"`
-	Risk            string `json:"risk,omitempty"`
-	RiskReason      string `json:"riskReason,omitempty"`
+	Command string `json:"command,omitempty"`
+
+	Args json.RawMessage `json:"args,omitempty"`
+
+	Preview         *ToolPreview `json:"preview,omitempty"`
+	TargetSessionID string       `json:"targetSessionId,omitempty"`
+	Risk            string       `json:"risk,omitempty"`
+	RiskReason      string       `json:"riskReason,omitempty"`
 
 	Observation          string `json:"observation,omitempty"`
 	ObservationTruncated bool   `json:"observationTruncated,omitempty"`
@@ -155,14 +207,20 @@ type AgentRun struct {
 
 	Draft string `json:"draft,omitempty"`
 
+	ReasoningDraft string `json:"reasoningDraft,omitempty"`
+
 	ModelCalls  int `json:"modelCalls,omitempty"`
 	CommandRuns int `json:"commandRuns,omitempty"`
+
+	Reasonings []string `json:"reasonings,omitempty"`
 
 	Notes []string `json:"notes,omitempty"`
 
 	NoteDurations []int64 `json:"noteDurations,omitempty"`
 
 	Usage *Usage `json:"usage,omitempty"`
+
+	AllowedTools []string `json:"allowedTools,omitempty"`
 
 	Context *ContextBreakdown `json:"context,omitempty"`
 

@@ -46,3 +46,22 @@ export function createResourceHistory(now: () => number = Date.now): ResourceHis
     },
   }
 }
+
+const historyCache = new Map<string, ResourceHistory>()
+const HISTORY_CACHE_LIMIT = 8
+
+export function resourceHistoryFor(sessionId: string): ResourceHistory {
+  const existing = historyCache.get(sessionId)
+  if (existing) return existing
+  const created = createResourceHistory()
+  historyCache.set(sessionId, created)
+  if (historyCache.size > HISTORY_CACHE_LIMIT) {
+    const oldest = historyCache.keys().next().value
+    if (oldest !== undefined && oldest !== sessionId) historyCache.delete(oldest)
+  }
+  return created
+}
+
+export function dropResourceHistory(sessionId: string): void {
+  historyCache.delete(sessionId)
+}

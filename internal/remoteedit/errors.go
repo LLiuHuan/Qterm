@@ -95,3 +95,8 @@ func logFailure(event string, messageKey string, err error) {
 		"message_key", messageKey,
 		"error", err)
 }
+
+func IsRemoteMissing(err error) bool {
+	appErr := errno.Extract(err)
+	return appErr != nil && appErr.Code == errno.CodeNotFound && appErr.MessageKey == messageKeyRemoteMissing
+}

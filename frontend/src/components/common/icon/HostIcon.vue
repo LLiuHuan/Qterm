@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Server } from '@lucide/vue'
-import { builtinHostIcons } from '@/features/hosts/builtinIcons.ts'
+import { resolveBuiltinHostIcon } from '@/features/hosts/builtinIcons.ts'
 import { customHostIconSrc } from '@/features/hosts/customHostIcon.ts'
 import { resolveHostIcon } from '@/features/hosts/hostIcons.ts'
 import { useI18n } from '@/locales'
@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{ icon?: string; size?: number; protocol?
 const { t } = useI18n()
 
 const resolvedIcon = computed(() => resolveHostIcon({ icon: props.icon, protocol: props.protocol }))
-const selected = computed(() => builtinHostIcons.find((item) => item.value === resolvedIcon.value))
+const selected = computed(() => resolveBuiltinHostIcon(resolvedIcon.value))
 const customSrc = computed(() => customHostIconSrc(resolvedIcon.value))
 </script>
 

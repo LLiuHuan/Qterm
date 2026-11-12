@@ -38,6 +38,8 @@ const props = defineProps<{
   selectedGroupId?: string | null
   isDark: boolean
   showHostAddress: boolean
+
+  bulkConnectBusy?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -51,7 +53,7 @@ const emit = defineEmits<{
   selectHost: [hostId: string]
   selectGroup: [groupId: string]
   clearSelection: []
-  copyHost: [host: HostRecord, kind: 'ip' | 'id']
+  copyHost: [host: HostRecord]
 
   duplicateHost: [host: HostRecord]
 
@@ -64,6 +66,8 @@ const emit = defineEmits<{
   editGroup: [group: GroupedHosts]
   deleteGroup: [group: GroupedHosts]
   updateSearchQuery: [value: string]
+
+  connectGroup: [group: GroupedHosts]
 }>()
 const { t } = useI18n()
 
@@ -125,8 +129,8 @@ const draggingHost = computed(() => {
   return props.hosts.find((host) => host.id === item.id) ?? null
 })
 
-function forwardCopy(host: HostRecord, kind: 'ip' | 'id'): void {
-  emit('copyHost', host, kind)
+function forwardCopy(host: HostRecord): void {
+  emit('copyHost', host)
 }
 
 function forwardDuplicate(host: HostRecord): void {
@@ -178,9 +182,7 @@ function forwardDuplicate(host: HostRecord): void {
         <CircleDot :size="16" aria-hidden="true" />
       </IconButton>
       <div class="flex-1"></div>
-      <IconButton :label="t('shell.asset.refresh')" @click="emit('refresh')">
-        <RefreshCw :size="16" aria-hidden="true" />
-      </IconButton>
+      <RefreshIconButton :label="t('shell.asset.refresh')" size="icon" icon-class="size-4" @click="emit('refresh')" />
     </div>
 
     <label
@@ -279,6 +281,7 @@ function forwardDuplicate(host: HostRecord): void {
                 :selected-host-id="props.selectedHostId"
                 :selected-group-id="props.selectedGroupId"
                 :show-address="props.showHostAddress"
+                :bulk-connect-busy="props.bulkConnectBusy"
                 @select-host="emit('selectHost', $event)"
                 @open-host="emit('openHost', $event)"
                 @edit-host="emit('editHost', $event)"
@@ -293,6 +296,7 @@ function forwardDuplicate(host: HostRecord): void {
                 @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
                 @move-asset="(...args) => emit('moveAsset', ...args)"
                 @move-group="(...args) => emit('moveGroup', ...args)"
+                @connect-group="emit('connectGroup', $event)"
               />
               <AssetHostRow
                 v-else

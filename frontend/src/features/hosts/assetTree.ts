@@ -5,14 +5,47 @@ export type AssetSortMode = 'name-asc' | 'name-desc' | 'custom'
 
 export function buildAssetTree(hosts: HostRecord[], groups: GroupRecord[], query: string, sortMode: AssetSortMode) {
   const normalizedQuery = query.trim().toLocaleLowerCase()
+
+  const groupByID = new Map(groups.map((group) => [group.id, group]))
+  const groupMatchCache = new Map<string, boolean>()
+  const groupMatchesQuery = (groupId: string): boolean => {
+    const cached = groupMatchCache.get(groupId)
+    if (cached !== undefined) return cached
+
+    let current: GroupRecord | undefined = groupByID.get(groupId)
+    const chain: string[] = []
+    let matched = false
+    const seen = new Set<string>()
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id)
+      if (current.name.toLocaleLowerCase().includes(normalizedQuery)) {
+        matched = true
+        break
+      }
+      chain.push(current.id)
+      current = current.parentId ? groupByID.get(current.parentId) : undefined
+    }
+    groupMatchCache.set(groupId, matched)
+    for (const id of chain) groupMatchCache.set(id, matched)
+    return matched
+  }
   const filteredHosts = [...hosts]
     .filter(
       (host) =>
         !normalizedQuery ||
-        [host.name, host.address, host.username, host.group, ...(host.tags ?? [])]
+        [
+          host.name,
+          host.alias ?? '',
+          host.customId ?? '',
+          host.address,
+          host.username,
+          host.group,
+          ...(host.tags ?? []),
+        ]
           .join(' ')
           .toLocaleLowerCase()
-          .includes(normalizedQuery),
+          .includes(normalizedQuery) ||
+        (!!host.groupId && groupMatchesQuery(host.groupId)),
     )
     .sort((left, right) => compareAsset(left, right, sortMode))
   const groupIDs = new Set(groups.map((group) => group.id))
@@ -53,4 +86,32 @@ export function compareAsset(
     return (left.sortOrder ?? 0) - (right.sortOrder ?? 0) || left.name.localeCompare(right.name, 'zh-CN')
   const value = left.name.localeCompare(right.name, 'zh-CN')
   return sortMode === 'name-asc' ? value : -value
+}
+
+export interface SelectionClickResult {
+  ids: string[]
+  anchor: string | null
+}
+
+export function selectionAfterClick(
+  orderedIDs: string[],
+  current: string[],
+  anchor: string | null,
+  id: string,
+  modifiers: { toggle: boolean; range: boolean },
+): SelectionClickResult {
+  if (modifiers.range && anchor && orderedIDs.includes(anchor) && orderedIDs.includes(id)) {
+    const from = orderedIDs.indexOf(anchor)
+    const to = orderedIDs.indexOf(id)
+    const [start, end] = from <= to ? [from, to] : [to, from]
+    return { ids: orderedIDs.slice(start, end + 1), anchor }
+  }
+  if (modifiers.toggle) {
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+
+    const ordered = orderedIDs.filter((item) => next.includes(item))
+    for (const item of next) if (!ordered.includes(item)) ordered.push(item)
+    return { ids: ordered, anchor: id }
+  }
+  return { ids: [id], anchor: id }
 }

@@ -96,6 +96,8 @@ const (
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+
+	Images []string `json:"images,omitempty"`
 }
 
 type Provider struct {
@@ -226,6 +228,9 @@ func (s *Service) chatWithKey(ctx context.Context, request ChatRequest, key stri
 	if baseURL == "" || model == "" || strings.TrimSpace(key) == "" {
 		return "", ErrNotConfigured
 	}
+	if _, err := countMessageImages(request.Messages); err != nil {
+		return "", err
+	}
 	switch provider.Type {
 	case ProviderTypeOpenAI:
 		return s.chatOpenAI(ctx, baseURL, model, key, request.Messages)
@@ -243,7 +248,11 @@ func (s *Service) chatOpenAI(
 	baseURL, model, key string,
 	messages []Message,
 ) (string, error) {
-	payload := map[string]any{"model": model, "messages": messages, "stream": false}
+	converted, err := openAIChatMessages(messages)
+	if err != nil {
+		return "", err
+	}
+	payload := map[string]any{"model": model, "messages": converted, "stream": false}
 	data, err := s.postJSON(ctx, baseURL+"/chat/completions", key, payload, nil)
 	if err != nil {
 		return "", err
@@ -270,18 +279,13 @@ func (s *Service) chatOpenAIResponse(
 	messages []Message,
 ) (string, error) {
 
-	instructions := ""
-	input := make([]map[string]string, 0, len(messages))
-	for _, message := range messages {
-		if message.Role == "system" {
-			instructions = strings.TrimSpace(instructions + "\n" + message.Content)
-			continue
-		}
-		input = append(input, map[string]string{"role": message.Role, "content": message.Content})
+	instructions, input, err := splitResponsesInput(messages)
+	if err != nil {
+		return "", err
 	}
 	payload := map[string]any{"model": model, "input": input, "stream": false}
 	if instructions != "" {
-		payload["instructions"] = strings.TrimSpace(instructions)
+		payload["instructions"] = instructions
 	}
 	data, err := s.postJSON(ctx, baseURL+"/responses", key, payload, nil)
 	if err != nil {
@@ -322,18 +326,13 @@ func (s *Service) chatAnthropic(
 	baseURL, model, key string,
 	messages []Message,
 ) (string, error) {
-	system := ""
-	converted := make([]map[string]string, 0, len(messages))
-	for _, message := range messages {
-		if message.Role == "system" {
-			system = strings.TrimSpace(system + "\n" + message.Content)
-			continue
-		}
-		converted = append(converted, map[string]string{"role": message.Role, "content": message.Content})
+	system, converted, err := splitAnthropicMessages(messages)
+	if err != nil {
+		return "", err
 	}
 	payload := map[string]any{"model": model, "max_tokens": 4096, "messages": converted}
 	if system != "" {
-		payload["system"] = strings.TrimSpace(system)
+		payload["system"] = system
 	}
 	data, err := s.postJSON(ctx, anthropicAPIBase(baseURL)+"/messages", key, payload, func(request *http.Request) {
 

@@ -86,6 +86,10 @@ func (e *SessionSFTPTransferExecutor) Execute(
 		}
 	}
 
+	if request.ArchiveDownload != nil {
+		return e.transferArchiveDownload(ctx, request, progress)
+	}
+
 	if request.Direction == model.SFTPTransferUpload && request.SourceSessionID != "" {
 		fileSize := request.Total / 2
 		sourceFS, sErr := e.sessions.TransferFileSystem(ctx, request.SourceSessionID)

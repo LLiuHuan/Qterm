@@ -41,13 +41,21 @@ func (s *Service) StreamChat(ctx context.Context, request ChatRequest, handle St
 		return ErrNotConfigured
 	}
 
+	if _, err := countMessageImages(request.Messages); err != nil {
+		return err
+	}
+
 	url := ""
 	payload := map[string]any{}
 	customize := func(*http.Request) {}
 	switch provider.Type {
 	case ProviderTypeOpenAI:
+		messages, err := openAIChatMessages(request.Messages)
+		if err != nil {
+			return err
+		}
 		url = baseURL + "/chat/completions"
-		payload = map[string]any{"model": model, "messages": request.Messages, "stream": true}
+		payload = map[string]any{"model": model, "messages": messages, "stream": true}
 		if request.JSONMode {
 
 			payload["response_format"] = map[string]any{"type": "json_object"}
@@ -57,15 +65,21 @@ func (s *Service) StreamChat(ctx context.Context, request ChatRequest, handle St
 			payload["stream_options"] = map[string]any{"include_usage": true}
 		}
 	case ProviderTypeOpenAIResponse:
+		instructions, input, err := splitResponsesInput(request.Messages)
+		if err != nil {
+			return err
+		}
 		url = baseURL + "/responses"
-		instructions, input := splitInstructions(request.Messages)
 		payload = map[string]any{"model": model, "input": input, "stream": true}
 		if instructions != "" {
 			payload["instructions"] = instructions
 		}
 	case ProviderTypeAnthropic:
+		system, converted, err := splitAnthropicMessages(request.Messages)
+		if err != nil {
+			return err
+		}
 		url = anthropicAPIBase(baseURL) + "/messages"
-		system, converted := splitSystem(request.Messages)
 		payload = map[string]any{"model": model, "max_tokens": 4096, "messages": converted, "stream": true}
 		if system != "" {
 			payload["system"] = system
@@ -399,30 +413,4 @@ func usageOrNil(value *Usage) *Usage {
 		return nil
 	}
 	return value
-}
-
-func splitInstructions(messages []Message) (string, []map[string]string) {
-	instructions := ""
-	input := make([]map[string]string, 0, len(messages))
-	for _, message := range messages {
-		if message.Role == "system" {
-			instructions = strings.TrimSpace(instructions + "\n" + message.Content)
-			continue
-		}
-		input = append(input, map[string]string{"role": message.Role, "content": message.Content})
-	}
-	return instructions, input
-}
-
-func splitSystem(messages []Message) (string, []map[string]string) {
-	system := ""
-	converted := make([]map[string]string, 0, len(messages))
-	for _, message := range messages {
-		if message.Role == "system" {
-			system = strings.TrimSpace(system + "\n" + message.Content)
-			continue
-		}
-		converted = append(converted, map[string]string{"role": message.Role, "content": message.Content})
-	}
-	return system, converted
 }

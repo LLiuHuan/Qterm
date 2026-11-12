@@ -17,6 +17,7 @@ import {
   FolderOpen,
   FolderPlus,
   FolderUp,
+  FileArchive,
   Image as ImageIcon,
   Info,
   MoreHorizontal,
@@ -49,6 +50,13 @@ import { requestAILaunch } from '../../services/aiAgentLaunch'
 import { translateErrorKey } from '../../services/errors'
 import { toast } from 'vue-sonner'
 import SftpFileIcon from './SftpFileIcon.vue'
+import SftpFavoritesMenu from './SftpFavoritesMenu.vue'
+import {
+  loadSFTPFavorites,
+  resolveFavoritesHostId,
+  saveSFTPFavorites,
+  type SFTPFavorite,
+} from '../../services/sftpFavorites'
 import ImagePreviewDialog from './ImagePreviewDialog.vue'
 import { isPreviewableImageName } from './previewableImage'
 import { useI18n } from '@/locales'
@@ -170,6 +178,8 @@ const emit = defineEmits<{
   deleteEntry: [entry: SftpBrowserEntry]
   download: [entry: SftpBrowserEntry]
 
+  archiveDownload: [entry: SftpBrowserEntry]
+
   remoteEditSynced: [entry: SftpBrowserEntry]
 }>()
 
@@ -212,6 +222,83 @@ const {
 const contextEntry = ref<SftpBrowserEntry | null>(null)
 
 const nativeDropDirectory = ref('')
+
+const favoritesHostId = ref('')
+const favoritePaths = ref<SFTPFavorite[]>([])
+const favoritesBusy = ref(false)
+const favoritesAvailable = computed(() => props.contextKind === 'remote' && Boolean(props.sessionId))
+const favoritesCurrentPath = computed(() => props.segments[props.segments.length - 1]?.path ?? '/')
+
+async function refreshFavorites(): Promise<void> {
+  if (!favoritesAvailable.value) {
+    favoritesHostId.value = ''
+    favoritePaths.value = []
+    return
+  }
+  const sessionId = props.sessionId
+  try {
+    const hostId = await resolveFavoritesHostId(sessionId)
+
+    if (props.sessionId !== sessionId) return
+    favoritesHostId.value = hostId
+    favoritePaths.value = hostId ? await loadSFTPFavorites(hostId) : []
+  } catch {
+    favoritesHostId.value = ''
+    favoritePaths.value = []
+  }
+}
+
+watch(
+  () => [props.sessionId, props.contextKind],
+  () => void refreshFavorites(),
+  { immediate: true },
+)
+
+async function addFavorite(path: string, name = ''): Promise<void> {
+  if (!favoritesHostId.value || favoritesBusy.value || !path.startsWith('/')) return
+  favoritesBusy.value = true
+  try {
+    favoritePaths.value = await saveSFTPFavorites(favoritesHostId.value, [...favoritePaths.value, { path, name }])
+  } catch {
+    toast.error(t('sftp.ui.favorites.saveFailed'))
+  } finally {
+    favoritesBusy.value = false
+  }
+}
+
+async function renameFavorite(path: string, name: string): Promise<void> {
+  if (!favoritesHostId.value || favoritesBusy.value) return
+  const previous = favoritePaths.value
+  favoritesBusy.value = true
+  try {
+    favoritePaths.value = await saveSFTPFavorites(
+      favoritesHostId.value,
+      previous.map((item) => (item.path === path ? { path: item.path, name } : item)),
+    )
+  } catch {
+    favoritePaths.value = previous
+    toast.error(t('sftp.ui.favorites.saveFailed'))
+  } finally {
+    favoritesBusy.value = false
+  }
+}
+
+async function removeFavorite(path: string): Promise<void> {
+  if (!favoritesHostId.value || favoritesBusy.value) return
+  const previous = favoritePaths.value
+  favoritesBusy.value = true
+  try {
+    favoritePaths.value = await saveSFTPFavorites(
+      favoritesHostId.value,
+      previous.filter((item) => item.path !== path),
+    )
+  } catch {
+    favoritePaths.value = previous
+    toast.error(t('sftp.ui.favorites.saveFailed'))
+  } finally {
+    favoritesBusy.value = false
+  }
+}
 
 function captureContextEntry(event: MouseEvent): void {
   const target = event.target
@@ -378,6 +465,7 @@ type EntryAction =
   | 'info'
   | 'deleteEntry'
   | 'download'
+  | 'archiveDownload'
   | 'preview'
   | 'openWithLocal'
   | 'openInEditor'
@@ -409,6 +497,9 @@ function emitEntryAction(action: EntryAction): void {
       break
     case 'download':
       emit('download', entry)
+      break
+    case 'archiveDownload':
+      emit('archiveDownload', entry)
       break
     case 'preview':
       requestImagePreview(entry)
@@ -714,6 +805,18 @@ function onPaneDrop(event: DragEvent): void {
           <span>{{ segment.label }}</span>
         </span>
       </nav>
+
+      <SftpFavoritesMenu
+        v-if="!editing && favoritesAvailable && favoritesHostId"
+        :favorites="favoritePaths"
+        :current-path="favoritesCurrentPath"
+        :disabled="!available"
+        :busy="favoritesBusy"
+        @navigate="emit('navigate', $event)"
+        @add="(path, name) => void addFavorite(path, name)"
+        @remove="(path) => void removeFavorite(path)"
+        @rename="(path, name) => void renameFavorite(path, name)"
+      />
       <QtermButton
         v-if="editing"
         variant="ghost"
@@ -965,6 +1068,15 @@ function onPaneDrop(event: DragEvent): void {
               @select="emitEntryAction('download')"
             >
               <Download :size="14" aria-hidden="true" />{{ t('sftp.ui.download') }}
+            </ContextMenuItem>
+
+            <ContextMenuItem
+              v-if="contextKind === 'remote' && contextEntry.type === 'directory'"
+              :disabled="!available || operationsDisabled"
+              data-sftp-archive-download
+              @select="emitEntryAction('archiveDownload')"
+            >
+              <FileArchive :size="14" aria-hidden="true" />{{ t('sftp.ui.archiveDownload') }}
             </ContextMenuItem>
 
             <ContextMenuItem

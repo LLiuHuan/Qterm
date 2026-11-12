@@ -226,3 +226,15 @@ export function createAppLockGateway(): AppLockGateway {
     () => new PreviewAppLockGateway(),
   )
 }
+
+export async function syncAppLocked(locked: boolean): Promise<void> {
+  if (!hasWailsRuntime()) return
+  try {
+    const { SetAppLocked } = await import('../../bindings/changeme/internal/app/service')
+    await SetAppLocked(locked)
+  } catch {}
+}
+
+function hasWailsRuntime(): boolean {
+  return Boolean((window as Window & { _wails?: { environment?: { OS?: string } } })._wails?.environment?.OS)
+}

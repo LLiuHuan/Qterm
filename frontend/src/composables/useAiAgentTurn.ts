@@ -25,6 +25,8 @@ export interface AiAgentTurnOptions {
   getProvider: () => AIProvider | null
   getApprovalMode: () => AIApprovalMode
   getContextText?: () => string
+
+  getHostIds?: () => string[]
   onRunUpdated?: (run: AgentRun, identity: AiAgentTurnIdentity) => void
 }
 
@@ -37,7 +39,8 @@ interface StoredAgentTurn {
 
 const STORE_KEY = 'qterm.ai.agent.turns.v2'
 const RUN_LIMIT = 100
-const POLL_INTERVAL = 600
+
+const POLL_INTERVAL = 200
 
 function identityKey(identity: AiAgentTurnIdentity): string {
   return `${identity.conversationId}\u0000${identity.sessionId}\u0000${identity.providerId}`
@@ -147,6 +150,7 @@ export function useAiAgentTurn(options: AiAgentTurnOptions) {
     if (!isCurrent(identity) || run.value?.id !== runId || !live.value) {
       return
     }
+
     try {
       applySnapshot(await getAgentSnapshot(runId, cursor.value), identity)
     } catch (cause) {
@@ -202,7 +206,8 @@ export function useAiAgentTurn(options: AiAgentTurnOptions) {
   ): Promise<AgentSnapshot | null> {
     const provider = options.getProvider()
     const identity = options.getIdentity()
-    if (!provider || !identity.sessionId || !prompt.trim() || starting.value || live.value) return null
+
+    if (!provider || !prompt.trim() || starting.value || live.value) return null
     const attempt = ++generation
     starting.value = true
     error.value = ''
@@ -213,6 +218,7 @@ export function useAiAgentTurn(options: AiAgentTurnOptions) {
         baseUrl: provider.baseUrl,
         model: provider.model,
         sessionId: identity.sessionId,
+        hostIds: options.getHostIds?.() ?? [],
         prompt: prompt.trim(),
         policyVersion: `qterm.agent.v1.${options.getApprovalMode()}`,
         approvalMode: options.getApprovalMode() as unknown as ApprovalMode,
@@ -243,10 +249,16 @@ export function useAiAgentTurn(options: AiAgentTurnOptions) {
     }
   }
 
-  async function decide(stepId: string, pendingId: string, approve: boolean): Promise<void> {
+  async function decide(
+    stepId: string,
+    pendingId: string,
+    approve: boolean,
+    remember = false,
+    choice = '',
+  ): Promise<void> {
     const active = run.value
     const identity = options.getIdentity()
-    if (!active || !identity.sessionId || !pendingId || deciding.value) return
+    if (!active || !pendingId || deciding.value) return
     deciding.value = true
     try {
       applySnapshot(
@@ -255,6 +267,8 @@ export function useAiAgentTurn(options: AiAgentTurnOptions) {
           stepId,
           pendingId,
           approve,
+          remember,
+          choice,
           sessionId: identity.sessionId,
           policyVersion: active.policyVersion,
           since: cursor.value,

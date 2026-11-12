@@ -11,6 +11,8 @@ const props = defineProps<{
   sessionTitle?: string
   sessionState?: SessionState
   terminalContext?: string
+
+  availableHosts?: Array<{ id: string; name: string; address?: string }>
 }>()
 
 const { t } = useI18n()
@@ -18,7 +20,7 @@ const { t } = useI18n()
 const AGENT_MODE_KEY = 'qterm.ai.agent-mode.v1'
 
 function readMode(): 'ask' | 'agent' {
-  return window.localStorage.getItem(AGENT_MODE_KEY) === 'agent' ? 'agent' : 'ask'
+  return window.localStorage.getItem(AGENT_MODE_KEY) === 'ask' ? 'ask' : 'agent'
 }
 
 const mode = ref<'ask' | 'agent'>(readMode())
@@ -48,6 +50,7 @@ watch(
       :session-title="props.sessionTitle"
       :session-state="props.sessionState ?? 'closed'"
       :chat-mode="mode"
+      :available-hosts="props.availableHosts"
       @update:mode="setMode"
     />
   </section>

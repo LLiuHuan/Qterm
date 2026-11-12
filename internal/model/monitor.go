@@ -25,6 +25,8 @@ type ProcessInfo struct {
 	StartTime string `json:"startTime"`
 
 	MetricsAvailable bool `json:"metricsAvailable"`
+
+	CPUAvailable bool `json:"cpuAvailable"`
 }
 
 type ProcessSnapshot struct {

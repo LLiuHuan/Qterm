@@ -32,6 +32,7 @@ import {
   UI_SCALE_OPTIONS,
   type AssetLibraryLayout,
   type HostColorStyle,
+  type PageBackgroundSize,
   type ThemeMode,
 } from './settingsStore'
 import {
@@ -62,6 +63,7 @@ const props = withDefaults(
     darkBackgroundEnabled: boolean
     darkBackgroundOpacity: number
     darkBackgroundImage: string
+    pageBackgroundSize?: import('./settingsStore').PageBackgroundSize
     terminalLightTheme?: TerminalThemeId
     terminalDarkTheme?: TerminalThemeId
     terminalThemeBackgroundScope?: import('./settingsStore').TerminalThemeBackgroundScope
@@ -75,6 +77,7 @@ const props = withDefaults(
     terminalLightTheme: 'default-light',
     terminalDarkTheme: 'default-dark',
     terminalThemeBackgroundScope: 'terminal',
+    pageBackgroundSize: 'cover',
   },
 )
 
@@ -92,6 +95,7 @@ const emit = defineEmits<{
   'update:darkBackgroundEnabled': [value: boolean]
   'update:darkBackgroundOpacity': [value: number]
   'update:darkBackgroundImage': [value: string]
+  'update:pageBackgroundSize': [value: import('./settingsStore').PageBackgroundSize]
   'update:terminalLightTheme': [value: TerminalThemeId]
   'update:terminalDarkTheme': [value: TerminalThemeId]
   'update:terminalThemeBackgroundScope': [value: import('./settingsStore').TerminalThemeBackgroundScope]
@@ -440,6 +444,19 @@ function updateHostColorStyle(value: string): void {
   emit('update:hostColorStyle', value)
 }
 
+const backgroundSizeOptions = computed(() => [
+  { value: 'cover', label: t('appearance.core.backgroundSize.cover') },
+  { value: 'contain', label: t('appearance.core.backgroundSize.contain') },
+  { value: 'stretch', label: t('appearance.core.backgroundSize.stretch') },
+  { value: 'tile', label: t('appearance.core.backgroundSize.tile') },
+])
+const PAGE_BACKGROUND_SIZE_VALUES: PageBackgroundSize[] = ['cover', 'contain', 'stretch', 'tile']
+function updateBackgroundSize(value: unknown): void {
+  const size = String(value) as PageBackgroundSize
+  if (!PAGE_BACKGROUND_SIZE_VALUES.includes(size)) return
+  emit('update:pageBackgroundSize', size)
+}
+
 const browserImageInput = ref<HTMLInputElement | null>(null)
 const pendingImageKind = ref<'light' | 'dark'>('light')
 const selectedImageNames = ref<Record<'light' | 'dark', string>>({ light: '', dark: '' })
@@ -603,6 +620,26 @@ function updateOpacity(kind: 'light' | 'dark', value: string | number): void {
     <div
       class="settings-card settings-background-card overflow-hidden border border-solid border-qt-border rounded-xl [background:color-mix(in_srgb,var(--qt-panel)_32%,transparent)] [-webkit-backdrop-filter:blur(16px)_saturate(135%)] [backdrop-filter:blur(16px)_saturate(135%)]"
     >
+      <QtermSettingsRow
+        :label="t('appearance.core.backgroundSize.label')"
+        :description="t('appearance.core.backgroundSize.description')"
+      >
+        <Select :model-value="props.pageBackgroundSize ?? 'cover'" @update:model-value="updateBackgroundSize">
+          <SelectTrigger class="min-w-60! shrink-0" :aria-label="t('appearance.core.backgroundSize.label')">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent class="min-w-60! w-max! max-w-[calc(100vw-2rem)]!">
+            <SelectItem
+              v-for="option in backgroundSizeOptions"
+              :key="option.value"
+              :value="option.value"
+              class="whitespace-nowrap"
+            >
+              {{ option.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </QtermSettingsRow>
       <div class="settings-background-environment">
         <QtermSettingsRow
           class="settings-switch-row c-p"

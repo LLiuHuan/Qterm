@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { Component } from 'vue'
-import { RefreshCw } from '@lucide/vue'
-import { IconButton, QtermButton, QtermFormMessage, QtermInput, QtermSecretInput } from '../../components/common'
+import { QtermButton, QtermFormMessage, QtermInput, QtermSecretInput, RefreshIconButton } from '../../components/common'
 import { QtermCombobox } from '../../components/common/form-controls'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { useI18n } from '../../locales'
@@ -331,16 +330,14 @@ async function save(): Promise<void> {
           <div class="flex flex-col gap-1 text-xs text-qt-muted">
             <span class="flex items-center gap-2">
               {{ t('settings.ai.modelList') }}
-              <IconButton
+              <RefreshIconButton
                 class="ms-auto"
                 :label="t('settings.ai.refreshModels')"
-                size="icon-sm"
+                :spinning="refreshing"
                 :disabled="refreshing || testing || busy"
                 data-ai-model-refresh
                 @click="refreshModels"
-              >
-                <RefreshCw :size="14" :class="{ 'animate-spin': refreshing }" aria-hidden="true" />
-              </IconButton>
+              />
             </span>
             <div class="mt-[6px] flex flex-col gap-[8px]">
               <div

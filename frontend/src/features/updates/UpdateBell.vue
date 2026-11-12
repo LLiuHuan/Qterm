@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Bell } from '@lucide/vue'
 import { toast } from 'vue-sonner'
 import { IconButton, QtermButton } from '../../components/common'
+import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
+import AiMessageText from '../ai/AiMessageText.vue'
 import { useI18n } from '@/locales'
 import { installUpdate, shouldNotifyUpdate, useUpdateState } from './updateStore'
 
@@ -11,35 +13,14 @@ const state = useUpdateState()
 
 const visible = computed(() => shouldNotifyUpdate())
 const version = computed(() => state.status.release?.version ?? '')
+
+const notes = computed(() => (state.status.release?.notes ?? '').trim())
 const installing = computed(() => state.status.state === 'installing' || state.busy)
 const open = ref(false)
 
 watch(version, () => {
   open.value = false
 })
-
-function onDocumentPointerDown(event: PointerEvent): void {
-  const target = event.target as HTMLElement | null
-  if (!target?.closest('[data-update-bell-root]')) open.value = false
-}
-
-function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') open.value = false
-}
-
-function bindDismissers(bind: boolean): void {
-  if (typeof document === 'undefined') return
-  const method = bind ? 'addEventListener' : 'removeEventListener'
-  document[method]('pointerdown', onDocumentPointerDown as EventListener, true)
-  document[method]('keydown', onKeydown as EventListener, true)
-}
-
-watch(open, (value) => bindDismissers(value))
-onBeforeUnmount(() => bindDismissers(false))
-
-function toggle(): void {
-  open.value = !open.value
-}
 
 function dismiss(): void {
   open.value = false
@@ -63,7 +44,7 @@ async function installNow(): Promise<void> {
       :label="t('about.update.bell.label', { version })"
       :aria-expanded="open"
       data-update-bell
-      @click="toggle"
+      @click="open = true"
     >
       <Bell :size="16" aria-hidden="true" />
       <span
@@ -72,25 +53,35 @@ async function installNow(): Promise<void> {
         aria-hidden="true"
       />
     </IconButton>
-    <div
-      v-if="open"
-      class="update-bell-panel absolute top-full right-0 z-50 mt-2 flex w-72 flex-col gap-1 rounded-lg border border-solid border-qt-border p-3 shadow-lg [-webkit-backdrop-filter:blur(18px)_saturate(130%)] [backdrop-filter:blur(18px)_saturate(130%)]"
-      role="dialog"
-      :aria-label="t('about.update.bell.title', { version })"
-      data-update-bell-panel
-    >
-      <strong class="text-sm">{{ t('about.update.bell.title', { version }) }}</strong>
-      <p class="m-0 text-xs text-qt-muted">{{ t('about.update.bell.body') }}</p>
 
-      <p class="m-0 text-[0.6875rem] text-qt-muted" data-update-bell-hint>{{ t('about.update.bell.dismissHint') }}</p>
-      <div class="mt-2 flex justify-end gap-2">
-        <QtermButton variant="outline" type="button" data-update-bell-dismiss @click="dismiss">
-          {{ t('about.update.bell.dismiss') }}
-        </QtermButton>
-        <QtermButton type="button" :disabled="installing" data-update-bell-install @click="installNow">
-          {{ installing ? t('about.update.installing') : t('about.update.install') }}
-        </QtermButton>
-      </div>
-    </div>
+    <QtermDialog :open="open" @update:open="(value) => !value && dismiss()">
+      <QtermDialogContent
+        v-if="open"
+        size="lg"
+        close-on-escape
+        data-update-bell-panel
+        data-update-dialog
+        :aria-label="t('about.update.bell.title', { version })"
+      >
+        <QtermDialogHeader :title="t('about.update.bell.title', { version })" @close="dismiss" />
+
+        <div class="mt-3 flex min-h-0 flex-col gap-1.5" data-update-notes-block>
+          <span class="text-xs text-qt-muted">{{ t('about.update.releaseNotes') }}</span>
+          <div class="max-h-[46vh] overflow-auto rounded-md border-d p-3 text-xs text-qt-muted" data-update-notes>
+            <AiMessageText v-if="notes" :text="notes" />
+            <p v-else class="m-0">{{ t('about.update.bell.emptyNotes') }}</p>
+          </div>
+        </div>
+
+        <QtermDialogFooter>
+          <QtermButton variant="outline" type="button" data-update-bell-dismiss @click="dismiss">
+            {{ t('about.update.bell.dismiss') }}
+          </QtermButton>
+          <QtermButton type="button" :disabled="installing" data-update-bell-install @click="installNow">
+            {{ installing ? t('about.update.installing') : t('about.update.install') }}
+          </QtermButton>
+        </QtermDialogFooter>
+      </QtermDialogContent>
+    </QtermDialog>
   </div>
 </template>

@@ -45,7 +45,17 @@ type SFTPTransferRequest struct {
 
 	ResumeKey string
 
+	ArchiveDownload *ArchiveDownloadSpec
+
 	ReportStage func(stage string)
+
+	ReportTotal func(total int64)
+}
+
+type ArchiveDownloadSpec struct {
+	SourceDirectory string
+
+	TargetDirectory string
 }
 
 type SFTPTransferExecutor interface {
@@ -546,6 +556,15 @@ func (m *SFTPTransferManager) run(
 			task.snapshot = next
 		}
 	}
+
+	reportTotal := func(total int64) {
+		task.mu.Lock()
+		defer task.mu.Unlock()
+		next, totalErr := task.snapshot.WithTotal(total, m.now())
+		if totalErr == nil {
+			task.snapshot = next
+		}
+	}
 	for attempt := 0; attempt < 10000; attempt++ {
 		if err = ctx.Err(); err != nil {
 			break
@@ -555,6 +574,7 @@ func (m *SFTPTransferManager) run(
 		candidate.CopyDestination = false
 
 		candidate.ReportStage = reportStage
+		candidate.ReportTotal = reportTotal
 		if copyDestination {
 			candidate.CopyDestination = true
 			if request.Direction == model.SFTPTransferUpload {

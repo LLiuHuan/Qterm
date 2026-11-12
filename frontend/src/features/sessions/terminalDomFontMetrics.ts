@@ -64,6 +64,7 @@ function installWkWebViewDomFontMetrics(instance: Terminal, options: TerminalDom
   const measure = (): Readonly<{ width: number; height: number }> => {
     probe.style.fontFamily = instance.options.fontFamily ?? options.fontFamily
     probe.style.fontSize = `${instance.options.fontSize ?? options.fontSize}px`
+    probe.style.fontWeight = String(instance.options.fontWeight ?? 400)
     return {
       width: Number(probe.offsetWidth) / 32,
       height: Number(probe.offsetHeight),

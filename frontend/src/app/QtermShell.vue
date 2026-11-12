@@ -14,6 +14,8 @@ import {
   scheduleWindowGeometryPersist,
   flushWindowGeometry,
   toggleCurrentWindowMaximise,
+  isNewWorkspaceWindowMode,
+  isSessionWindowMode,
   isSettingsWindowMode,
   connectSettingsWindowState,
   connectHostsChanged,
@@ -26,6 +28,12 @@ import {
   type DialogWindowKind,
 } from '../services/sessionWindows'
 import { toast } from 'vue-sonner'
+import {
+  BULK_CONNECT_LIMIT,
+  collectGroupHosts,
+  pendingConnectHosts,
+  runBulkConnect,
+} from '../features/hosts/bulkConnect'
 import { transferQueueAction, type TransferQueueAction } from '../services/transferQueue'
 import { setCloseToTray, setTrayMenuState, subscribeTrayActions, type TrayAction } from '../services/tray'
 import { hasWailsRuntime, whenWailsRuntime } from '../services/runtime'
@@ -83,7 +91,7 @@ import { sftpErrorMessage } from '../services/sftp'
 import { decodeAppError, translateAppError, translateErrorKey } from '../services/errors'
 import { FILE_DROP_EVENT, resolveSelfWindowName, shouldHandleDrop } from '../services/fileDropOwnership'
 import { computed, nextTick, ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import type { SessionTab, ToolPanel } from '../types/qterm'
+import type { GroupedHosts, SessionTab, ToolPanel } from '../types/qterm'
 import SnippetsSettingsPanel from '../features/settings/SnippetsSettingsPanel.vue'
 import AssetPickerDialog, { type AssetChoice, type AssetPickerMode } from '../components/dialogs/AssetPickerDialog.vue'
 import type { SplitDirection } from '../features/sessions/useSplitWorkspace'
@@ -105,6 +113,8 @@ import { provideTerminalPaneCommandBus } from '../features/sessions/terminalPane
 import { useI18n } from '@/locales'
 import { requestAILaunch, useAILaunch } from '../services/aiAgentLaunch'
 import { registerSnippetCreator } from '../services/snippetCreator'
+import { syncAppLocked } from '../services/appLock'
+import type { Snippet } from '../services/snippets'
 import { evenPixel, observeEvenDialogHeights } from '../lib/geometry'
 import { waitForAvailable } from '../lib/async'
 import RdpCanvasPane from '@/features/remotedesktop/RdpCanvasPane.vue'
@@ -144,13 +154,8 @@ const sessionWindowTitle = computed(() => {
     : ''
   return address ? t('shell.app.sessionWindowWithHost', { title: base, address }) : base
 })
-const isSessionWindow =
-  typeof window !== 'undefined' &&
-  (new URLSearchParams(window.location.search).has('openHost') ||
-    new URLSearchParams(window.location.search).has('openSession') ||
-    new URLSearchParams(window.location.search).get('openLocal') === '1')
-const isChildWorkspaceWindow =
-  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('newWindow') === '1'
+const isSessionWindow = isSessionWindowMode()
+const isChildWorkspaceWindow = isNewWorkspaceWindowMode()
 
 const isSettingsWindow = isSettingsWindowMode()
 
@@ -259,8 +264,10 @@ const {
   darkBackgroundEnabled,
   darkBackgroundOpacity,
   darkBackgroundImage,
+  pageBackgroundSize,
   setBackgroundSetting,
   terminalFontSize,
+  terminalFontWeight,
   terminalLineHeight,
   terminalFontFamily,
   settingsReady,
@@ -361,6 +368,7 @@ const {
   setAppSetting,
   setThemeMode,
   setTerminalFontSize,
+  setTerminalFontWeight,
   setTerminalLineHeight,
   setTerminalFontFamily,
   resetTerminalTypography,
@@ -380,6 +388,7 @@ const {
   resourcesImported,
   isDark,
   isMac,
+  isNativeMacWindow,
   pendingHostKey,
   pendingAuthentication,
   authenticationRetry,
@@ -535,6 +544,7 @@ const { backgroundEnabled, pageBackgroundStyle } = useWindowTheme({
   darkBackgroundEnabled,
   darkBackgroundOpacity,
   darkBackgroundImage,
+  pageBackgroundSize,
   terminalLightTheme,
   terminalDarkTheme,
   terminalThemeBackgroundScope,
@@ -959,9 +969,33 @@ async function openSnippetCreator(content = ''): Promise<void> {
   }
 }
 
+async function openSnippetEditor(snippet: Snippet): Promise<void> {
+  const panel = await waitForAvailable(() => standaloneSnippetPanel.value, { timeoutMs: SNIPPET_PANEL_WAIT_MS })
+  if (!isSnippetPanelReady(panel)) {
+    toast.warning(t('shell.terminal.snippetUnavailable'))
+    return
+  }
+  try {
+    panel.openEditDialog(snippet)
+  } catch {
+    console.warn('[QtermShell] 打开编辑快捷命令弹窗失败')
+    toast.warning(t('shell.terminal.snippetUnavailable'))
+  }
+}
+
 const adhocConnectOpen = ref(false)
 
 const aiChatOpen = ref(false)
+
+const globalAiOpen = ref(false)
+
+const globalAiHosts = computed(() =>
+  hosts.value.map((host) => ({ id: host.id, name: host.name, address: host.address })),
+)
+
+function openGlobalAi(): void {
+  globalAiOpen.value = true
+}
 
 const importConfigOpen = ref(false)
 
@@ -983,31 +1017,80 @@ watch([aiChatOpen, activeSessionId], ([open, sessionId]) => {
 })
 
 async function handleAdHocOpened(payload: {
-  hostId: string
-  displayName: string
-  protocol: 'ssh' | 'telnet'
-  address: string
-  result: import('../services/adhocSession').AdHocOpenResult
+  entries: Array<{
+    hostId: string
+    displayName: string
+    protocol: 'ssh' | 'telnet'
+    address: string
+    result: import('../services/adhocSession').AdHocOpenResult
+  }>
+  failed: number
 }): Promise<void> {
-  const host = {
-    id: payload.hostId,
-    name: payload.displayName,
-    address: payload.address,
-    protocol: payload.protocol,
-  } as unknown as HostRecord
   const now = new Date().toISOString()
-  await openSessionWithResult(host, {
-    session: {
-      id: payload.result.sessionId,
-      hostId: payload.hostId,
-      kind: payload.protocol === 'telnet' ? 'telnet' : 'ssh',
-      state: payload.result.state,
-      createdAt: now,
-      updatedAt: now,
-      attachEpoch: payload.result.attachEpoch,
-    },
-    streamToken: payload.result.streamToken,
-  })
+  let done = 0
+  for (const entry of payload.entries) {
+    const host = {
+      id: entry.hostId,
+      name: entry.displayName,
+      address: entry.address,
+      protocol: entry.protocol,
+    } as unknown as HostRecord
+
+    await openSessionWithResult(host, {
+      session: {
+        id: entry.result.sessionId,
+        hostId: entry.hostId,
+        kind: entry.protocol === 'telnet' ? 'telnet' : 'ssh',
+        state: entry.result.state,
+        createdAt: now,
+        updatedAt: now,
+        attachEpoch: entry.result.attachEpoch,
+      },
+      streamToken: entry.result.streamToken,
+    })
+    done += 1
+  }
+  const failed = payload.failed
+  if (failed > 0) {
+    toast.warning(t('shell.adhoc.summaryFailed', { done, failed }))
+  } else if (done > 1) {
+    toast.success(t('shell.adhoc.summary', { count: done }))
+  }
+}
+
+const bulkConnectBusy = ref(false)
+
+async function connectGroupHosts(group: GroupedHosts): Promise<void> {
+  if (bulkConnectBusy.value) return
+  const all = collectGroupHosts(group)
+  if (all.length === 0) {
+    toast.info(t('shell.asset.connectGroupEmpty'))
+    return
+  }
+  const openHostIds = sessions.value.map((session) => session.hostId).filter((id): id is string => Boolean(id))
+  const targets = pendingConnectHosts(all, openHostIds)
+  if (targets.length === 0) {
+    toast.info(t('shell.asset.connectGroupAllOpen'))
+    return
+  }
+  if (targets.length > BULK_CONNECT_LIMIT) {
+    toast.error(t('shell.asset.connectGroupLimit', { limit: BULK_CONNECT_LIMIT }))
+    return
+  }
+
+  bulkConnectBusy.value = true
+  try {
+    const result = await runBulkConnect(targets, async (host) => {
+      await openHost(host)
+    })
+    if (result.failed > 0) {
+      toast.warning(t('shell.asset.connectGroupSummaryFailed', { done: result.done, failed: result.failed }))
+    } else {
+      toast.success(t('shell.asset.connectGroupSummary', { done: result.done }))
+    }
+  } finally {
+    bulkConnectBusy.value = false
+  }
 }
 
 const pendingAuthenticationIsAdHoc = computed(() => {
@@ -1234,6 +1317,7 @@ const paletteItems = computed<PaletteItem[]>(() => {
     { id: 'action:new-local', label: t('shell.palette.newLocalTerminal'), group: t('shell.palette.actions') },
     { id: 'action:open-settings', label: t('shell.palette.openSettingsAction'), group: t('shell.palette.actions') },
     { id: 'action:ai-chat', label: t('shell.aiChat.title'), group: t('shell.palette.actions') },
+    { id: 'action:global-ai', label: t('shell.aiChat.globalEntry'), group: t('shell.palette.actions') },
     {
       id: 'action:toggle-output-pause',
       label: t('shell.palette.toggleOutputPause'),
@@ -1264,6 +1348,10 @@ function runPaletteItem(item: PaletteItem): void {
   }
   if (item.id === 'action:ai-chat') {
     aiChatOpen.value = true
+    return
+  }
+  if (item.id === 'action:global-ai') {
+    openGlobalAi()
     return
   }
   if (item.id === 'action:open-settings') {
@@ -1474,14 +1562,10 @@ function cancelCloseSessions(): void {
   closeConfirmIds.value = []
 }
 
-async function copyHost(
-  host: { id: string; address: string; username: string; port: number },
-  kind: 'ip' | 'connection' | 'id',
-) {
-  const value = kind === 'ip' ? host.address : kind === 'id' ? host.id : `${host.username}@${host.address}:${host.port}`
+async function copyHost(host: { address: string }): Promise<void> {
   try {
     if (!navigator.clipboard) throw new Error(t('shell.app.clipboardUnsupported'))
-    await navigator.clipboard.writeText(value)
+    await navigator.clipboard.writeText(host.address)
     toast.success(t('shell.app.copied'))
   } catch (error) {
     toast.error(hostErrorMessage(error, t('shell.app.copyFailed')))
@@ -1965,10 +2049,17 @@ function scheduleGeometryPersist(): void {
   scheduleWindowGeometryPersist(windowRememberSize.value, windowRememberPosition.value)
 }
 
+const WINDOW_RESIZE_IDLE_MS = 120
+let windowResizeIdleTimer: number | undefined
+
 function handleWindowResize(): void {
-  updateEvenViewportMetrics()
-  if (sftpGateway.persistent) void normalizeCurrentWindowGeometry()
-  scheduleGeometryPersist()
+  if (windowResizeIdleTimer !== undefined) window.clearTimeout(windowResizeIdleTimer)
+  windowResizeIdleTimer = window.setTimeout(() => {
+    windowResizeIdleTimer = undefined
+    updateEvenViewportMetrics()
+    if (sftpGateway.persistent) void normalizeCurrentWindowGeometry()
+    scheduleGeometryPersist()
+  }, WINDOW_RESIZE_IDLE_MS)
 }
 
 function handleWindowMove(): void {
@@ -1986,6 +2077,8 @@ const appLockThemeStyle = computed<Record<string, string>>(() => {
   }
   return picked
 })
+
+watch(appLocked, (locked) => void syncAppLocked(locked), { immediate: true })
 
 watch(appLocked, (locked) => {
   if (!locked) return
@@ -2162,6 +2255,7 @@ onBeforeUnmount(() => {
   disposeSessionWindowHandover()
   stopEvenDialogHeights?.()
   window.removeEventListener('resize', handleWindowResize)
+  if (windowResizeIdleTimer !== undefined) window.clearTimeout(windowResizeIdleTimer)
   stopNativeWindowResize?.()
   stopNativeWindowMove?.()
   stopNativeWindowClosing?.()
@@ -2201,7 +2295,7 @@ onBeforeUnmount(() => {
       'terminal-theme-background-shell': terminalThemeBackgroundScope === 'shell',
       'terminal-theme-background-derived': terminalThemeBackgroundScope === 'derived',
       'has-terminal-sessions': terminalSessions.length > 0,
-      'is-mac': isMac,
+      'is-mac': isNativeMacWindow,
       // 全屏资产库布局下侧栏恒定隐藏：复用既有的 0 宽度列折叠，不新增一套布局 CSS。
       'is-sidebar-collapsed': sidebarCollapsed || supportsAssetLibrary,
       'is-session-window': isSessionWindow,
@@ -2268,6 +2362,7 @@ onBeforeUnmount(() => {
       @import-config="requestImportConfig"
       @export-config="requestExportConfig"
       @toggle-theme="toggleTheme"
+      @open-global-ai="openGlobalAi"
     />
 
     <div
@@ -2297,6 +2392,7 @@ onBeforeUnmount(() => {
         :selected-group-id="selectedGroupId"
         :is-dark="isDark"
         :show-host-address="showHostAddress"
+        :bulk-connect-busy="bulkConnectBusy"
         @create-host="requestCreateHostDialog"
         @create-host-in-group="createHostInGroup"
         @create-subgroup="openCreateGroupDialog"
@@ -2317,6 +2413,7 @@ onBeforeUnmount(() => {
         @move-group="moveGroup"
         @edit-group="openEditGroupDialog"
         @delete-group="requestDeleteGroup"
+        @connect-group="connectGroupHosts"
         @update-search-query="searchQuery = $event"
       />
 
@@ -2352,6 +2449,8 @@ onBeforeUnmount(() => {
           :dark="isDark"
           :transparent-background="backgroundEnabled"
           :terminal-font-size="terminalFontSize"
+          :terminal-font-weight="terminalFontWeight"
+          @font-size-step="setTerminalFontSize(terminalFontSize + $event)"
           :terminal-line-height="terminalLineHeight"
           :terminal-font-family="terminalFontFamily"
           :settings-ready="settingsReady"
@@ -2492,6 +2591,7 @@ onBeforeUnmount(() => {
             :selected-host-id="selectedHostId"
             :selected-group-id="selectedGroupId"
             :show-host-address="showHostAddress"
+            :bulk-connect-busy="bulkConnectBusy"
             @create-host="requestCreateHostDialog"
             @create-host-in-group="createHostInGroup"
             @create-subgroup="openCreateGroupDialog"
@@ -2511,6 +2611,7 @@ onBeforeUnmount(() => {
             @move-group="moveGroup"
             @edit-group="openEditGroupDialog"
             @delete-group="requestDeleteGroup"
+            @connect-group="connectGroupHosts"
             @update-search-query="searchQuery = $event"
           />
         </div>
@@ -2536,6 +2637,7 @@ onBeforeUnmount(() => {
           :forwards="portForwards"
           :forward-groups="portForwardGroups"
           :next-hosts="hosts"
+          :available-hosts="globalAiHosts"
           :otp-entries="otpEntries"
           :credentials="credentialOptions"
           @manage-credentials="openOtpManagement"
@@ -2551,7 +2653,9 @@ onBeforeUnmount(() => {
           @update:forward-groups="setPortForwardGroups"
           @update:otp-entries="setOtpEntries"
           @create-snippet="openSnippetCreator"
+          @edit-snippet="openSnippetEditor"
           @update-terminal-theme="setTerminalTheme"
+          @focus-terminal="sendTerminalPaneCommand('focusTerminal')"
         />
       </main>
 
@@ -2647,6 +2751,8 @@ onBeforeUnmount(() => {
       @exported="windowedDialogDone(resourcesImported)"
     />
 
+    <AiChatDialog :open="globalAiOpen" :available-hosts="globalAiHosts" global @close="globalAiOpen = false" />
+
     <AiChatDialog
       :open="aiChatOpen"
       :terminal-context="aiTerminalContextSessionId === activeSessionId ? aiTerminalContext : undefined"
@@ -2690,11 +2796,13 @@ onBeforeUnmount(() => {
       :dark-background-enabled="darkBackgroundEnabled"
       :dark-background-opacity="darkBackgroundOpacity"
       :dark-background-image="darkBackgroundImage"
+      :page-background-size="pageBackgroundSize"
       :terminal-light-theme="terminalLightTheme"
       :terminal-dark-theme="terminalDarkTheme"
       :terminal-theme-background-scope="terminalThemeBackgroundScope"
       :background-enabled="backgroundEnabled"
       :terminal-font-size="terminalFontSize"
+      :terminal-font-weight="terminalFontWeight"
       :terminal-line-height="terminalLineHeight"
       :terminal-font-family="terminalFontFamily"
       :auto-copy-selection="terminalAutoCopySelection"
@@ -2792,10 +2900,12 @@ onBeforeUnmount(() => {
       @update:dark-background-enabled="setBackgroundSetting('darkBackgroundEnabled', $event)"
       @update:dark-background-opacity="setBackgroundSetting('darkBackgroundOpacity', $event)"
       @update:dark-background-image="setBackgroundSetting('darkBackgroundImage', $event)"
+      @update:page-background-size="setBackgroundSetting('pageBackgroundSize', $event)"
       @update:terminal-light-theme="setTerminalTheme('light', $event)"
       @update:terminal-dark-theme="setTerminalTheme('dark', $event)"
       @update:terminal-theme-background-scope="setTerminalThemeBackgroundScope"
       @update:terminal-font-size="setTerminalFontSize"
+      @update:terminal-font-weight="setTerminalFontWeight"
       @update:terminal-line-height="setTerminalLineHeight"
       @update:terminal-font-family="setTerminalFontFamily"
       @reset-terminal-typography="resetTerminalTypography"

@@ -1,0 +1,18 @@
+-- 主机别名：一个只用于展示与检索的第二名称。
+--
+-- 为什么不复用 name：
+--   name 是用户在资产树里认主机的唯一字段，同名主机（例如三台都叫 "web"）在列表里
+--   无法区分。别名让用户给其中一台加 "生产-web" 这类容易记的标识，同时不改动 name
+--   的既有语义（name 仍参与导入去重、搜索、排序）。
+--
+-- 为什么单独一列而不是塞进 encrypted_payload：
+--   别名不是秘密，也不参与连接；放进加密 payload 会让列表查询必须解密，得不偿失。
+--
+-- 为什么 NOT NULL DEFAULT ''：
+--   SQLite 的 ADD COLUMN 对已有行会用默认值填充；空串表示"未设置"，
+--   避免 NULL 让 scan 需要额外的 sql.NullString 分支。
+--
+-- 为什么不加 UNIQUE：
+--   本轮只做展示/检索用途，别名重复不产生歧义（用户看到的是 name + alias）。
+--   唯一性只有在别名被用于 CLI 解析时才必要，那属于"自定义 ID"的另一半。
+ALTER TABLE hosts ADD COLUMN alias TEXT NOT NULL DEFAULT '';

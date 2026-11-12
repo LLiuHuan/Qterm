@@ -127,6 +127,8 @@ export const appFr: Record<string, string> = {
   'about.update.description':
     'Recherchez les nouvelles versions dans les GitHub Releases : une fois le paquet téléchargé et vérifié, l’application peut redémarrer pour l’installer.',
   'about.update.desktopOnly': 'Les mises à jour automatiques ne sont disponibles que dans l’application de bureau.',
+  'about.update.devBuild':
+    'Les versions de développement ne vérifient pas les mises à jour automatiquement (aucune requête au démarrage, au retour dans la fenêtre ni par minuterie) ; GitHub Releases n’est interrogé qu’après un clic sur « Rechercher des mises à jour ».',
   'about.update.check': 'Rechercher des mises à jour',
   'about.update.checking': 'Vérification…',
   'about.update.current': 'Version actuelle',
@@ -151,10 +153,8 @@ export const appFr: Record<string, string> = {
   'about.update.openPage': 'Ouvrir la page de version',
   'about.update.bell.label': 'Mise à jour disponible v{version}',
   'about.update.bell.title': 'La version v{version} est prête',
-  'about.update.bell.body':
-    'Téléchargement et vérification terminés. Redémarrez l’application pour terminer la mise à jour.',
   'about.update.bell.dismiss': 'Annuler',
-  'about.update.bell.dismissHint': 'Ferme seulement ce panneau — la cloche reste',
+  'about.update.bell.emptyNotes': "Cette version n'a pas de notes de version.",
   'about.debug.title': 'Journaux de débogage',
   'about.debug.description':
     'Enregistrer localement des journaux de diagnostic détaillés pour le dépannage. Désactivé par défaut.',
@@ -380,4 +380,38 @@ export const appFr: Record<string, string> = {
   'asset.password.tooShort': 'Le mot de passe du paquet doit contenir au moins 8 caractères.',
   'asset.password.tooLong': 'Le mot de passe du paquet ne doit pas dépasser 4096 caractères.',
   'asset.password.mismatch': 'Les deux mots de passe du paquet ne correspondent pas.',
+  'history.home_unknown':
+    'Impossible de déterminer le répertoire personnel distant : les fichiers d’historique ne peuvent pas être lus.',
+  'history.read_unsupported': 'Cette session ne peut pas lire les fichiers distants.',
+  'history.unreadable': 'Le fichier d’historique existe mais n’est pas lisible.',
+  'history.remote.tabLocal': 'Local',
+  'history.remote.tabRemote': 'Distant',
+  'history.remote.modeLocal': 'Journal local',
+  'history.remote.modeRemote': 'Historique distant',
+  'history.remote.hint':
+    'Lu depuis les fichiers d’historique du shell distant, y compris les commandes lancées dans d’autres terminaux (lecture seule).',
+  'history.remote.search': 'Rechercher dans l’historique distant',
+  'history.remote.refresh': 'Recharger l’historique distant',
+  'history.remote.count': '{count} entrées',
+  'history.remote.truncated': 'Historique long : seules les {count} entrées les plus récentes sont affichées',
+  'history.remote.noSessionTitle': 'Aucune session disponible',
+  'history.remote.noSession': 'Connectez d’abord une session pour voir l’historique distant.',
+  'history.remote.loading': 'Lecture de l’historique distant…',
+  'history.remote.loadingHint': 'Lecture de ~/.bash_history, ~/.zsh_history et du fichier d’historique fish.',
+  'history.remote.retry': 'Réessayer',
+  'history.remote.loadFailed': 'Impossible de lire l’historique distant',
+  'history.remote.empty': 'Aucun historique distant',
+  'history.remote.emptyHint': 'Aucun fichier d’historique bash, zsh ou fish trouvé, ou les fichiers sont vides.',
+  'history.remote.noMatch': 'Aucune commande correspondante',
+  'history.remote.noMatchHint': 'Essayez un autre mot-clé.',
+  'history.remote.execute': 'Exécuter',
+  'history.remote.executeMultiLine':
+    'Les commandes multilignes ne peuvent pas être exécutées en un clic ; copiez-les et collez-les.',
+  'history.remote.executeFailed':
+    'La commande n’a pas pu être envoyée au terminal. Vérifiez que la session est connectée.',
+  'history.remote.saveSnippet': 'Enregistrer comme extrait',
+  'history.remote.copy': 'Copier la commande',
+  'history.remote.copied': 'Commande copiée',
+  'history.remote.copyFailed': 'Échec de la copie',
+  'history.remote.unknownShell': 'Inconnu',
 }

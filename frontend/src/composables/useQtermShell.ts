@@ -19,7 +19,7 @@ import { useGroupEditor } from '../features/hosts/useGroupEditor'
 import { useHostEditor } from '../features/hosts/useHostEditor'
 import { useSettingsState } from '../features/settings/useSettingsState'
 
-import { isMacPlatform as isMac, refreshIsMacPlatform } from '../lib/platform'
+import { isMacPlatform as isMac, isNativeMacWindow, refreshIsMacPlatform } from '../lib/platform'
 import type { SettingsCategory } from '../features/settings'
 import { createPortForwardGateway, type PortForwardConfig } from '../services/forwards'
 import type { OtpEntry } from '../services/otp'
@@ -28,6 +28,7 @@ import {
   SIDEBAR_WIDTH_MAX,
   SIDEBAR_WIDTH_MIN,
   DEFAULT_SETTINGS,
+  PAGE_BACKGROUND_SIZES,
   normalizeSettings,
   RDP_FIRST_FRAME_TIMEOUT_MAX,
   RDP_FIRST_FRAME_TIMEOUT_MIN,
@@ -43,6 +44,7 @@ import {
   UI_SCALE_OPTIONS,
   type AssetLibraryLayout,
   type HostColorStyle,
+  type PageBackgroundSize,
   type SftpDirectoryFollowMode,
   type SftpDragFolderUploadMode,
   type TabDoubleClickBehavior,
@@ -57,7 +59,13 @@ import {
 } from '../features/hosts'
 import type { SessionTab, ToolPanel } from '../types/qterm'
 import { isSupportedLocale, setLocale, useI18n } from '../locales'
-import { isSettingsWindowMode, openSettingsWindow, showCurrentWindow } from '../services/sessionWindows'
+import {
+  isNewWorkspaceWindowMode,
+  isSettingsWindowMode,
+  isSessionWindowMode,
+  openSettingsWindow,
+  showCurrentWindow,
+} from '../services/sessionWindows'
 import { hasWailsRuntime, whenWailsRuntime } from '../services/runtime'
 import { readOpenSessions, writeOpenSessions } from '../services/sessionRestore'
 import { setQuitConfirm } from '../services/quitConfirm'
@@ -165,6 +173,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     setThemeMode,
     toggleTheme,
     setTerminalFontSize,
+    setTerminalFontWeight,
     setTerminalLineHeight,
     setTerminalFontFamily,
     setTerminalTheme,
@@ -207,7 +216,10 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const darkBackgroundOpacity = computed(() => settings.darkBackgroundOpacity)
   const darkBackgroundImage = computed(() => settings.darkBackgroundImage)
   const darkBackgroundColor = computed(() => settings.darkBackgroundColor)
+
+  const pageBackgroundSize = computed(() => settings.pageBackgroundSize ?? 'cover')
   const terminalFontSize = computed(() => settings.terminalFontSize)
+  const terminalFontWeight = computed(() => settings.terminalFontWeight ?? 400)
   const terminalLineHeight = computed(() => settings.terminalLineHeight ?? 1.25)
   const terminalFontFamily = computed(() => settings.terminalFontFamily)
   const terminalLightTheme = computed(() => settings.terminalLightTheme ?? 'default-light')
@@ -315,7 +327,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const settingsInWindow = computed(() => settings.settingsInWindow ?? true)
   const windowRememberPosition = computed(() => settings.windowRememberPosition ?? true)
   watch(appLocale, (value) => setLocale(value), { immediate: true })
-  const keywordHighlightEnabled = computed(() => settings.keywordHighlightEnabled ?? false)
+  const keywordHighlightEnabled = computed(() => settings.keywordHighlightEnabled ?? true)
   const keywordHighlightRules = computed(() => settings.keywordHighlightRules ?? [])
   const sidebarWidth = computed(() => settings.layoutSidebarWidth ?? 224)
   const toolPanelWidth = computed(() => settings.layoutToolPanelWidth ?? 360)
@@ -571,7 +583,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
       | 'darkBackgroundEnabled'
       | 'darkBackgroundOpacity'
       | 'darkBackgroundImage'
-      | 'darkBackgroundColor',
+      | 'darkBackgroundColor'
+      | 'pageBackgroundSize',
     value: boolean | number | string,
   ): void {
     switch (key) {
@@ -598,6 +611,11 @@ export function useQtermShell(options: QtermShellOptions = {}) {
         break
       case 'darkBackgroundColor':
         settings.darkBackgroundColor = String(value)
+        break
+      case 'pageBackgroundSize':
+        settings.pageBackgroundSize = PAGE_BACKGROUND_SIZES.includes(value as PageBackgroundSize)
+          ? (value as PageBackgroundSize)
+          : 'cover'
         break
     }
   }
@@ -744,6 +762,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
       history: t('shell.toolRail.history'),
       themes: t('shell.toolRail.themesTitle'),
       docker: t('shell.docker.title'),
+      tmux: t('shell.tmux.title'),
       ai: t('shell.aiChat.title'),
     }
     return activeTool.value ? titles[activeTool.value] : ''
@@ -947,6 +966,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     restoreAttempted = true
 
     if (isSettingsWindowMode()) return
+
+    if (isNewWorkspaceWindowMode() || isSessionWindowMode()) return
     if (!restoreOpenSessions.value || sessions.value.length > 0) return
     for (const hostId of readOpenSessions()) {
       const host = hosts.value.find((item) => item.id === hostId)
@@ -1248,8 +1269,10 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     darkBackgroundOpacity,
     darkBackgroundImage,
     darkBackgroundColor,
+    pageBackgroundSize,
     setBackgroundSetting,
     terminalFontSize,
+    terminalFontWeight,
     terminalLineHeight,
     terminalFontFamily,
     settingsReady,
@@ -1351,12 +1374,14 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     setAppSetting,
     setThemeMode,
     setTerminalFontSize,
+    setTerminalFontWeight,
     setTerminalLineHeight,
     setTerminalFontFamily,
     resetTerminalTypography,
     openSettings,
     isDark,
     isMac,
+    isNativeMacWindow,
     pendingHostKey,
     pendingAuthentication,
     authenticationRetry,

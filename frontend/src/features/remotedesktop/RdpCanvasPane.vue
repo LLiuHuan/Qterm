@@ -1487,18 +1487,20 @@ onBeforeUnmount(() => {
         class="absolute inset-x-0 bottom-0 z-20 flex-cc gap-2 bg-amber-500/15 px-2 py-1 text-xs text-amber-100"
         @submit.prevent="submitPendingPassword"
       >
-        <span>该主机未保存密码：</span>
+        <span>{{ t('shell.rdp.passwordPrompt') }}</span>
         <input
           v-model="pendingPassword"
           class="rounded bg-black/30 px-2 py-0.5 text-white"
-          placeholder="输入本次连接密码"
+          :placeholder="t('shell.rdp.passwordPlaceholder')"
           type="password"
           autocomplete="off"
           autocorrect="off"
           autocapitalize="off"
           spellcheck="false"
         />
-        <button class="rounded bg-sky-600 px-2 py-0.5 hover:bg-sky-500" type="submit">连接</button>
+        <button class="rounded bg-sky-600 px-2 py-0.5 hover:bg-sky-500" type="submit">
+          {{ t('shell.rdp.connect') }}
+        </button>
       </form>
 
       <div

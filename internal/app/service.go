@@ -12,6 +12,7 @@ import (
 
 	"changeme/internal/ai"
 	"changeme/internal/applock"
+	"changeme/internal/cliapi"
 	"changeme/internal/credential"
 	"changeme/internal/diagnostics"
 	"changeme/internal/fonts"
@@ -26,6 +27,7 @@ import (
 	"changeme/internal/session"
 	"changeme/internal/sftp"
 	"changeme/internal/terminal"
+	"changeme/internal/tmux"
 	"changeme/internal/translate"
 	"changeme/internal/update"
 	"changeme/internal/vnc"
@@ -47,6 +49,10 @@ type Service struct {
 	agentAuditMu   sync.Mutex
 
 	agentDebug *agentDebugLog
+
+	agentDraft agentDraftThrottle
+
+	tempSessions *aiTempSessions
 
 	agents *ai.Manager
 
@@ -70,8 +76,12 @@ type Service struct {
 
 	updates     *update.Service
 	preferences *preferences.Store
-	fonts       *fonts.Service
-	sessions    *session.Service
+
+	cliServer *cliapi.Server
+
+	cliHandshake string
+	fonts        *fonts.Service
+	sessions     *session.Service
 
 	remoteDesktops *remotedesktop.Manager
 
@@ -92,10 +102,14 @@ type Service struct {
 
 	rdpCertificates *remotedesktop.CertificateStore
 	sftp            *sftp.Service
-	remoteEdits     *remoteedit.Manager
+
+	tmux        *tmux.Service
+	remoteEdits *remoteedit.Manager
 
 	previews *preview.Service
 	tokens   *terminal.TokenStore
+
+	terminalControl *terminal.Manager
 
 	rdpTokens   *terminal.TokenStore
 	zmodem      *zmodem.Manager
@@ -117,7 +131,9 @@ type Service struct {
 	hostEditorID       uint
 	hostEditorTargetID string
 	hostEditorShown    atomic.Bool
-	windowTransfers    map[string]*sessionWindowTransfer
+
+	appLocked       atomic.Bool
+	windowTransfers map[string]*sessionWindowTransfer
 
 	rdpWindowHandovers map[string]*rdpWindowHandover
 	rdpWindowMu        sync.Mutex
@@ -145,12 +161,14 @@ func NewService(
 	tokens *terminal.TokenStore,
 	rdpTokens *terminal.TokenStore,
 	files *zmodem.Manager,
+	tmuxService *tmux.Service,
 ) *Service {
 	linkServices(hostService, credentialService, sessionService)
 	return &Service{
 		ai:              ai.NewService(),
 		aiStreams:       newAIStreamStore(),
 		agents:          ai.NewManager(),
+		tempSessions:    newAITempSessions(sessionService),
 		hosts:           hostService,
 		credentials:     credentialService,
 		proxies:         proxyService,
@@ -161,6 +179,7 @@ func NewService(
 		fonts:           fontService,
 		sessions:        sessionService,
 		sftp:            sftpService,
+		tmux:            tmuxService,
 		remoteEdits:     remoteEditManager,
 		previews:        previewService,
 		tokens:          tokens,
@@ -304,6 +323,14 @@ func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptio
 		_ = s.security.Close()
 		return err
 	}
+
+	s.terminalControl = terminal.NewManager(ctx, terminalSessionDirectory{service: s.sessions}, (terminalSessionWriter{service: s.sessions}).Write)
+
+	s.sftp.SetCommandRunner(sftpCommandRunner{sessions: s.sessions})
+
+	if s.tmux != nil {
+		s.tmux.SetCommandRunner(tmuxCommandRunner{sessions: s.sessions})
+	}
 	if err := s.sftp.StartWithConcurrency(manager, sftpConcurrency); err != nil {
 		_ = s.sessions.Close()
 		_ = s.credentials.Close()
@@ -335,6 +362,12 @@ func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptio
 		_ = s.security.Close()
 		return err
 	}
+
+	s.appLocked.Store(s.appLock != nil && s.appLock.Status().Enabled)
+
+	if err := s.startCLIServer(ctx); err != nil {
+		logCLIError(err)
+	}
 	s.started = true
 	return nil
 }
@@ -349,6 +382,8 @@ func (s *Service) ServiceShutdown() error {
 		return nil
 	}
 	var firstErr error
+
+	s.stopCLIServer()
 
 	if s.updates != nil {
 		_ = s.updates.Close()
@@ -379,6 +414,12 @@ func (s *Service) ServiceShutdown() error {
 	}
 	if err := s.sftp.Close(); err != nil && firstErr == nil {
 		firstErr = err
+	}
+	if s.terminalControl != nil {
+		if err := s.terminalControl.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+		s.terminalControl = nil
 	}
 	if err := s.sessions.Close(); err != nil && firstErr == nil {
 		firstErr = err

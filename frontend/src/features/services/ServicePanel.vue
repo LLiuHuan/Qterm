@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { FileText, Info, Play, Power, RefreshCw, RotateCw, Server, Square } from '@lucide/vue'
-import { QtermButton, QtermEmptyState, QtermSearchField, SegmentedTabs } from '@/components/common'
+import { FileText, Info, Play, Power, RotateCw, Server, Square } from '@lucide/vue'
+import { QtermEmptyState, QtermSearchField, RefreshIconButton, SegmentedTabs } from '@/components/common'
 import { ScrollArea } from '@/components/common/control-primitives'
 import QtermLoadMore from '@/components/common/layout/QtermLoadMore.vue'
 import {
@@ -69,12 +69,12 @@ let logsTimer: number | undefined
 
 const activeDetailService = computed(() => {
   if (!detailService.value) return null
-  return services.value.find((service) => service.name === detailService.value?.name) ?? detailService.value
+  return services.value.find((service) => unitKey(service) === unitKey(detailService.value!)) ?? detailService.value
 })
 
 const activeLogsService = computed(() => {
   if (!logsService.value) return null
-  return services.value.find((service) => service.name === logsService.value?.name) ?? logsService.value
+  return services.value.find((service) => unitKey(service) === unitKey(logsService.value!)) ?? logsService.value
 })
 
 const tabs = computed<Array<{ value: Tab; label: string }>>(() => [
@@ -88,6 +88,10 @@ function stateOf(service: ServiceInfo): 'running' | 'stopped' | 'failed' {
   if (service.activeState === 'failed') return 'failed'
   if (service.activeState === 'active' || service.activeState === 'activating') return 'running'
   return 'stopped'
+}
+
+function unitKey(service: ServiceInfo): string {
+  return service.scope === 'user' ? `user:${service.name}` : service.name
 }
 
 function isTemplateUnit(service: ServiceInfo): boolean {
@@ -206,7 +210,7 @@ async function runAction(service: ServiceInfo, action: ServiceActionName): Promi
   busyUnit.value = service.name
   error.value = ''
   try {
-    await gateway.action(props.sessionId, service.name, action)
+    await gateway.action(props.sessionId, unitKey(service), action)
     await refresh()
     return true
   } catch (cause) {
@@ -221,7 +225,7 @@ async function loadDetail(): Promise<void> {
   if (!props.sessionId || !activeDetailService.value) return
   const version = detailVersion
   const sessionId = props.sessionId
-  const unit = activeDetailService.value.name
+  const unit = unitKey(activeDetailService.value)
   detailLoading.value = true
   detailError.value = ''
   try {
@@ -269,7 +273,7 @@ async function loadLogs(force = false): Promise<void> {
   const requestId = ++logsRequestId
   const version = logsVersion
   const sessionId = props.sessionId
-  const unit = activeLogsService.value.name
+  const unit = unitKey(activeLogsService.value)
   const lines = logsLines.value
   logsLoading.value = true
   logsError.value = ''
@@ -388,18 +392,14 @@ watch([logsOpen, logsAutoRefresh, logsFollow], syncLogsTimer)
         :placeholder="t('shell.services.search')"
         :clear-label="t('shell.toolPanel.clearSearch')"
       />
-      <QtermButton
+
+      <RefreshIconButton
         class="shrink-0"
-        size="icon-sm"
-        variant="ghost"
-        type="button"
-        :aria-label="t('shell.services.refresh')"
-        :aria-busy="loading || !!busyUnit"
+        :label="t('shell.services.refresh')"
+        :spinning="loading || !!busyUnit"
         :disabled="loading || !!busyUnit"
         @click="refresh"
-      >
-        <RefreshCw :size="14" aria-hidden="true" />
-      </QtermButton>
+      />
     </div>
 
     <div v-if="!props.available" class="flex-1">
@@ -431,7 +431,7 @@ watch([logsOpen, logsAutoRefresh, logsFollow], syncLogsTimer)
           }}</small>
         </header>
 
-        <ContextMenu v-for="service in visibleItems(section.key, section.rows, true)" :key="service.name">
+        <ContextMenu v-for="service in visibleItems(section.key, section.rows, true)" :key="unitKey(service)">
           <ContextMenuTrigger as-child>
             <article
               class="mx-1 flex min-w-0 cursor-pointer items-start gap-2 rounded-md px-1.5 py-2 transition-colors [&:not(:first-child)]:mt-0.5 hover:bg-qt-hover focus-visible:bg-qt-hover focus-visible:outline-none"
@@ -441,6 +441,12 @@ watch([logsOpen, logsAutoRefresh, logsFollow], syncLogsTimer)
             >
               <span class="mt-1 size-2 shrink-0 rounded-full" :class="stateDotTone(service)" aria-hidden="true" />
               <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span
+                  v-if="service.scope === 'user'"
+                  class="mr-1 flex-none rounded bg-qt-hover px-1 py-0.5 text-[10px] uppercase text-qt-muted"
+                  data-service-scope="user"
+                  >user</span
+                >
                 <span class="block min-w-0 truncate text-xs text-qt-text" :title="service.name">{{
                   service.name
                 }}</span>

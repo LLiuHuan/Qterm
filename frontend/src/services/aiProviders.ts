@@ -220,6 +220,10 @@ export interface StoredMessage {
   }>
 
   usage?: AIUsage
+
+  compacted?: boolean
+
+  compactionGeneration?: number
 }
 
 export interface ArchivedChat {

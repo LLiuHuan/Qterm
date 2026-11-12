@@ -21,7 +21,10 @@ export interface ProcessInfo {
   elapsed: string
   cpuTime: string
   vszKb: number
+
   metricsAvailable: boolean
+
+  cpuAvailable?: boolean
 }
 
 export type ProcessAction = 'terminate' | 'kill'

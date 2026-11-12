@@ -1,5 +1,6 @@
 import type { HostRecord } from '@/services/hosts.ts'
 import type { SessionTab } from '../../types/qterm'
+import { builtinHostIcons } from './builtinIcons'
 import { isCustomHostIcon } from './customHostIcon'
 
 export type AutomaticHostIcon =
@@ -53,6 +54,8 @@ export type AutomaticHostIcon =
   | 'euleros'
   | 'anolis'
   | 'loongnix'
+  | 'armbian'
+  | 'fnos'
   | 'tencentos'
   | 'alinux'
   | 'opencloudos'
@@ -114,6 +117,8 @@ export const automaticHostIconGlyphs: Readonly<Record<AutomaticHostIcon, string>
   euleros: 'E',
   anolis: 'A',
   loongnix: 'L',
+  armbian: 'A',
+  fnos: 'F',
   tencentos: 'T',
   alinux: 'A',
   opencloudos: 'O',
@@ -176,6 +181,8 @@ export const automaticHostIconTitles: Readonly<Record<AutomaticHostIcon, string>
   euleros: 'EulerOS',
   anolis: 'Anolis OS',
   loongnix: 'Loongnix',
+  armbian: 'Armbian',
+  fnos: '飞牛 fnOS',
   tencentos: 'TencentOS Server',
   alinux: 'Alibaba Cloud Linux',
   opencloudos: 'OpenCloudOS',
@@ -198,18 +205,37 @@ export function resolveHostIcon(host: Pick<HostRecord, 'icon' | 'protocol'>): st
   return host.protocol === 'vnc' ? DEFAULT_VNC_HOST_ICON : ''
 }
 
+function staticAutomaticIcon(icon: string): AutomaticHostIcon | '' {
+  const normalized = icon.toLocaleLowerCase()
+  if (normalized in automaticHostIconGlyphs) return normalized as AutomaticHostIcon
+  if (/^macos-\d{1,2}$/.test(normalized)) return 'macos'
+  return ''
+}
+
 export function hostIconLabel(host: HostIconSource): string {
   const icon = resolveHostIcon(host)
   if (isCustomHostIcon(icon) || icon.startsWith('data:')) return '自定义图标'
-  const automaticIcon = automaticHostIconGlyphs[icon.toLocaleLowerCase() as AutomaticHostIcon]
-  return automaticIcon || icon || host.name.slice(0, 1).toLocaleUpperCase()
+  const automaticIcon = staticAutomaticIcon(icon)
+  if (automaticIcon && automaticHostIconGlyphs[automaticIcon]) return automaticHostIconGlyphs[automaticIcon]
+
+  const builtin = builtinHostIcons.find((item) => item.value === icon)
+  if (builtin) return builtin.label.slice(0, 1).toLocaleUpperCase()
+  return icon || host.name.slice(0, 1).toLocaleUpperCase()
 }
 
 export function hostIconTitle(host: HostIconSource): string {
   const icon = resolveHostIcon(host)
   if (isCustomHostIcon(icon) || icon.startsWith('data:')) return '自定义图标'
-  const automaticTitle = automaticHostIconTitles[icon.toLocaleLowerCase() as AutomaticHostIcon]
-  return automaticTitle || (icon ? '自定义图标' : '自动识别')
+  const automaticTitle = staticAutomaticIcon(icon)
+  if (automaticTitle) {
+    const version = /^macos-(\d{1,2})$/.exec(icon.toLocaleLowerCase())
+    if (version) return `${automaticHostIconTitles.macos} ${version[1]}`
+    return automaticHostIconTitles[automaticTitle]
+  }
+
+  const builtin = builtinHostIcons.find((item) => item.value === icon)
+  if (builtin) return builtin.label
+  return icon ? '自定义图标' : '自动识别'
 }
 
 export function sessionIconLabel(session: SessionTab, hosts: readonly SessionHostIconSource[]): string {

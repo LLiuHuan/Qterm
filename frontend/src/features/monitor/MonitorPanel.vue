@@ -93,13 +93,17 @@ async function refresh(): Promise<void> {
 }
 
 function formatProcessMemory(kilobytes: number): string {
-  if (!Number.isFinite(kilobytes) || kilobytes <= 0) return '—'
+  if (!Number.isFinite(kilobytes) || kilobytes <= 0) return '0'
   return `${(kilobytes / 1024).toFixed(2)} MB`
 }
 
 function processName(command: string): string {
   const firstToken = command.trim().split(/\s+/, 1)[0] ?? ''
-  return firstToken.split('/').pop() || firstToken || '—'
+  const base = firstToken.split('/').pop() || firstToken
+
+  const unbraced = base.replace(/^\{+/, '').replace(/\}+$/, '')
+
+  return unbraced.replace(/:$/, '') || '—'
 }
 
 function processStateClass(state: string): string {
@@ -277,21 +281,14 @@ watch(
               <div class="mt-1.5 flex min-w-0 items-center justify-between gap-2 text-[11px]">
                 <span class="min-w-0 truncate text-qt-info">
                   {{ t('shell.monitor.memory') }}
-                  <span class="font-mono tabular-nums">{{
-                    item.metricsAvailable ? formatProcessMemory(item.rssKb) : '—'
-                  }}</span>
+                  <span class="font-mono tabular-nums">{{ formatProcessMemory(item.rssKb) }}</span>
                   ·
-                  <span class="font-mono tabular-nums">{{
-                    item.metricsAvailable ? `${item.memory.toFixed(1)}%` : '—'
-                  }}</span>
+                  <span class="font-mono tabular-nums">{{ item.memory.toFixed(1) }}%</span>
                 </span>
-                <span class="shrink-0 font-mono tabular-nums text-qt-warning"
-                  >CPU {{ item.metricsAvailable ? `${item.cpu.toFixed(1)}%` : '—' }}</span
-                >
+                <span class="shrink-0 font-mono tabular-nums text-qt-warning">CPU {{ item.cpu.toFixed(1) }}%</span>
               </div>
 
               <div
-                v-if="item.metricsAvailable"
                 class="mt-1 h-1 overflow-hidden rounded-full bg-qt-muted/20"
                 role="img"
                 :title="`${t('shell.monitor.memory')} ${item.memory.toFixed(1)}%`"

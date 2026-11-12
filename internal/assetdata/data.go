@@ -193,6 +193,8 @@ func (s *Snapshot) Validate() error {
 		return err
 	}
 	ids = nil
+
+	customIDs := make(map[string]bool, len(s.Hosts))
 	for _, h := range s.Hosts {
 		ids = append(ids, h.ID)
 		keepAlive, latency, autoIcon := h.SSHKeepAlive, h.LatencyDetection, h.AutoDetectOSIcon
@@ -202,6 +204,8 @@ func (s *Snapshot) Validate() error {
 		hostInput := model.HostInput{
 			Name: h.Name, Protocol: h.Protocol, Address: h.Address, Port: h.Port,
 			Username: h.Username, CredentialID: h.CredentialID, Notes: h.Notes,
+
+			Alias: h.Alias, CustomID: h.CustomID,
 			Password:     string(h.Password),
 			SSHKeepAlive: &keepAlive, LatencyDetection: &latency, AutoDetectOSIcon: &autoIcon,
 			DirectoryFollow: h.DirectoryFollow,
@@ -295,6 +299,13 @@ func (s *Snapshot) Validate() error {
 		hostInput.ProxyPassword = string(h.ProxyPassword)
 		if _, err := model.NewHost(h.ID, hostInput, time.Now()); err != nil {
 			return invalid
+		}
+
+		if customID := strings.ToLower(strings.TrimSpace(h.CustomID)); customID != "" {
+			if customIDs[customID] {
+				return invalid
+			}
+			customIDs[customID] = true
 		}
 		if h.GroupID != "" && !groups[h.GroupID] || h.CredentialID != "" && !credentials[h.CredentialID] || len(h.Password) > 16<<20 || len(h.ProxyPassword) > 16<<20 {
 			return invalid

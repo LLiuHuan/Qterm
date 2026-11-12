@@ -26,8 +26,8 @@
 }
 
 .host-icon-menu {
-  width: 324px !important;
-  min-width: 324px !important;
+  width: 330px !important;
+  min-width: 330px !important;
   padding: 8px !important;
   border: 1px solid var(--qt-border, var(--border, #e4e4e7));
   border-radius: 9px;
@@ -35,6 +35,29 @@
   background: var(--qt-panel, var(--popover, #ffffff)) !important;
   opacity: 1;
   box-shadow: var(--qt-shadow, 0 12px 30px rgb(24 24 27 / 14%));
+}
+
+.host-icon-scroll {
+  position: relative;
+  max-height: min(60vh, 330px);
+
+  overflow: visible;
+}
+
+.host-icon-scroll > [data-slot='scroll-area-viewport'] {
+  height: auto !important;
+  max-height: min(60vh, 330px);
+  overflow-x: hidden !important;
+}
+
+.host-icon-scroll > [data-slot='scroll-area-scrollbar'] {
+  top: 0;
+  bottom: 0;
+  right: -6px;
+  height: auto !important;
+
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .host-icon-option {

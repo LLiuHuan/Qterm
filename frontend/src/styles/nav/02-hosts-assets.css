@@ -160,3 +160,15 @@
   padding: 7px 8px;
   border-top: 0;
 }
+
+.asset-library-divider:focus,
+.asset-library-divider:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.asset-library-scroll [data-slot='scroll-area-viewport']:focus,
+.asset-library-scroll [data-slot='scroll-area-viewport']:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

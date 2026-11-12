@@ -17,7 +17,18 @@ import { useI18n } from '../../locales'
 import { toast } from 'vue-sonner'
 import { aiErrorMessage, clearProviderKey, providerKeyConfigured } from '../../services/ai'
 import { readApprovalMode, writeApprovalMode, type AIApprovalMode } from '../../services/aiApproval'
-import { readAgentSettings, writeAgentSettings, type AgentSettings } from '../../services/aiAgent'
+import {
+  readAgentSettings,
+  writeAgentSettings,
+  type AgentDisplayLevel,
+  type AgentSettings,
+} from '../../services/aiAgent'
+import {
+  loadWebFetchSettings,
+  saveWebFetchSettings,
+  type WebFetchMode,
+  type WebFetchSettings,
+} from '../../services/webFetchSettings'
 import {
   readActiveProviderID,
   readProviders,
@@ -38,6 +49,10 @@ const editorOpen = ref(false)
 const editing = ref<AIProvider | null>(null)
 const error = ref('')
 const agentSettings = ref<AgentSettings>(readAgentSettings())
+const displayLevels: AgentDisplayLevel[] = ['concise', 'standard', 'detailed']
+const displayLevelOptions = computed(() =>
+  displayLevels.map((level) => ({ value: level, label: t(`settings.ai.agent.displayLevel.${level}`) })),
+)
 const approvalMode = ref<AIApprovalMode>(readApprovalMode())
 const automaticWarningOpen = ref(false)
 const approvalModes: AIApprovalMode[] = ['strict', 'balanced', 'review', 'automatic']
@@ -94,11 +109,38 @@ async function refreshKeys(): Promise<void> {
   keyStatus.value = Object.fromEntries(entries)
 }
 
+const webFetch = ref<WebFetchSettings>({ mode: 'system', proxyUrl: '', allowPrivate: false })
+const webFetchModes: WebFetchMode[] = ['system', 'direct', 'custom']
+const webFetchModeOptions = computed(() =>
+  webFetchModes.map((mode) => ({ value: mode, label: t(`settings.ai.web.mode.${mode}`) })),
+)
+
 onMounted(() => {
   providers.value = readProviders()
   activeID.value = readActiveProviderID()
   void refreshKeys()
+  void refreshWebFetch()
 })
+
+async function refreshWebFetch(): Promise<void> {
+  try {
+    webFetch.value = await loadWebFetchSettings()
+  } catch (cause) {
+    toast.error(aiErrorMessage(cause, t('settings.ai.web.loadFailed')))
+  }
+}
+
+async function saveWebFetch(patch: Partial<WebFetchSettings>): Promise<void> {
+  const previous = webFetch.value
+  const next = { ...previous, ...patch }
+  webFetch.value = next
+  try {
+    await saveWebFetchSettings(next)
+  } catch (cause) {
+    webFetch.value = previous
+    toast.error(aiErrorMessage(cause, t('settings.ai.web.saveFailed')))
+  }
+}
 
 function toggleEnabled(provider: AIProvider, enabled: boolean): void {
   persist(providers.value.map((item) => (item.id === provider.id ? { ...item, enabled } : item)))
@@ -285,6 +327,20 @@ function providerLabel(provider: AIProvider): string {
       data-ai-agent-settings
     >
       <QtermSettingsRow
+        :label="t('settings.ai.agent.displayLevelLabel')"
+        :description="t(`settings.ai.agent.displayLevelHelp.${agentSettings.displayLevel}`)"
+      >
+        <div class="w-40 shrink-0">
+          <QtermCombobox
+            :model-value="agentSettings.displayLevel"
+            :options="displayLevelOptions"
+            :aria-label="t('settings.ai.agent.displayLevelLabel')"
+            data-ai-agent-display-level
+            @update:model-value="(value) => saveAgentSettings({ displayLevel: String(value) as AgentDisplayLevel })"
+          />
+        </div>
+      </QtermSettingsRow>
+      <QtermSettingsRow
         as="label"
         for-id="settings-ai-agent-max-steps"
         class="settings-switch-row c-p"
@@ -363,6 +419,61 @@ function providerLabel(provider: AIProvider): string {
           :label="t('settings.ai.agent.executionChannel')"
           data-ai-agent-channel
           @update:model-value="setExecutionChannel"
+        />
+      </QtermSettingsRow>
+    </div>
+
+    <QtermSettingsSectionHeader
+      class="settings-subsection-header mt-2"
+      :label="t('settings.ai.web.title')"
+      :description="t('settings.ai.web.hint')"
+    />
+    <div
+      class="settings-card border border-solid border-qt-border rounded-xl [background:color-mix(in_srgb,var(--qt-panel)_32%,transparent)] [-webkit-backdrop-filter:blur(16px)_saturate(135%)] [backdrop-filter:blur(16px)_saturate(135%)]"
+      data-ai-web-settings
+    >
+      <QtermSettingsRow :label="t('settings.ai.web.modeLabel')">
+        <div class="w-48 shrink-0">
+          <QtermCombobox
+            :model-value="webFetch.mode"
+            :options="webFetchModeOptions"
+            :aria-label="t('settings.ai.web.modeLabel')"
+            data-ai-web-mode
+            @update:model-value="(value) => saveWebFetch({ mode: String(value) as WebFetchMode })"
+          />
+        </div>
+      </QtermSettingsRow>
+      <QtermSettingsRow
+        v-if="webFetch.mode === 'custom'"
+        as="label"
+        for-id="settings-ai-web-proxy"
+        :label="t('settings.ai.web.proxy')"
+        :description="t('settings.ai.web.proxyHelp')"
+      >
+        <input
+          id="settings-ai-web-proxy"
+          :value="webFetch.proxyUrl"
+          type="text"
+          spellcheck="false"
+          placeholder="http://127.0.0.1:7890"
+          class="w-56 shrink-0 rounded-md border border-solid border-qt-border bg-transparent px-2 py-1 text-sm text-qt-text"
+          data-ai-web-proxy
+          @change="saveWebFetch({ proxyUrl: ($event.target as HTMLInputElement).value })"
+        />
+      </QtermSettingsRow>
+      <QtermSettingsRow
+        as="label"
+        for-id="settings-ai-web-allow-private"
+        class="settings-switch-row c-p"
+        :label="t('settings.ai.web.allowPrivate')"
+        :description="t('settings.ai.web.allowPrivateHelp')"
+      >
+        <QtermSwitch
+          id="settings-ai-web-allow-private"
+          :model-value="webFetch.allowPrivate"
+          :aria-label="t('settings.ai.web.allowPrivate')"
+          data-ai-web-allow-private
+          @update:model-value="(value) => saveWebFetch({ allowPrivate: Boolean(value) })"
         />
       </QtermSettingsRow>
     </div>

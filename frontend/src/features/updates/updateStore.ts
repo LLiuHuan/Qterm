@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import { QTERM_VERSION } from '../../services/appInfo'
+import { QTERM_VERSION, isDevBuild } from '../../services/appInfo'
 import { whenWailsRuntime } from '../../services/runtime'
 import { decodeAppError } from '../../services/errors'
 import { normalizeStatus, updates, updatesAvailable, type UpdateStatus } from '../../services/updates'
@@ -30,6 +30,10 @@ const state = reactive<UpdateViewState>({
 
 let started = false
 let stopStatus: (() => void) | undefined
+
+function autoChecksAllowed(): boolean {
+  return !isDevBuild()
+}
 
 export function useUpdateState(): UpdateViewState {
   return state
@@ -64,6 +68,7 @@ function clearRetry(): void {
 }
 
 function scheduleRetry(): void {
+  if (!autoChecksAllowed()) return
   if (retrying || retryAttempt >= RETRY_DELAYS.length) return
   retrying = true
   const delay = RETRY_DELAYS[retryAttempt] ?? RETRY_DELAYS[RETRY_DELAYS.length - 1]
@@ -75,10 +80,14 @@ function scheduleRetry(): void {
   }, delay)
 }
 
-const RECHECK_INTERVAL = 5 * 60_000
+const RECHECK_INTERVAL = 6 * 60 * 60_000
 
-const RECHECK_AFTER_FAILURE = 30 * 60_000
+const RECHECK_AFTER_FAILURE = 60 * 60_000
+
+const VISIBILITY_RECHECK_MIN_INTERVAL = 30 * 60_000
 let recheckTimer: number | undefined
+
+let lastCheckAt: number | null = null
 
 function clearRecheck(): void {
   window.clearTimeout(recheckTimer)
@@ -86,6 +95,7 @@ function clearRecheck(): void {
 }
 
 function scheduleRecheck(delay = RECHECK_INTERVAL): void {
+  if (!autoChecksAllowed()) return
   if (!started || recheckTimer !== undefined) return
   recheckTimer = window.setTimeout(() => {
     recheckTimer = undefined
@@ -95,13 +105,20 @@ function scheduleRecheck(delay = RECHECK_INTERVAL): void {
 }
 
 function recheckNow(): void {
+  if (!autoChecksAllowed()) return
   if (!started) return
   if (state.status.state === 'ready') return
   void checkUpdate({ autoDownload: true })
 }
 
+function recheckOnVisible(): void {
+  if (!autoChecksAllowed()) return
+  if (lastCheckAt !== null && Date.now() - lastCheckAt < VISIBILITY_RECHECK_MIN_INTERVAL) return
+  recheckNow()
+}
+
 function onVisibilityChange(): void {
-  if (document.visibilityState === 'visible') recheckNow()
+  if (document.visibilityState === 'visible') recheckOnVisible()
 }
 
 let resumeBound = false
@@ -119,8 +136,10 @@ export function ensureUpdateChecks(): void {
   started = true
   const start = (): void => {
     stopStatus ??= updates.subscribe(applyStatus)
-    bindResumeChecks()
     dropLegacyDismissed()
+
+    if (!autoChecksAllowed()) return
+    bindResumeChecks()
     void (async () => {
       try {
         applyStatus(await updates.status())
@@ -138,6 +157,7 @@ export function ensureUpdateChecks(): void {
 }
 
 export async function checkUpdate(options: { autoDownload?: boolean } = {}): Promise<void> {
+  lastCheckAt = Date.now()
   state.busy = true
   state.errorKey = ''
   state.errorDetail = ''
@@ -200,6 +220,7 @@ export function stopUpdateChecks(): void {
   window.clearTimeout(retryTimer)
   retryTimer = undefined
   clearRecheck()
+  lastCheckAt = null
   retrying = false
   retryAttempt = 0
   started = false

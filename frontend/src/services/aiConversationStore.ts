@@ -20,6 +20,11 @@ export interface ConversationMessage extends StoredMessage {
   context?: AIContextBreakdown
 }
 
+export interface ConversationCheckpoint {
+  messages: ConversationMessage[]
+  createdAt: number
+}
+
 export interface AiConversationRecord {
   id: string
 
@@ -33,6 +38,8 @@ export interface AiConversationRecord {
   providerId?: string
   model?: string
   messages: ConversationMessage[]
+
+  checkpoint?: ConversationCheckpoint
 }
 
 export interface ConversationScope {
@@ -128,6 +135,8 @@ function normalizeMessages(messages: ConversationMessage[]): ConversationMessage
       const context = normalizeContextBreakdown(message.context)
       return {
         ...message,
+
+        images: undefined,
         id: typeof message.id === 'string' && message.id ? message.id : createId('aimsg'),
         ...(message.mode === 'agent' ? { mode: 'agent' as const } : { mode: 'ask' as const }),
         ...(message.agentRun && typeof message.agentRun.id === 'string'
@@ -204,6 +213,14 @@ function toRecord(record: AiConversationRecord): AiConversationRecord {
     ...(normalizedProviderId ? { providerId: normalizedProviderId } : {}),
     ...(normalizedModel ? { model: normalizedModel } : {}),
     messages: normalizeMessages(record.messages),
+
+    checkpoint:
+      record.checkpoint && Array.isArray(record.checkpoint.messages) && record.checkpoint.messages.length
+        ? {
+            messages: normalizeMessages(record.checkpoint.messages),
+            createdAt: typeof record.checkpoint.createdAt === 'number' ? record.checkpoint.createdAt : Date.now(),
+          }
+        : undefined,
   }
 }
 

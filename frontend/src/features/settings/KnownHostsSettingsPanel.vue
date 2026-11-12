@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Copy, KeyRound, Loader2, RefreshCw, ShieldAlert, ShieldCheck, Trash2 } from '@lucide/vue'
-import { IconButton, QtermButton, QtermEmptyState, QtermSearchField } from '../../components/common'
+import { Copy, KeyRound, Loader2, ShieldAlert, ShieldCheck, Trash2 } from '@lucide/vue'
+import { IconButton, QtermButton, QtermEmptyState, QtermSearchField, RefreshIconButton } from '../../components/common'
 import { ScrollArea } from '../../components/common/control-primitives'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { useI18n } from '../../locales'
@@ -116,15 +116,13 @@ onMounted(() => void load())
         v-bind="{ ariaLabel: t('settings.knownHosts.search') }"
         :placeholder="t('settings.knownHosts.search')"
       />
-      <IconButton
+      <RefreshIconButton
         :label="loading ? t('settings.knownHosts.loading') : t('settings.knownHosts.refresh')"
-        size="icon-sm"
+        :spinning="loading"
         :disabled="loading"
         data-known-host-refresh
         @click="load"
-      >
-        <RefreshCw :size="14" aria-hidden="true" :class="{ 'animate-spin': loading }" />
-      </IconButton>
+      />
     </div>
 
     <QtermEmptyState

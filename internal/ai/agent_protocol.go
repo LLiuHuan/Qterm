@@ -13,6 +13,17 @@ import (
 const (
 	ToolExecuteCommand = "execute_command"
 	ToolFinalAnswer    = "final_answer"
+	ToolListHosts      = "list_hosts"
+	ToolGetHost        = "get_host"
+	ToolSftpList       = "sftp_list"
+	ToolSftpReadFile   = "sftp_read_file"
+	ToolSftpWriteFile  = "sftp_write_file"
+	ToolSftpUploadFile = "sftp_upload_file"
+	ToolSftpDownload   = "sftp_download_file"
+	ToolLocalListDir   = "local_list_dir"
+	ToolLocalReadFile  = "local_read_file"
+	ToolWebFetch       = "web_fetch"
+	ToolAskUser        = "ask_user"
 
 	maxAgentCommandBytes    = 8 << 10
 	maxAgentAnswerBytes     = 64 << 10
@@ -42,85 +53,69 @@ type ToolSpec struct {
 }
 
 type AgentAction struct {
-	Kind            StepKind
-	CallID          string
-	Command         string
+	Kind    StepKind
+	CallID  string
+	Command string
+
+	HostID          string
 	TargetSessionID string
 	Description     string
 	Risk            string
 	RiskReason      string
 	Answer          string
+
+	Args json.RawMessage
+
+	PublicArgs json.RawMessage
 }
 
-func AgentTools() []ToolSpec {
-	return []ToolSpec{
-		{
-			Name: ToolExecuteCommand,
-			Description: "Run one shell command on the authorized terminal session. " +
-				"Use it when you need information from the machine. Never wrap the command in a code fence.",
-			Parameters: map[string]any{
-				"type":                 "object",
-				"additionalProperties": false,
-				"properties": map[string]any{
-					"command": map[string]any{
-						"type":        "string",
-						"description": "The exact shell command to run, single line preferred.",
-					},
-					"description": map[string]any{
-						"type":        "string",
-						"description": "One short sentence for the user explaining why this command is needed.",
-					},
-					"target_session_id": map[string]any{
-						"type":        "string",
-						"description": "Optional. Must equal the authorized session id; omit to use the current session.",
-					},
-					"risk": map[string]any{
-						"type":        "string",
-						"enum":        []string{RiskReadOnly, RiskConfirm, RiskDanger},
-						"description": "Your own risk assessment. The backend takes the higher of local and model risk.",
-					},
-					"risk_reason": map[string]any{
-						"type":        "string",
-						"description": "Short reason when risk is confirm or danger.",
-					},
-				},
-				"required": []string{"command", "description"},
-			},
-		},
-		{
-			Name:        ToolFinalAnswer,
-			Description: "Finish the task and answer the user. Call it when no more commands are needed.",
-			Parameters: map[string]any{
-				"type":                 "object",
-				"additionalProperties": false,
-				"properties": map[string]any{
-					"answer": map[string]any{
-						"type":        "string",
-						"description": "The complete answer for the user, in the user's language.",
-					},
-				},
-				"required": []string{"answer"},
-			},
-		},
+func AgentSystemPrompt(fallback bool, sessionKind, targetLabel string) string {
+	var builder strings.Builder
+	builder.WriteString("You are Qterm's desktop agent. You act only by calling tools; each turn calls exactly one tool from this list:\n")
+	for _, def := range agentToolDefs {
+		if !toolAppliesToSession(def, sessionKind) {
+			continue
+		}
+		builder.WriteString("- ")
+		builder.WriteString(def.Name)
+		builder.WriteString(": ")
+		builder.WriteString(def.Description)
+		builder.WriteString("\n")
 	}
-}
 
-func AgentSystemPrompt(fallback bool) string {
-	head := "You are Qterm's terminal agent. You can only act by calling exactly one of two tools per turn: " +
-		ToolExecuteCommand + " (run one shell command on the authorized session) or " +
-		ToolFinalAnswer + " (finish and answer the user).\n" +
-		"Rules:\n" +
+	if label := strings.TrimSpace(targetLabel); label != "" {
+		builder.WriteString("Target machine: ")
+		builder.WriteString(label)
+		builder.WriteString(". Every command and file operation runs on this machine only. " +
+			"If you are unsure (long conversation, compacted history, user switches topic), call list_hosts " +
+			"and read its `current` field instead of guessing.\n")
+	} else {
+		builder.WriteString("No terminal session is attached: you must pass host_id when calling execute_command.\n")
+	}
+	builder.WriteString("Rules:\n" +
 		"1. Call exactly one tool per turn. Never emit two actions.\n" +
-		"2. Never invent a target session; commands always run on the session the user authorized.\n" +
+		"2. Never invent a target session; commands always run on the host the user authorized. " +
+		"In global mode (no session attached) you must pass host_id to execute_command. An already-open " +
+		"session is reused; if the host has none, the app connects with the saved host configuration " +
+		"(a temporary connection recycled when idle), so inspect the machine instead of asking the user " +
+		"to connect first. Connecting never widens the authorization scope, and hosts needing interactive " +
+		"authentication will fail and must be connected by the user.\n" +
 		"3. Commands are executed only after the user's configured approval; the backend takes the higher of your risk assessment and its own.\n" +
-		"4. Do not put commands in prose or code fences. Do not ask the user to copy output back.\n"
+		"4. Read-only tools need no approval and never change anything.\n" +
+		"5. Do not put commands in prose or code fences. Do not ask the user to copy output back.\n")
 	if !fallback {
-		return head
+		return builder.String()
 	}
-	return head + "5. This provider does not support native tool calls. Respond with ONE JSON object and nothing else:\n" +
-		`{"action":"execute_command","arguments":{"command":"df -h","description":"check disk usage","risk":"readonly"}}` + "\n" +
-		`or {"action":"final_answer","arguments":{"answer":"..."}}` + "\n" +
-		"No markdown fences, no commentary before or after the object."
+	builder.WriteString("6. This provider does not support native tool calls. Respond with ONE JSON object and nothing else, using one of these shapes:\n")
+	for _, def := range agentToolDefs {
+		if !toolAppliesToSession(def, sessionKind) {
+			continue
+		}
+		builder.WriteString(def.FallbackExample)
+		builder.WriteString("\n")
+	}
+	builder.WriteString("No markdown fences, no commentary before or after the object.")
+	return builder.String()
 }
 
 func SupportsNativeTools(providerType ProviderType) bool {
@@ -143,85 +138,19 @@ func ParseToolCalls(calls []ToolCall) (AgentAction, error) {
 }
 
 func parseToolCall(call ToolCall) (AgentAction, error) {
-	name := normalizeFallbackActionName(call.Name)
-	if name != ToolExecuteCommand && name != ToolFinalAnswer {
+	def, ok := LookupTool(normalizeFallbackActionName(call.Name))
+	if !ok {
 		return AgentAction{}, agentUnknownTool()
 	}
-	arguments := strings.TrimSpace(call.Arguments)
-	if arguments == "" {
-		arguments = "{}"
+	action, err := def.Parse(call)
+	if err != nil {
+		return AgentAction{}, err
 	}
-	preview := redactAgentContext(arguments)
-	if len([]rune(preview)) > 160 {
-		preview = string([]rune(preview)[:160]) + "…"
-	}
-	switch name {
-	case ToolExecuteCommand:
 
-		var payload struct {
-			Command         string `json:"command"`
-			Description     string `json:"description"`
-			TargetSessionID string `json:"target_session_id"`
-			Risk            string `json:"risk"`
-			RiskReason      string `json:"risk_reason"`
-		}
-		if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
-			return AgentAction{}, agentInvalidAction("command arguments are invalid: " + preview)
-		}
-		command := strings.TrimSpace(payload.Command)
-		if command == "" {
-			return AgentAction{}, agentInvalidAction("command is required: " + preview)
-		}
-		if len(command) > maxAgentCommandBytes {
-			return AgentAction{}, agentInvalidAction("command is too large")
-		}
-		description := strings.TrimSpace(payload.Description)
-		if description == "" {
-			description = firstLine(command)
-		}
-		if len([]rune(description)) > maxAgentDescriptionRune {
-			description = string([]rune(description)[:maxAgentDescriptionRune])
-		}
-
-		risk := strings.TrimSpace(payload.Risk)
-		if risk != RiskReadOnly && risk != RiskConfirm && risk != RiskDanger {
-			risk = ""
-		}
-		return AgentAction{
-			Kind:            StepKindCommand,
-			CallID:          strings.TrimSpace(call.ID),
-			Command:         command,
-			TargetSessionID: strings.TrimSpace(payload.TargetSessionID),
-			Description:     description,
-			Risk:            risk,
-			RiskReason:      strings.TrimSpace(payload.RiskReason),
-		}, nil
-	case ToolFinalAnswer:
-		var payload struct {
-			Answer  string `json:"answer"`
-			Content string `json:"content"`
-			Text    string `json:"text"`
-		}
-		if err := json.Unmarshal([]byte(arguments), &payload); err != nil {
-			return AgentAction{}, agentInvalidAction("answer arguments are invalid: " + preview)
-		}
-		answer := strings.TrimSpace(payload.Answer)
-		if answer == "" {
-			answer = strings.TrimSpace(payload.Content)
-		}
-		if answer == "" {
-			answer = strings.TrimSpace(payload.Text)
-		}
-		if answer == "" {
-			return AgentAction{}, agentInvalidAction("answer is required: " + preview)
-		}
-		if len(answer) > maxAgentAnswerBytes {
-			return AgentAction{}, agentInvalidAction("answer is too large")
-		}
-		return AgentAction{Kind: StepKindAnswer, CallID: strings.TrimSpace(call.ID), Answer: answer}, nil
-	default:
-		return AgentAction{}, agentUnknownTool()
+	if action.Kind != def.Kind {
+		return AgentAction{}, agentInvalidAction("tool returned an unexpected step kind")
 	}
+	return action, nil
 }
 
 func firstLine(command string) string {
@@ -275,20 +204,19 @@ func ParseFallbackAction(content string) (AgentAction, error) {
 	if arguments == nil {
 
 		flat := make(map[string]json.RawMessage)
+		def, known := LookupTool(actionName)
 		for key, value := range raw {
 			switch key {
 			case "action", "tool", "name", "arguments", "parameters", "args", "input", "type":
 				continue
 			}
-			switch actionName {
-			case ToolExecuteCommand:
-				switch key {
-				case "command", "description", "target_session_id", "risk", "risk_reason":
+			if !known {
+				continue
+			}
+			for _, field := range def.FlatFields {
+				if key == field {
 					flat[key] = value
-				}
-			case ToolFinalAnswer:
-				if key == "answer" {
-					flat[key] = value
+					break
 				}
 			}
 		}
@@ -440,6 +368,16 @@ func decodeStrict(value string, target any) error {
 
 func ValidateActionTarget(action AgentAction, sessionID string) error {
 	if action.Kind != StepKindCommand {
+		return nil
+	}
+	if sessionID == "" {
+
+		if action.TargetSessionID != "" {
+			return fmt.Errorf("%w: global runs cannot target a session", ErrActionOutsideTarget)
+		}
+		if action.HostID == "" {
+			return fmt.Errorf("%w: global runs must specify host_id", ErrActionOutsideTarget)
+		}
 		return nil
 	}
 	if action.TargetSessionID != "" && action.TargetSessionID != sessionID {

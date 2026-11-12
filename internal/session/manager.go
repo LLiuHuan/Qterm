@@ -145,6 +145,21 @@ func (m *SessionManager) OpenForSftp(ctx context.Context, hostID string) (model.
 	return m.start(snapshot, m.connector)
 }
 
+func (m *SessionManager) OpenForAI(ctx context.Context, hostID string) (model.Session, error) {
+	if err := m.ready(ctx); err != nil {
+		return model.Session{}, err
+	}
+	id, err := m.newID()
+	if err != nil {
+		return model.Session{}, fmt.Errorf("generate session ID: %w", err)
+	}
+	snapshot, err := model.NewAISession(id, hostID, m.now())
+	if err != nil {
+		return model.Session{}, err
+	}
+	return m.start(snapshot, m.connector)
+}
+
 func (m *SessionManager) OpenLocal(ctx context.Context, plan sshclient.LocalShellPlan) (model.Session, error) {
 	if err := m.ready(ctx); err != nil {
 		return model.Session{}, err
@@ -247,7 +262,7 @@ func (m *SessionManager) WriteTerminalInput(ctx context.Context, id string, data
 	if err != nil {
 		return err
 	}
-	return worker.writeInput(data)
+	return worker.writeInputContext(ctx, data)
 }
 
 func (m *SessionManager) DockerCommandRunner(
@@ -342,7 +357,15 @@ func (m *SessionManager) ActiveCount() int {
 	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return len(m.sessions)
+	count := 0
+	for _, worker := range m.sessions {
+
+		if worker.current().Purpose == model.SessionPurposeAI {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func (m *SessionManager) List(ctx context.Context) ([]model.Session, error) {

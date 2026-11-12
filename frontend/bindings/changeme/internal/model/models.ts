@@ -340,6 +340,10 @@ export interface Host {
 
   color?: string
   name: string
+
+  alias?: string
+
+  customId?: string
   protocol: string
   address: string
   port: number
@@ -430,6 +434,10 @@ export interface HostInput {
   color?: string
   icon: string
   name: string
+
+  alias?: string
+
+  customId?: string
   protocol: string
   address: string
   port: number
@@ -668,6 +676,8 @@ export interface ProcessInfo {
   startTime: string
 
   metricsAvailable: boolean
+
+  cpuAvailable: boolean
 }
 
 export interface ProcessSnapshot {
@@ -953,6 +963,12 @@ export interface RouteTestResult {
   ok: boolean
 }
 
+export interface SFTPFavoritePath {
+  path: string
+
+  name?: string
+}
+
 export interface SFTPTransfer {
   id: string
   sessionId: string
@@ -1007,6 +1023,8 @@ export interface ServiceInfo {
   enabledState: string
 
   custom: boolean
+
+  scope: string
 }
 
 export interface ServiceLog {
@@ -1083,6 +1101,8 @@ export enum SessionPurpose {
   SessionPurposeTerminal = 'terminal',
 
   SessionPurposeSftp = 'sftp',
+
+  SessionPurposeAI = 'ai',
 }
 
 export enum SessionState {

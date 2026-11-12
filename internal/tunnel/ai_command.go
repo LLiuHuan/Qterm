@@ -51,6 +51,10 @@ func (w *boundedAIOutput) result(exitCode int) AICommandResult {
 }
 
 func (c *Connection) RunAICommand(ctx context.Context, command string) (AICommandResult, error) {
+	return c.RunAICommandWithStdin(ctx, command, nil)
+}
+
+func (c *Connection) RunAICommandWithStdin(ctx context.Context, command string, stdin []byte) (AICommandResult, error) {
 	if c == nil || c.client == nil {
 		return AICommandResult{}, errors.New("SSH connection is not ready")
 	}
@@ -71,6 +75,10 @@ func (c *Connection) RunAICommand(ctx context.Context, command string) (AIComman
 	output := &boundedAIOutput{}
 	session.Stdout = output
 	session.Stderr = output
+	if len(stdin) > 0 {
+
+		session.Stdin = bytes.NewReader(stdin)
+	}
 
 	stop := make(chan struct{})
 	done := make(chan struct{})

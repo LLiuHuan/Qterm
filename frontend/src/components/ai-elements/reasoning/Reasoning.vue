@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { computed, provide, toRef } from 'vue'
+import { computed, provide, ref, toRef } from 'vue'
 import { Collapsible } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { ReasoningKey } from './context'
@@ -23,9 +23,13 @@ provide(ReasoningKey, {
   duration: toRef(props, 'duration'),
 })
 
+const uncontrolledOpen = ref(props.defaultOpen)
 const isOpen = computed({
-  get: () => props.open ?? props.defaultOpen,
-  set: (value: boolean) => emit('update:open', value),
+  get: () => props.open ?? uncontrolledOpen.value,
+  set: (value: boolean) => {
+    if (props.open === undefined) uncontrolledOpen.value = value
+    emit('update:open', value)
+  },
 })
 </script>
 

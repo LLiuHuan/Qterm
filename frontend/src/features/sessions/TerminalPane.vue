@@ -6,6 +6,7 @@ import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  Send,
   BookmarkPlus,
   Copy,
   ClipboardCheck,
@@ -67,6 +68,8 @@ import {
 } from '../../components/common/overlay-controls'
 import { QtermInput } from '../../components/common/form-controls'
 import { readClipboardText, writeClipboardText } from '../../services/clipboard'
+import { toXtermActionLinksFromBuffer } from './terminalActionLinks'
+import { activateTerminalActionLink } from './terminalActionLinkActions'
 import type { ILink } from '@xterm/xterm'
 import { WEB_SEARCH_ENGINES, openExternalUrl, webSearchUrl, type WebSearchEngine } from '../../services/externalLink'
 import { clearSessionDirectoryState } from '../../services/directory-follow'
@@ -89,6 +92,8 @@ import microsoftBingIcon from '../../assets/app-icons/microsoft-bing.svg'
 import microsoftIcon from '../../assets/app-icons/microsoft.svg'
 import youdaoIcon from '../../assets/app-icons/youdao.svg'
 import { buildTerminalFontFamily, ensureTerminalFontReady, isTerminalFontAvailable } from './terminalFont'
+import { terminalFontSizeStep } from './terminalFontShortcut'
+import { TERMINAL_FONT_SIZE_MAX, TERMINAL_FONT_SIZE_MIN } from '../../features/settings/settingsStore'
 import {
   exposeFontDiagnostics,
   installWkWebViewDomRendererMetrics,
@@ -141,6 +146,8 @@ import {
 import type { CommandHistory } from '../../../bindings/changeme/internal/model/models'
 import type { KeywordHighlightRule, TerminalRenderEngine } from '../settings/settingsStore'
 import { useI18n } from '@/locales'
+import type { SyncGroupView } from '../terminal-control/types'
+import { subscribeTerminalInputSource } from './terminalInputSource'
 import { ScrollArea } from '../../components/common/control-primitives'
 
 const TERMINAL_MENU_SHORTCUTS = {
@@ -160,6 +167,7 @@ type TerminalMenuShortcutTokens = Record<TerminalMenuId, string[]>
 
 const props = withDefaults(
   defineProps<{
+    syncGroup?: SyncGroupView | null
     sessionId: string
 
     hostId?: string
@@ -181,6 +189,7 @@ const props = withDefaults(
     persistent: boolean
 
     fontSize: number
+    fontWeight?: import('../settings/settingsStore').TerminalFontWeight
 
     lineHeight?: number
 
@@ -235,11 +244,13 @@ const props = withDefaults(
     streamToken: string
   }>(),
   {
+    syncGroup: null,
     hostId: '',
     backspaceMode: 'del',
     visible: undefined,
     layoutRevision: 0,
     lineHeight: 1.25,
+    fontWeight: 400,
     gutterMode: 'off',
     translateEnabled: true,
     translateTarget: 'zh-CN',
@@ -267,7 +278,8 @@ const props = withDefaults(
     reconnecting: false,
     closeConfirmPending: false,
     renderEngine: 'webgl',
-    keywordHighlightEnabled: false,
+
+    keywordHighlightEnabled: true,
     keywordHighlightRules: () => [],
     credentialPromptRules: () => [],
     credentials: () => [],
@@ -281,9 +293,13 @@ const { t } = useI18n()
 
 const emit = defineEmits<{
   aiAnalyze: [sessionId: string, kind: 'selection' | 'recent', text: string]
+
+  fontSizeStep: [delta: number]
   closeSession: [sessionId: string]
   reconnectSession: [sessionId: string]
   disconnectSession: [sessionId: string]
+  terminalSync: [action: 'create' | 'join' | 'manage' | 'pause' | 'resume' | 'leave' | 'stop', sessionId: string]
+  openBatchSend: [sessionId: string]
   openSftp: []
   openSettings: []
 
@@ -356,6 +372,7 @@ let resizeObserver: ResizeObserver | null = null
 let resizeNotifyTimer: number | null = null
 let fitAfterLayoutResize = false
 let initialLayoutReady = false
+let binaryInputSubscription: { dispose(): void } | null = null
 let dataSubscription: { dispose(): void } | null = null
 
 let isTerminalPaneUnmounted = false
@@ -723,7 +740,7 @@ function sendCompletionCommand(command: string, execute: boolean): void {
   clearShellTabSubmitTimer()
   clearShellTabState()
   commandLineBuffer.feed(input)
-  channel.sendInput(input)
+  sendLocalTerminalInput(input)
   if (execute && props.hostId) {
     void saveCommandHistory({
       hostId: props.hostId,
@@ -847,7 +864,7 @@ function flushPendingShellTabSubmission(): void {
   pendingShellTabSubmission = null
   clearShellTabSubmitTimer()
   const command = resolveShellTabSubmission(currentScreenLine(terminal), pending.typed)
-  channel?.sendInput(pending.terminator)
+  sendLocalTerminalInput(pending.terminator)
   if (props.hostId) {
     void saveCommandHistory({
       hostId: props.hostId,
@@ -981,6 +998,12 @@ interface TerminalFrameSnapshot {
 let terminalFrameSnapshot: TerminalFrameSnapshot | null = null
 const frameSnapshotAvailable = ref(false)
 let windowResizeRecoveryTimer: ReturnType<typeof setTimeout> | null = null
+
+const WINDOW_DRAG_IDLE_MS = 90
+
+let windowResizeGestureActive = false
+
+let gestureFitFrame: number | null = null
 
 const keywordHighlights = useTerminalKeywordHighlights({
   terminal: () => terminal,
@@ -1223,6 +1246,9 @@ function clearClosePromptTimer(): void {
   closePromptTimer = null
 }
 
+const syncMember = computed(() => props.syncGroup?.sessionIds.includes(props.sessionId) === true)
+const syncInputActive = computed(() => syncMember.value && props.syncGroup?.status === 'active')
+
 const sessionReady = computed(() => props.state === 'connected' && streamStatus.value === 'ready')
 watch(sessionReady, (ready) => {
   if (ready) void showSessionWarnings()
@@ -1313,21 +1339,90 @@ async function copyAddress(): Promise<void> {
   }
 }
 
+function sendLocalTerminalInput(data: string): void {
+  if (!channel) return
+
+  if (channel.sendLocalInput) channel.sendLocalInput(data)
+  else channel.sendInput(data)
+}
+
 function commitPaste(text: string): void {
   terminal?.paste(text)
 }
 
 function requestPaste(text: string): void {
   if (!text) return
-  if (props.confirmMultiLinePaste && /\r|\n/.test(text.replace(/[\r\n]+$/, ''))) {
+  if ((props.confirmMultiLinePaste || syncInputActive.value) && /\r|\n/.test(text.replace(/[\r\n]+$/, ''))) {
     pendingPaste.value = text
     return
   }
   commitPaste(text)
 }
 
+function handleTerminalWheelZoom(event: WheelEvent): void {
+  if (!event.ctrlKey && !event.metaKey) return
+  event.preventDefault()
+
+  requestTerminalFontStep(event.deltaY)
+}
+
+function requestTerminalFontStep(deltaY: number): void {
+  fontZoomPendingDelta += deltaY
+  restartFontZoomGestureWindow()
+  if (fontZoomTimer !== null) return
+  fontZoomTimer = window.setTimeout(flushFontZoomStep, FONT_ZOOM_STEP_INTERVAL_MS)
+}
+
+function flushFontZoomStep(): void {
+  fontZoomTimer = null
+  const accumulated = fontZoomPendingDelta
+  fontZoomPendingDelta = 0
+
+  if (Math.abs(accumulated) < FONT_ZOOM_DELTA_PER_STEP) {
+    fontZoomPendingDelta = accumulated
+    return
+  }
+  if (fontZoomStepsInGesture >= FONT_ZOOM_MAX_STEPS_PER_GESTURE) return
+
+  const step = accumulated > 0 ? -1 : 1
+
+  fontZoomPendingDelta =
+    Math.abs(accumulated) >= FONT_ZOOM_DELTA_PER_STEP * 2.5 ? 0 : accumulated - step * FONT_ZOOM_DELTA_PER_STEP
+  fontZoomStepsInGesture += 1
+  showFontZoomHint(step)
+  emit('fontSizeStep', step)
+}
+
+function restartFontZoomGestureWindow(): void {
+  if (fontZoomIdleTimer !== null) window.clearTimeout(fontZoomIdleTimer)
+  fontZoomIdleTimer = window.setTimeout(() => {
+    fontZoomIdleTimer = null
+    fontZoomStepsInGesture = 0
+    fontZoomPendingDelta = 0
+  }, FONT_ZOOM_GESTURE_IDLE_MS)
+}
+
+function showFontZoomHint(delta: number): void {
+  const next = Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, Math.round(props.fontSize) + delta))
+  const percent = Math.round((next / FONT_ZOOM_REFERENCE_SIZE) * 100)
+  fontZoomHint.value = `${next}px · ${percent}%`
+  if (fontZoomHintTimer !== null) window.clearTimeout(fontZoomHintTimer)
+  fontZoomHintTimer = window.setTimeout(() => {
+    fontZoomHintTimer = null
+    fontZoomHint.value = ''
+  }, 900)
+}
+
+function stepTerminalFontSizeByKey(step: -1 | 1): void {
+  const current = Math.round(props.fontSize)
+  const next = Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, current + step))
+  if (next === current) return
+  showFontZoomHint(step)
+  emit('fontSizeStep', step)
+}
+
 function handleNativePaste(event: ClipboardEvent): void {
-  if (!props.confirmMultiLinePaste) return
+  if (!props.confirmMultiLinePaste && !syncInputActive.value) return
   const text = event.clipboardData?.getData('text') ?? ''
   if (!text || !/\r|\n/.test(text.replace(/[\r\n]+$/, ''))) return
   event.preventDefault()
@@ -1368,6 +1463,22 @@ function currentSelection(): string {
 }
 
 const translateGateway = createTranslateGateway()
+
+const FONT_ZOOM_STEP_INTERVAL_MS = 40
+const FONT_ZOOM_GESTURE_IDLE_MS = 320
+const FONT_ZOOM_MAX_STEPS_PER_GESTURE = 12
+
+const FONT_ZOOM_DELTA_PER_STEP = 40
+
+const FONT_ZOOM_REFERENCE_SIZE = 13
+
+let fontZoomTimer: number | null = null
+let fontZoomIdleTimer: number | null = null
+let fontZoomPendingDelta = 0
+let fontZoomStepsInGesture = 0
+
+const fontZoomHint = ref('')
+let fontZoomHintTimer: number | null = null
 
 const paneRoot = ref<HTMLElement | null>(null)
 const pendingPaste = ref<string | null>(null)
@@ -1719,6 +1830,10 @@ function runTerminalPaneCommand(command: TerminalPaneCommand): void {
     void pasteClipboard()
     return
   }
+  if (command === 'focusTerminal') {
+    scheduleTerminalFocus()
+    return
+  }
 
   if (command === 'splitRight') emit('requestSplit', props.sessionId, 'right')
   else if (command === 'splitBottom') emit('requestSplit', props.sessionId, 'bottom')
@@ -1941,6 +2056,11 @@ function handleResizeObservation(): void {
     document.body.classList.contains('qterm-resizing-horizontal')
   ) {
     fitAfterLayoutResize = true
+    return
+  }
+
+  if (windowResizeGestureActive) {
+    scheduleGestureFit()
     return
   }
 
@@ -2348,16 +2468,47 @@ function connectIfReady(): void {
 function handleWindowResize(): void {
   if (!initialLayoutReady || !isVisible.value || !terminal) return
 
-  visibleLayoutRecoveryPending = true
-  captureTerminalFrameSnapshot()
-  preserveVisibleFrameDuringRecovery = showTerminalFrameSnapshot()
-  layoutPresentationReady.value = preserveVisibleFrameDuringRecovery
+  windowResizeGestureActive = true
+
+  layoutPresentationReady.value = true
+
+  scheduleGestureFit()
 
   if (windowResizeRecoveryTimer !== null) clearTimeout(windowResizeRecoveryTimer)
+
   windowResizeRecoveryTimer = setTimeout(() => {
     windowResizeRecoveryTimer = null
-    refreshVisibleTerminal()
-  }, RESIZE_FREEZE_IDLE_MS)
+    endWindowResizeGesture()
+  }, WINDOW_DRAG_IDLE_MS)
+}
+
+function scheduleGestureFit(): void {
+  if (gestureFitFrame !== null) return
+  gestureFitFrame = window.requestAnimationFrame(() => {
+    gestureFitFrame = null
+    if (!windowResizeGestureActive || !isVisible.value || !terminal) return
+    applyFit()
+  })
+}
+
+function cancelScheduledGestureFit(): void {
+  if (gestureFitFrame === null) return
+  window.cancelAnimationFrame(gestureFitFrame)
+  gestureFitFrame = null
+}
+
+function endWindowResizeGesture(): void {
+  windowResizeGestureActive = false
+  cancelScheduledGestureFit()
+  layoutPresentationReady.value = true
+  if (!isVisible.value || !terminal) return
+  applyFit()
+  repaintTerminal()
+}
+
+function cancelTerminalResizeGesture(): void {
+  windowResizeGestureActive = false
+  cancelScheduledGestureFit()
 }
 
 let fontRefreshRevision = 0
@@ -2388,7 +2539,7 @@ function warmTerminalFontCanvas(size: number, family: string): void {
   const sample = 'MW09Il1O0[]{}@#root'
   try {
     context.clearRect(0, 0, canvas.width, canvas.height)
-    context.font = `normal normal ${size * dpr}px ${buildTerminalFontFamily(family)}`
+    context.font = `normal ${props.fontWeight} ${size * dpr}px ${buildTerminalFontFamily(family)}`
     context.textBaseline = 'alphabetic'
     context.fillStyle = '#fff'
     context.fillText(sample, 4 * dpr, 28 * dpr)
@@ -2426,6 +2577,7 @@ async function waitForFontPresentationSettle(size: number, family: string): Prom
     fontKerning: 'none',
     fontFamily: buildTerminalFontFamily(family),
     fontSize: `${size}px`,
+    fontWeight: String(props.fontWeight),
   })
   host.appendChild(probe)
   try {
@@ -2457,6 +2609,7 @@ async function primeTerminalFontForAtlas(size = props.fontSize, family = props.f
     fontKerning: 'none',
     fontFamily: buildTerminalFontFamily(family),
     fontSize: `${size}px`,
+    fontWeight: String(props.fontWeight),
   })
   host.appendChild(probe)
   const canvas = document.createElement('canvas')
@@ -2471,7 +2624,7 @@ async function primeTerminalFontForAtlas(size = props.fontSize, family = props.f
       const dpr = window.devicePixelRatio || 1
 
       if (typeof context.fillText === 'function') {
-        context.font = `normal normal ${size * dpr}px ${buildTerminalFontFamily(family)}`
+        context.font = `normal ${props.fontWeight} ${size * dpr}px ${buildTerminalFontFamily(family)}`
         context.textBaseline = 'alphabetic'
         context.fillStyle = '#fff'
         context.fillText('MW09Il1O0[]{}@#root', 4 * dpr, 28 * dpr)
@@ -2526,6 +2679,9 @@ async function applyMeasuredFont(
   }
   const family = buildTerminalFontFamily(selectedFamily)
   try {
+    instance.options.fontWeight = props.fontWeight
+
+    instance.options.fontWeightBold = Math.max(700, props.fontWeight) as typeof props.fontWeight
     if (instance.options.fontFamily === family) instance.options.fontFamily = 'monospace'
     instance.options.fontFamily = family
     instance.options.fontSize = size
@@ -2557,7 +2713,7 @@ async function applyFontWhenReady(requestManualRepaint = true, requestFit = true
   const revision = ++fontRefreshRevision
   const size = props.fontSize
   const selectedFamily = props.fontFamily.trim()
-  await ensureTerminalFontReady(size, selectedFamily)
+  await ensureTerminalFontReady(size, selectedFamily, props.fontWeight)
 
   if (revision !== fontRefreshRevision || props.fontSize !== size || props.fontFamily.trim() !== selectedFamily) return
   const instance = terminal
@@ -2569,20 +2725,21 @@ async function prepareInitialTerminalFont(): Promise<void> {
   while (terminal && !initialLayoutReady) {
     const size = props.fontSize
     const family = props.fontFamily.trim()
+    const weight = props.fontWeight
     const startedAt = performance.now()
-    await ensureTerminalFontReady(size, family)
-    const descriptor = `${size}px ${buildTerminalFontFamily(family)}`
+    await ensureTerminalFontReady(size, family, weight)
+    const descriptor = `${weight} ${size}px ${buildTerminalFontFamily(family)}`
     const checked =
       document.fonts && typeof document.fonts.check === 'function' ? document.fonts.check(descriptor, 'MW09') : false
     fontLoadDiagnostics = `loadMs=${(performance.now() - startedAt).toFixed(1)},fontCheck=${checked},fontsStatus=${document.fonts?.status ?? 'missing'}`
-    if (props.fontSize !== size || props.fontFamily.trim() !== family) continue
+    if (props.fontSize !== size || props.fontWeight !== weight || props.fontFamily.trim() !== family) continue
     const instance = terminal
     const revision = ++fontRefreshRevision
     await applyMeasuredFont(instance, revision, size, family, false, false)
 
     await waitForFontPresentationSettle(size, family)
     await nextTick()
-    if (props.fontSize === size && props.fontFamily.trim() === family) return
+    if (props.fontSize === size && props.fontWeight === weight && props.fontFamily.trim() === family) return
   }
 }
 
@@ -2694,39 +2851,25 @@ function captureTerminalFrameSnapshot(): boolean {
 function showTerminalFrameSnapshot(): boolean {
   const host = terminalElement.value
   if (!host || !terminalFrameSnapshot) return false
-  const screen = host.querySelector<HTMLElement>('.xterm-screen')
-  const hostRect = host.getBoundingClientRect()
-  const screenRect = screen?.getBoundingClientRect()
-  const currentScreenIsMeasurable = Boolean(screenRect && screenRect.width > 0 && screenRect.height > 0)
-  const cssWidth = currentScreenIsMeasurable
-    ? screenRect!.width
-    : hostRect.width > 0
-      ? hostRect.width
-      : terminalFrameSnapshot.cssWidth
-  const cssHeight = currentScreenIsMeasurable
-    ? screenRect!.height
-    : hostRect.height > 0
-      ? hostRect.height
-      : terminalFrameSnapshot.cssHeight
-  const left = currentScreenIsMeasurable ? screenRect!.left - hostRect.left : 0
-  const top = currentScreenIsMeasurable ? screenRect!.top - hostRect.top : 0
-  if (cssWidth <= 0 || cssHeight <= 0) return false
 
   const dpr = window.devicePixelRatio || 1
+  const sourcePixelWidth = Math.max(1, Math.round(terminalFrameSnapshot.cssWidth * dpr))
+  const sourcePixelHeight = Math.max(1, Math.round(terminalFrameSnapshot.cssHeight * dpr))
   const presentation = document.createElement('canvas')
-  presentation.width = Math.max(1, Math.round(cssWidth * dpr))
-  presentation.height = Math.max(1, Math.round(cssHeight * dpr))
+  presentation.width = sourcePixelWidth
+  presentation.height = sourcePixelHeight
   presentation.className = 'qterm-terminal-frame-snapshot absolute z-1 block pointer-events-none'
   presentation.setAttribute('aria-hidden', 'true')
-  presentation.style.left = `${left}px`
-  presentation.style.top = `${top}px`
-  presentation.style.width = `${cssWidth}px`
-  presentation.style.height = `${cssHeight}px`
+
+  presentation.style.width = `${sourcePixelWidth / dpr}px`
+  presentation.style.height = `${sourcePixelHeight / dpr}px`
+
+  presentation.style.left = '0'
+  presentation.style.top = '0'
+  presentation.style.transformOrigin = '0 0'
   const context = presentation.getContext('2d')
   if (!context) return false
   try {
-    const sourceDisplayWidth = Math.round(terminalFrameSnapshot.cssWidth * dpr)
-    const sourceDisplayHeight = Math.round(terminalFrameSnapshot.cssHeight * dpr)
     context.drawImage(
       terminalFrameSnapshot.source,
       0,
@@ -2735,8 +2878,8 @@ function showTerminalFrameSnapshot(): boolean {
       terminalFrameSnapshot.source.height,
       0,
       0,
-      sourceDisplayWidth,
-      sourceDisplayHeight,
+      sourcePixelWidth,
+      sourcePixelHeight,
     )
   } catch {
     return false
@@ -2746,7 +2889,26 @@ function showTerminalFrameSnapshot(): boolean {
   terminalFrameSnapshot.presentation = presentation
   host.appendChild(presentation)
   host.classList.add('has-frame-snapshot')
+
+  fitTerminalFrameSnapshot()
   return true
+}
+
+function fitTerminalFrameSnapshot(): void {
+  const host = terminalElement.value
+  const presentation = terminalFrameSnapshot?.presentation
+  if (!host || !presentation || !terminalFrameSnapshot) return
+  const hostRect = host.getBoundingClientRect()
+  const targetWidth = hostRect.width
+  const targetHeight = hostRect.height
+  const sourceWidth = terminalFrameSnapshot.cssWidth
+  const sourceHeight = terminalFrameSnapshot.cssHeight
+  if (targetWidth <= 0 || targetHeight <= 0 || sourceWidth <= 0 || sourceHeight <= 0) return
+
+  const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight)
+  const offsetX = (targetWidth - sourceWidth * scale) / 2
+  const offsetY = (targetHeight - sourceHeight * scale) / 2
+  presentation.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`
 }
 
 function unmountTerminalFrameSnapshot(): void {
@@ -2762,6 +2924,7 @@ async function finishVisibleTerminalRefresh(attempt: number): Promise<void> {
     else {
       visibleLayoutRecoveryPending = false
       preserveVisibleFrameDuringRecovery = false
+      cancelTerminalResizeGesture()
     }
     return
   }
@@ -2785,6 +2948,8 @@ async function finishVisibleTerminalRefresh(attempt: number): Promise<void> {
     ensureWebglBackingFresh()
   }
   preserveVisibleFrameDuringRecovery = false
+
+  cancelTerminalResizeGesture()
   if (pendingWebglLayoutRevision === structuralLayoutRevision) pendingWebglLayoutRevision = null
 
   visibleLayoutRecoveryPending = pendingWebglLayoutRevision !== null
@@ -2897,6 +3062,8 @@ onMounted(async () => {
     disableStdin: true,
     fontFamily: buildTerminalFontFamily(props.fontFamily),
     fontSize: props.fontSize,
+    fontWeight: props.fontWeight,
+    fontWeightBold: Math.max(700, props.fontWeight) as typeof props.fontWeight,
     lineHeight: props.lineHeight,
 
     reflowCursorLine: false,
@@ -2910,21 +3077,12 @@ onMounted(async () => {
     terminal.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
         try {
-          const line = terminal?.buffer.active.getLine(bufferLineNumber - 1)?.translateToString(true) ?? ''
-          const links: ILink[] = []
-          for (const match of line.matchAll(/https?:\/\/[^\s"'<>()[\]{}]+/g)) {
-            const start = (match.index ?? 0) + 1
-            const text = match[0].replace(/[.,;:!?]+$/, '')
-            links.push({
-              range: {
-                start: { x: start, y: bufferLineNumber },
-                end: { x: start + text.length - 1, y: bufferLineNumber },
-              },
-              text,
-              activate: () => void openExternalUrl(text),
-              decorations: { underline: true, pointerCursor: true },
-            })
-          }
+          const activeBuffer = terminal?.buffer.active
+          const links: ILink[] = activeBuffer
+            ? toXtermActionLinksFromBuffer(activeBuffer, bufferLineNumber, terminal?.cols ?? 0, (actionLink) => {
+                void activateTerminalActionLink(actionLink)
+              })
+            : []
           callback(links.length ? links : undefined)
         } catch {
           callback(undefined)
@@ -2944,6 +3102,12 @@ onMounted(async () => {
   searchResultSubscription = searchAddon.onDidChangeResults(({ resultIndex, resultCount }) => {
     searchResultIndex.value = resultIndex
     searchResultCount.value = resultCount
+  })
+
+  terminal.attachCustomWheelEventHandler((event) => {
+    if (!event.ctrlKey && !event.metaKey) return true
+    requestTerminalFontStep(event.deltaY < 0 ? 1 : -1)
+    return false
   })
   openTerminalWithDomFontMetrics(terminal, element, {
     fontFamily: buildTerminalFontFamily(props.fontFamily),
@@ -2976,11 +3140,22 @@ onMounted(async () => {
     })
   }
 
-  dataSubscription = terminal.onData((data) => {
+  if (typeof terminal.onBinary === 'function') {
+    binaryInputSubscription = terminal.onBinary((data) => {
+      if (!sessionReady.value || zmodemActive.value) return
+      channel?.sendRawInput?.(Uint8Array.from(data, (character) => character.charCodeAt(0) & 0xff))
+    })
+  }
+  dataSubscription = subscribeTerminalInputSource(terminal, (data, local) => {
+    if (!local && channel?.sendLocalInput) {
+      channel.sendInput(data)
+      return
+    }
+
     if (!ended.value && streamStatus.value === 'ready' && !zmodemActive.value) {
       if (credentialInputKind.value === null) checkCredentialPrompt()
       if (credentialInputKind.value !== null) {
-        channel?.sendInput(data)
+        sendLocalTerminalInput(data)
         if (completesCredentialInput(data)) waitForCredentialResponse()
         return
       }
@@ -3044,7 +3219,7 @@ onMounted(async () => {
       } else if (pendingShellTabSubmission) {
         flushPendingShellTabSubmission()
       }
-      channel?.sendInput(data)
+      sendLocalTerminalInput(data)
 
       if (props.hostId) {
         for (const typed of commandLineBuffer.feed(data)) {
@@ -3098,7 +3273,7 @@ onMounted(async () => {
       ) {
         event.preventDefault()
         if (!ended.value && streamStatus.value === 'ready' && !zmodemActive.value) {
-          channel?.sendInput('\b')
+          sendLocalTerminalInput('\b')
         }
         return false
       }
@@ -3108,6 +3283,13 @@ onMounted(async () => {
 
       const boundAction = boundShortcutAction(event, shortcutBindings, isMacPlatform.value)
       if (boundAction) return true
+
+      const fontSizeStep = terminalFontSizeStep(event, isMacPlatform.value)
+      if (fontSizeStep !== 0) {
+        event.preventDefault()
+        stepTerminalFontSizeByKey(fontSizeStep)
+        return false
+      }
 
       const copyBinding = shortcutBindings.copyTerminalSelection
       if (
@@ -3132,7 +3314,7 @@ onMounted(async () => {
     if (props.kind !== 'local' || !props.active || streamStatus.value !== 'ready') return
     const detail = (e as CustomEvent<{ sessionId?: string; paths?: string[] }>).detail
     if (detail?.sessionId !== props.sessionId || !detail.paths?.length) return
-    for (const filePath of detail.paths) channel?.sendInput(filePath)
+    for (const filePath of detail.paths) sendLocalTerminalInput(filePath)
   }
   window.addEventListener('qterm:local-file-drop', localFileDropHandler)
   terminalThemeUpdatedHandler = () => {
@@ -3142,6 +3324,8 @@ onMounted(async () => {
   window.addEventListener('qterm:toggle-terminal-pause', handleOutputPauseShortcut)
 
   paneRoot.value?.addEventListener('paste', handleNativePaste, true)
+
+  paneRoot.value?.addEventListener('wheel', handleTerminalWheelZoom, { passive: false, capture: true })
   window.addEventListener('qterm:command-history-changed', loadCompletionHistory)
   void loadCompletionHistory()
 
@@ -3176,7 +3360,7 @@ watch(
     if (visible) {
       updateWebglContext(webglContextOwner, webglContextState())
 
-      void ensureTerminalFontReady(props.fontSize, props.fontFamily)
+      void ensureTerminalFontReady(props.fontSize, props.fontFamily, props.fontWeight)
       visibleLayoutRecoveryPending = true
 
       const rendererNeedsRestore = holdsWebglLease.value && !webglAddon
@@ -3198,6 +3382,7 @@ watch(
         visibleLayoutRecoveryRevision += 1
         visibleLayoutRecoveryPending = false
         preserveVisibleFrameDuringRecovery = false
+        cancelTerminalResizeGesture()
         layoutPresentationReady.value = true
         presentationPending.value = false
         if (visibleRefreshFrame !== null) window.cancelAnimationFrame(visibleRefreshFrame)
@@ -3368,7 +3553,7 @@ watch(
 )
 
 watch(
-  () => [props.fontSize, props.lineHeight, props.fontFamily] as const,
+  () => [props.fontSize, props.fontWeight, props.lineHeight, props.fontFamily] as const,
   () => {
     if (!terminal) return
     fontPresentationReady.value = false
@@ -3444,19 +3629,27 @@ onBeforeUnmount(() => {
   window.removeEventListener('qterm:command-history-changed', loadCompletionHistory)
   window.removeEventListener('qterm:toggle-terminal-pause', handleOutputPauseShortcut)
   paneRoot.value?.removeEventListener('paste', handleNativePaste, true)
+  paneRoot.value?.removeEventListener('wheel', handleTerminalWheelZoom, true)
   clearCredentialInputState()
   resizeObserver?.disconnect()
+  if (fontZoomTimer !== null) window.clearTimeout(fontZoomTimer)
+  if (fontZoomIdleTimer !== null) window.clearTimeout(fontZoomIdleTimer)
+  if (fontZoomHintTimer !== null) window.clearTimeout(fontZoomHintTimer)
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('focus', refreshAfterWindowResume)
   document.removeEventListener('visibilitychange', handleVisibilityResume)
   if (resizeFreezeTimer !== null) clearTimeout(resizeFreezeTimer)
   if (windowResizeRecoveryTimer !== null) clearTimeout(windowResizeRecoveryTimer)
+
+  cancelTerminalResizeGesture()
   if (resizeNotifyTimer !== null) window.clearTimeout(resizeNotifyTimer)
 
   clearClosePromptTimer()
 
   if (channel) unregisterTerminalChannel(connectedSessionID || props.sessionId, channel)
   channel?.close()
+  binaryInputSubscription?.dispose()
+  binaryInputSubscription = null
   dataSubscription?.dispose()
   oscSubscription?.dispose()
   selectionSubscription?.dispose()
@@ -3506,6 +3699,15 @@ onBeforeUnmount(() => {
         @keydown.capture="handleKeydown"
         @contextmenu.capture="handleContextMenu"
       >
+        <div
+          v-if="fontZoomHint"
+          class="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-md border border-qt-border bg-qt-panel px-2 py-1 font-mono text-xs tabular-nums text-qt-text shadow-sm"
+          role="status"
+          aria-live="polite"
+          data-font-zoom-hint
+        >
+          {{ fontZoomHint }}
+        </div>
         <p class="sr-only terminal-accessible-description">
           <template v-if="props.kind === 'local'">{{
             t('shell.terminal.localDescription', { status: accessibleStatus })
@@ -3872,7 +4074,7 @@ onBeforeUnmount(() => {
       <ContextMenuItem @select="toggleOutputPause()">
         <Play v-if="outputPaused" :size="14" aria-hidden="true" />
         <Pause v-else :size="14" aria-hidden="true" />
-        {{ outputPaused ? t('shell.terminal.outputResume') : t('shell.terminal.outputPaused') }}
+        {{ outputPaused ? t('shell.terminal.outputResumeAction') : t('shell.terminal.outputPauseAction') }}
       </ContextMenuItem>
       <ContextMenuItem :disabled="!sessionReady" @select="openSearch"
         ><Search :size="14" />{{ t('shell.terminal.search') }}
@@ -3887,6 +4089,37 @@ onBeforeUnmount(() => {
       >
       <ContextMenuSeparator />
 
+      <template v-if="props.kind === 'ssh' && sessionReady">
+        <template v-if="syncMember">
+          <ContextMenuItem @select="emit('terminalSync', syncInputActive ? 'pause' : 'resume', props.sessionId)">
+            <Pause v-if="syncInputActive" class="size-3.5" /><Play v-else class="size-3.5" />
+            {{ t(syncInputActive ? 'terminalControl.sync.pause' : 'terminalControl.sync.resume') }}
+          </ContextMenuItem>
+          <ContextMenuItem @select="emit('terminalSync', 'manage', props.sessionId)">
+            <Network class="size-3.5" />{{ t('terminalControl.sync.manage') }}
+          </ContextMenuItem>
+          <ContextMenuItem @select="emit('terminalSync', 'leave', props.sessionId)">
+            <X class="size-3.5" />{{ t('terminalControl.sync.leave') }}
+          </ContextMenuItem>
+          <ContextMenuItem @select="emit('terminalSync', 'stop', props.sessionId)">
+            <Square class="size-3.5" />{{ t('terminalControl.sync.stop') }}
+          </ContextMenuItem>
+        </template>
+        <template v-else>
+          <ContextMenuItem @select="emit('terminalSync', props.syncGroup ? 'join' : 'create', props.sessionId)">
+            <Network class="size-3.5" />{{
+              t(props.syncGroup ? 'terminalControl.sync.join' : 'terminalControl.sync.start')
+            }}
+          </ContextMenuItem>
+          <ContextMenuItem v-if="props.syncGroup" @select="emit('terminalSync', 'manage', props.sessionId)">
+            <Network class="size-3.5" />{{ t('terminalControl.sync.manage') }}
+          </ContextMenuItem>
+        </template>
+        <ContextMenuItem @select="emit('openBatchSend', props.sessionId)">
+          <Send class="size-3.5" />{{ t('terminalControl.batch.title') }}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+      </template>
       <ContextMenuItem @select="emit('requestSplit', props.sessionId, 'right')"
         ><Columns2 :size="14" />{{ t('shell.sessionMenu.splitRight') }}
         <ContextMenuShortcut>
@@ -3953,6 +4186,9 @@ onBeforeUnmount(() => {
         :show-close="false"
       />
       <div class="dialog-body flex flex-col gap-2">
+        <p v-if="syncInputActive" class="m-0 text-xs text-qt-accent">
+          {{ t('terminalControl.sync.badge', { count: props.syncGroup?.sessionIds.length ?? 0 }) }}
+        </p>
         <pre class="paste-preview">{{ pendingPastePreview }}</pre>
         <p class="m-0 text-xs text-qt-muted">{{ t('shell.terminal.pasteConfirmDetail') }}</p>
       </div>

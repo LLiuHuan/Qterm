@@ -14,6 +14,11 @@ func (s *Service) OpenSession(ctx context.Context, hostID string) (OpenSessionRe
 	if err != nil {
 		return OpenSessionResult{}, err
 	}
+
+	hostID, err = s.resolveHostID(ctx, hostID)
+	if err != nil {
+		return OpenSessionResult{}, sessionServiceError(err)
+	}
 	connector, err := s.connectorFor(ctx, hostID)
 	if err != nil {
 		return OpenSessionResult{}, sessionServiceError(err)
@@ -28,6 +33,18 @@ func (s *Service) OpenSession(ctx context.Context, hostID string) (OpenSessionRe
 		return OpenSessionResult{}, errno.New(errno.CodeUnknown, "session.token_failed", "")
 	}
 	return OpenSessionResult{Session: session, StreamToken: token}, nil
+}
+
+func (s *Service) resolveHostID(ctx context.Context, ref string) (string, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return "", errno.New(errno.CodeInvalidArg, "host.id_required", "")
+	}
+	host, err := s.hosts.SessionHost(ctx, ref)
+	if err != nil {
+		return "", err
+	}
+	return host.ID, nil
 }
 
 func (s *Service) connectorFor(ctx context.Context, hostID string) (SessionConnector, error) {
@@ -86,6 +103,11 @@ func (s *Service) OpenSftpConnection(ctx context.Context, hostID string) (model.
 	manager, _, err := s.ready()
 	if err != nil {
 		return model.Session{}, err
+	}
+
+	hostID, err = s.resolveHostID(ctx, hostID)
+	if err != nil {
+		return model.Session{}, sessionServiceError(err)
 	}
 	session, err := manager.OpenForSftp(ctx, hostID)
 	if err != nil {

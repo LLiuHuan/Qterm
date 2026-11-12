@@ -1,8 +1,19 @@
 package tunnel
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
+)
+
+const (
+	remoteOSProbeUnixCommand = "uname -s"
+
+	remoteOSProbeWindowsCIM = `powershell -NoProfile -Command "(Get-CimInstance Win32_OperatingSystem).Caption; (Get-CimInstance Win32_OperatingSystem).Version"`
+	remoteOSProbeWindowsVer = "cmd /c ver"
+	remoteOSProbeMacOSVer   = "sw_vers -productVersion"
+
+	osReleaseProbeCommand = "cat /etc/os-release 2>/dev/null || cat /usr/lib/os-release 2>/dev/null || cat /system/etc/os-release 2>/dev/null"
 )
 
 type osReleaseInfo struct {
@@ -56,18 +67,49 @@ func firstNonEmpty(values ...string) string {
 
 func linuxDistributionIcon(output string) string {
 	release := parseOSRelease(output)
-	for _, marker := range []string{release.ID, release.IDLike, release.Name, release.PrettyName} {
+	upstream := ""
+	for _, marker := range []string{release.ID, release.IDLike} {
 		if icon := linuxLogoForMarker(marker); icon != "" {
+			if !isUpstreamDistroIcon(icon) {
+				return icon
+			}
+			if upstream == "" {
+				upstream = icon
+			}
+		}
+	}
+	for _, marker := range []string{release.Name, release.PrettyName} {
+		if icon := linuxLogoForMarker(marker); icon != "" && !isUpstreamDistroIcon(icon) {
 			return icon
 		}
 	}
+	if upstream != "" {
+		return upstream
+	}
+	if icon := linuxLogoForMarker(release.Name); icon != "" {
+		return icon
+	}
+	if icon := linuxLogoForMarker(release.PrettyName); icon != "" {
+		return icon
+	}
 	return "linux"
+}
+
+func isUpstreamDistroIcon(icon string) bool {
+	switch icon {
+	case "debian", "ubuntu", "centos", "rhel", "red-hat", "linux":
+		return true
+	default:
+		return false
+	}
 }
 
 func linuxLogoForMarker(marker string) string {
 	tokens := osMarkerTokens(marker)
 	marker = strings.ToLower(marker)
 	switch {
+	case hasAnyOSMarker(tokens, "armbian"):
+		return "armbian"
 	case hasAnyOSMarker(tokens, "almalinux", "alma"):
 		return "alma-linux"
 	case hasAnyOSMarker(tokens, "alpine"):
@@ -132,6 +174,8 @@ func linuxLogoForMarker(marker string) string {
 		return "tencentos"
 	case hasAnyOSMarker(tokens, "alinux", "alibabacloud", "alibaba"):
 		return "alinux"
+	case hasAnyOSMarker(tokens, "fnos", "feiniu") || hasAnyOSSubstring(marker, "飞牛"):
+		return "fnos"
 	case hasAnyOSMarker(tokens, "opencloudos"):
 		return "opencloudos"
 	case hasAnyOSMarker(tokens, "chromeos", "chromiumos", "cros"):
@@ -199,4 +243,159 @@ func hasAnyOSMarker(tokens map[string]struct{}, values ...string) bool {
 		}
 	}
 	return false
+}
+
+func remoteOSIcon(output string) (string, bool) {
+	marker := firstNonEmptyProbeLine(output)
+	switch {
+	case marker == "darwin" || strings.HasPrefix(marker, "darwin "):
+		return "macos", true
+	case marker == "linux" || strings.HasPrefix(marker, "linux "):
+		return "linux", true
+	case strings.HasPrefix(marker, "mingw") || strings.HasPrefix(marker, "msys"),
+		strings.HasPrefix(marker, "cygwin"),
+		strings.HasPrefix(marker, "microsoft windows"), strings.HasPrefix(marker, "windows"):
+
+		return "windows", true
+	case marker == "freebsd" || strings.HasPrefix(marker, "freebsd "):
+		return "freebsd", true
+	case marker == "openbsd" || strings.HasPrefix(marker, "openbsd "):
+		return "openbsd", true
+	case marker == "netbsd" || strings.HasPrefix(marker, "netbsd "):
+		return "netbsd", true
+	case marker == "dragonfly" || strings.HasPrefix(marker, "dragonfly "):
+		return "dragonfly-bsd", true
+	case marker == "illumos" || strings.HasPrefix(marker, "illumos "):
+		return "illumos", true
+	case marker == "aix" || strings.HasPrefix(marker, "aix "):
+		return "aix", true
+	case marker == "sunos" || strings.HasPrefix(marker, "sunos "),
+		marker == "hp-ux" || strings.HasPrefix(marker, "hp-ux "),
+		marker == "unix" || strings.HasPrefix(marker, "unix "):
+		return "unix", true
+	default:
+		return "", false
+	}
+}
+
+func firstNonEmptyProbeLine(output string) string {
+	for _, line := range strings.Split(output, "\n") {
+		if trimmed := strings.ToLower(strings.TrimSpace(line)); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func probeLines(output string) []string {
+	lines := make([]string, 0, 4)
+	for _, line := range strings.Split(output, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			lines = append(lines, trimmed)
+		}
+	}
+	return lines
+}
+
+func windowsIconForOutput(output string) string {
+	lines := probeLines(output)
+	for _, line := range lines {
+		lower := strings.ToLower(line)
+		if !strings.Contains(lower, "windows") {
+			continue
+		}
+		switch {
+		case strings.Contains(lower, "windows 11"):
+			return "windows-11"
+		case strings.Contains(lower, "windows 7"):
+			return "windows-7"
+		case strings.Contains(lower, "windows 10"):
+			return "windows-10"
+		}
+	}
+	for _, line := range lines {
+		build, ok := windowsBuildNumber(line)
+		if !ok {
+			continue
+		}
+		switch {
+		case build >= 22000:
+			return "windows-11"
+		case build >= 10240:
+
+			return "windows-10"
+		case build >= 7600 && build < 8000:
+			return "windows-7"
+		}
+	}
+	return ""
+}
+
+func windowsBuildNumber(line string) (int, bool) {
+	for index := 0; index < len(line); index++ {
+		if !isASCIIDigit(line[index]) {
+			continue
+		}
+		start := index
+		for index < len(line) && isASCIIDigit(line[index]) {
+			index++
+		}
+
+		if start > 0 && isASCIIDigit(line[start-1]) {
+			continue
+		}
+		major, err := strconv.Atoi(line[start:index])
+		if err != nil || (major != 6 && major != 10) {
+			continue
+		}
+		buildText, ok := leadingVersionTail(line[index:])
+		if !ok {
+			continue
+		}
+		if build, convErr := strconv.Atoi(buildText); convErr == nil {
+			return build, true
+		}
+	}
+	return 0, false
+}
+
+func leadingVersionTail(rest string) (string, bool) {
+	rest = strings.TrimPrefix(rest, ".")
+	minorEnd := 0
+	for minorEnd < len(rest) && isASCIIDigit(rest[minorEnd]) {
+		minorEnd++
+	}
+	if minorEnd == 0 || minorEnd >= len(rest) || rest[minorEnd] != '.' {
+		return "", false
+	}
+	tail := rest[minorEnd+1:]
+	buildEnd := 0
+	for buildEnd < len(tail) && isASCIIDigit(tail[buildEnd]) {
+		buildEnd++
+	}
+	if buildEnd == 0 {
+		return "", false
+	}
+	return tail[:buildEnd], true
+}
+
+func isASCIIDigit(b byte) bool { return b >= '0' && b <= '9' }
+
+func macosVersionIcon(output string) string {
+	for _, line := range probeLines(output) {
+		candidate := strings.ToLower(line)
+		if _, rest, ok := strings.Cut(candidate, ":"); ok {
+			candidate = rest
+		}
+		candidate = strings.TrimSpace(candidate)
+		if dot := strings.Index(candidate, "."); dot > 0 {
+			candidate = candidate[:dot]
+		}
+		major, err := strconv.Atoi(candidate)
+		if err != nil || major <= 0 || major > 99 {
+			continue
+		}
+		return "macos-" + strconv.Itoa(major)
+	}
+	return ""
 }

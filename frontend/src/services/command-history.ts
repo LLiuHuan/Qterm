@@ -63,6 +63,47 @@ export async function listCommandHistory(hostId: string): Promise<CommandHistory
     .slice(0, HOST_LIMIT)
 }
 
+function stripTerminalNoise(value: string): string {
+  let out = ''
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code === 0x1b) {
+      const next = value[index + 1]
+      if (next === '[') {
+        let cursor = index + 2
+        while (cursor < value.length) {
+          const current = value.charCodeAt(cursor)
+          if (current >= 0x40 && current <= 0x7e) break
+          cursor += 1
+        }
+        index = cursor
+        continue
+      }
+      if (next === ']' || next === 'P' || next === '^' || next === '_') {
+        let cursor = index + 2
+        while (cursor < value.length) {
+          if (value.charCodeAt(cursor) === 0x07) break
+          if (value.charCodeAt(cursor) === 0x1b && value[cursor + 1] === '\\') {
+            cursor += 1
+            break
+          }
+          cursor += 1
+        }
+        index = cursor
+        continue
+      }
+      index += 1
+      continue
+    }
+
+    if (code < 0x20 && code !== 0x09 && code !== 0x0a) continue
+    if (code === 0x7f) continue
+    out += value[index]
+  }
+  const trimmed = out.trim()
+  return trimmed.startsWith('>|') ? '' : trimmed
+}
+
 export async function saveCommandHistory(entry: {
   hostId: string
   hostName: string
@@ -70,7 +111,8 @@ export async function saveCommandHistory(entry: {
   command: string
 }): Promise<void> {
   if (!commandHistoryEnabled) return
-  const command = entry.command.trim().slice(0, COMMAND_LIMIT)
+
+  const command = stripTerminalNoise(entry.command).slice(0, COMMAND_LIMIT)
   if (!entry.hostId || !command || !commandHistoryLengthAllowed(command)) return
   if (nativeRuntimeReady()) {
     const { SaveCommandHistory } = await import('../../bindings/changeme/internal/app/service')

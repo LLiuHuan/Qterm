@@ -127,6 +127,8 @@ type Connection struct {
 
 	resources resourceSampler
 
+	processCPU processCPUSampler
+
 	closeTrace func()
 }
 
@@ -225,6 +227,8 @@ func (c *Connection) probeKeepalive() error {
 const (
 	remoteOSProbeOutputLimit = 4096
 	resourceProbeOutputLimit = 64 * 1024
+
+	remoteOSProbeTimeout = 4 * time.Second
 )
 
 func (c *Connection) DetectRemoteOS(ctx context.Context) (string, error) {
@@ -237,25 +241,63 @@ func (c *Connection) DetectRemoteOS(ctx context.Context) (string, error) {
 	if c == nil || c.client == nil {
 		return "", ErrRemoteOSUnsupported
 	}
-	for _, command := range []string{"uname -s", "cmd /c ver"} {
-		output, err := c.runBoundedProbe(ctx, command)
+	for _, command := range []string{remoteOSProbeUnixCommand, remoteOSProbeWindowsCIM, remoteOSProbeWindowsVer} {
+		output, err := c.runOSProbe(ctx, command)
 		if err != nil {
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-				return "", err
+
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return "", ctxErr
 			}
 			continue
 		}
-		if icon, ok := remoteOSIcon(output); ok {
-			if icon == "linux" {
-
-				if release, err := c.runBoundedProbe(ctx, "cat /etc/os-release 2>/dev/null || cat /usr/lib/os-release 2>/dev/null || cat /system/etc/os-release 2>/dev/null"); err == nil {
-					return linuxDistributionIcon(release), nil
-				}
-			}
-			return icon, nil
+		icon, ok := remoteOSIcon(output)
+		if !ok {
+			continue
 		}
+		return c.refineRemoteOSIcon(ctx, icon, output), nil
 	}
 	return "", ErrRemoteOSUnsupported
+}
+
+func (c *Connection) runOSProbe(ctx context.Context, command string) (string, error) {
+	probeCtx, cancel := context.WithTimeout(ctx, remoteOSProbeTimeout)
+	defer cancel()
+	return c.runBoundedProbe(probeCtx, command)
+}
+
+func (c *Connection) refineRemoteOSIcon(ctx context.Context, icon string, platformOutput string) string {
+	switch icon {
+	case "linux":
+
+		if release, err := c.runOSProbeRelease(ctx); err == nil {
+			return linuxDistributionIcon(release)
+		}
+		return icon
+	case "macos":
+		if output, err := c.runOSProbe(ctx, remoteOSProbeMacOSVer); err == nil {
+			if versioned := macosVersionIcon(output); versioned != "" {
+				return versioned
+			}
+		}
+		return icon
+	case "windows":
+
+		if versioned := windowsIconForOutput(platformOutput); versioned != "" {
+			return versioned
+		}
+		if output, err := c.runOSProbe(ctx, remoteOSProbeWindowsCIM); err == nil {
+			if versioned := windowsIconForOutput(output); versioned != "" {
+				return versioned
+			}
+		}
+		return icon
+	default:
+		return icon
+	}
+}
+
+func (c *Connection) runOSProbeRelease(ctx context.Context) (string, error) {
+	return c.runOSProbe(ctx, osReleaseProbeCommand)
 }
 
 func (c *Connection) MeasureLatency(ctx context.Context) (time.Duration, error) {
@@ -307,8 +349,16 @@ func (c *Connection) runProbeWithStderr(ctx context.Context, command string, out
 	if err := ctx.Err(); err != nil {
 		return "", "", err
 	}
+	session, err := c.openProbeSession(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	return c.runProbeSession(ctx, session, command, outputLimit)
+}
+
+func (c *Connection) openProbeSession(ctx context.Context) (*ssh.Session, error) {
 	if c == nil || c.client == nil {
-		return "", "", ErrRemoteOSUnsupported
+		return nil, ErrRemoteOSUnsupported
 	}
 
 	type sessionResult struct {
@@ -317,31 +367,47 @@ func (c *Connection) runProbeWithStderr(ctx context.Context, command string, out
 	}
 
 	result := make(chan sessionResult)
+	openCtx, cancel := context.WithTimeout(ctx, remoteOSProbeTimeout)
+	defer cancel()
 	go func() {
 		session, err := c.client.NewSession()
 		select {
 		case result <- sessionResult{session: session, err: err}:
-		case <-ctx.Done():
+		case <-openCtx.Done():
 			if session != nil {
 				_ = session.Close()
 			}
 		}
 	}()
-	var session *ssh.Session
 	select {
 	case opened := <-result:
 		if err := ctx.Err(); err != nil {
 			if opened.session != nil {
 				_ = opened.session.Close()
 			}
-			return "", "", err
+			return nil, err
 		}
 		if opened.err != nil {
-			return "", "", opened.err
+			return nil, opened.err
 		}
-		session = opened.session
-	case <-ctx.Done():
-		return "", "", ctx.Err()
+		if opened.session == nil {
+			return nil, ErrRemoteOSUnsupported
+		}
+		return opened.session, nil
+	case <-openCtx.Done():
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		return nil, openCtx.Err()
+	}
+}
+
+func (c *Connection) runProbeSession(ctx context.Context, session *ssh.Session, command string, outputLimit int) (string, string, error) {
+	if ctx == nil {
+		return "", "", errors.New("remote probe context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return "", "", err
 	}
 	if session == nil {
 		return "", "", ErrRemoteOSUnsupported
@@ -383,46 +449,6 @@ func (b *boundedProbeBuffer) Write(value []byte) (int, error) {
 }
 
 func (b *boundedProbeBuffer) String() string { return string(b.data) }
-
-func remoteOSIcon(output string) (string, bool) {
-
-	marker := ""
-	for _, line := range strings.Split(output, "\n") {
-		line = strings.ToLower(strings.TrimSpace(line))
-		if line != "" {
-			marker = line
-			break
-		}
-	}
-	switch {
-	case marker == "darwin" || strings.HasPrefix(marker, "darwin "):
-		return "macos", true
-	case marker == "linux" || strings.HasPrefix(marker, "linux "):
-		return "linux", true
-	case marker == "mingw" || strings.HasPrefix(marker, "mingw "),
-		strings.HasPrefix(marker, "msys"), strings.HasPrefix(marker, "cygwin"),
-		strings.HasPrefix(marker, "microsoft windows"), strings.HasPrefix(marker, "windows"):
-		return "windows", true
-	case marker == "freebsd" || strings.HasPrefix(marker, "freebsd "):
-		return "freebsd", true
-	case marker == "openbsd" || strings.HasPrefix(marker, "openbsd "):
-		return "openbsd", true
-	case marker == "netbsd" || strings.HasPrefix(marker, "netbsd "):
-		return "netbsd", true
-	case marker == "dragonfly" || strings.HasPrefix(marker, "dragonfly "):
-		return "dragonfly-bsd", true
-	case marker == "illumos" || strings.HasPrefix(marker, "illumos "):
-		return "illumos", true
-	case marker == "aix" || strings.HasPrefix(marker, "aix "):
-		return "aix", true
-	case marker == "sunos" || strings.HasPrefix(marker, "sunos "),
-		marker == "hp-ux" || strings.HasPrefix(marker, "hp-ux "),
-		marker == "unix" || strings.HasPrefix(marker, "unix "):
-		return "unix", true
-	default:
-		return "", false
-	}
-}
 
 func NewConnector(hostKey ssh.HostKeyCallback) *Connector {
 	dialer := &net.Dialer{}
@@ -521,6 +547,24 @@ func (c *Connection) Wait() error {
 		return errors.New("SSH connection is not ready")
 	}
 	return c.client.Wait()
+}
+
+func (c *Connection) InterruptTerminalWrite() {
+	if c == nil {
+		return
+	}
+	c.chainMu.Lock()
+	hops := append([]*Connection(nil), c.chain...)
+	c.chainMu.Unlock()
+
+	for _, hop := range hops {
+		if hop != nil && hop.client != nil {
+			_ = hop.client.Close()
+		}
+	}
+	if c.client != nil {
+		_ = c.client.Close()
+	}
 }
 
 func (c *Connection) Close() error {

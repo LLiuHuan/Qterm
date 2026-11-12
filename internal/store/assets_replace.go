@@ -105,7 +105,7 @@ func (s *Store) ReplaceAssets(ctx context.Context, data assetdata.Snapshot) erro
 				vnc_transport, vnc_ws_path, vnc_allow_insecure_tls, vnc_rfb_password_mode,
 				connection_type, terminal_type,
 				proxy_mode, proxy_host, proxy_port, proxy_username,
-				jump_host_id, proxy_id
+				jump_host_id, proxy_id, alias, custom_id
 			) VALUES (
 				?, '', ?, '', 'ssh', '', 22, '', NULLIF(?, ''), ?,
 				'', '', ?, ?, ?,
@@ -119,6 +119,7 @@ func (s *Store) ReplaceAssets(ctx context.Context, data assetdata.Snapshot) erro
 				?, ?, ?, ?,
 				?, ?,
 				?, ?, ?, ?,
+				?, ?,
 				?, ?
 			)`,
 			host.ID, host.Color, host.GroupID, host.SortOrder, formatTime(host.CreatedAt), formatTime(host.UpdatedAt), payload,
@@ -145,7 +146,9 @@ func (s *Store) ReplaceAssets(ctx context.Context, data assetdata.Snapshot) erro
 			normalizeConnectionType(host.ConnectionType), normalizeTerminalType(host.ConnectionType, host.TerminalType),
 			assetProxyMode, assetProxyHost, assetProxyPort, assetProxyUsername,
 
-			nullableString(textValue(host.JumpHostID)), nullableString(host.ProxyID))
+			nullableString(textValue(host.JumpHostID)), nullableString(host.ProxyID),
+
+			host.Alias, normalizeHostCustomID(host.CustomID))
 		clear(payload)
 		if err != nil {
 			return fmt.Errorf("insert asset host: %w", err)

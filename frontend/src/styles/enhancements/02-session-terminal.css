@@ -144,7 +144,8 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 0 90px;
+
+  padding: 0 1.25rem;
   border-bottom: 1px solid var(--qt-border);
   color: var(--qt-text);
   background: var(--qt-glass-surface, var(--qt-bar));
@@ -153,6 +154,10 @@
   user-select: none;
 
   position: relative;
+}
+
+.qterm-shell.is-mac .session-window-titlebar {
+  padding: 0 90px;
 }
 
 .session-window-titlebar__actions {

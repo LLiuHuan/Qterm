@@ -124,6 +124,8 @@ export interface SftpGateway {
   directoryFollow(sessionId: string, configure: boolean, signal?: AbortSignal): Promise<string>
   createRemoteDirectory(sessionId: string, directory: string, name: string): Promise<void>
   deleteRemoteEntry(sessionId: string, remotePath: string): Promise<void>
+
+  deleteRemoteEntryElevated(sessionId: string, remotePath: string, password?: string): Promise<void>
   createRemoteFile?(sessionId: string, directory: string, name: string): Promise<void>
   renameRemoteEntry?(sessionId: string, remotePath: string, newName: string): Promise<void>
   chmodRemoteEntry?(sessionId: string, remotePath: string, mode: string): Promise<void>
@@ -168,6 +170,16 @@ export interface SftpGateway {
 
   queueWorkspaceUploadDirectory?(sessionId: string, token: string, name: string, remoteDirectory: string): Promise<void>
   queueWorkspaceDownload?(sessionId: string, remotePath: string, token: string): Promise<SFTPTransferRecord | void>
+
+  downloadRemoteDirectoryArchive?(sessionId: string, remoteDirectory: string, localDirectory: string): Promise<void>
+
+  enqueueDirectoryArchiveDownload?(
+    sessionId: string,
+    remoteDirectory: string,
+    localDirectory: string,
+  ): Promise<SFTPTransferRecord>
+
+  chooseDirectoryPath?(): Promise<string>
 
   queueWorkspaceDownloadDirectory?(
     sessionId: string,
@@ -221,6 +233,9 @@ class MemorySftpGateway implements SftpGateway {
     throw new Error('浏览器预览没有真实 SFTP 会话')
   }
   async deleteRemoteEntry(): Promise<void> {
+    throw new Error('浏览器预览没有真实 SFTP 会话')
+  }
+  async deleteRemoteEntryElevated(): Promise<void> {
     throw new Error('浏览器预览没有真实 SFTP 会话')
   }
 
@@ -326,6 +341,33 @@ class WailsSftpGateway implements SftpGateway {
   async deleteRemoteEntry(sessionId: string, remotePath: string): Promise<void> {
     const { DeleteRemoteEntry } = await import('../../bindings/changeme/internal/app/service')
     await DeleteRemoteEntry(sessionId, remotePath)
+  }
+  async downloadRemoteDirectoryArchive(
+    sessionId: string,
+    remoteDirectory: string,
+    localDirectory: string,
+  ): Promise<void> {
+    const { DownloadSFTPDirectoryArchive } = await import('../../bindings/changeme/internal/app/service')
+    await DownloadSFTPDirectoryArchive(sessionId, remoteDirectory, localDirectory)
+  }
+  async enqueueDirectoryArchiveDownload(
+    sessionId: string,
+    remoteDirectory: string,
+    localDirectory: string,
+  ): Promise<SFTPTransferRecord> {
+    const { EnqueueSFTPDirectoryArchiveDownload } = await import('../../bindings/changeme/internal/app/service')
+    return toTransferRecord(
+      (await EnqueueSFTPDirectoryArchiveDownload(sessionId, remoteDirectory, localDirectory)) as SFTPTransferRecord,
+    )
+  }
+  async chooseDirectoryPath(): Promise<string> {
+    const { SelectSFTPLocalDirectorySetting } = await import('../../bindings/changeme/internal/app/service')
+    return (await SelectSFTPLocalDirectorySetting()) ?? ''
+  }
+
+  async deleteRemoteEntryElevated(sessionId: string, remotePath: string, password = ''): Promise<void> {
+    const { RemoveSFTPEntryElevated } = await import('../../bindings/changeme/internal/app/service')
+    await RemoveSFTPEntryElevated(sessionId, remotePath, password)
   }
   async createRemoteFile(sessionId: string, directory: string, name: string): Promise<void> {
     const { CreateRemoteFile } = await import('../../bindings/changeme/internal/app/service')

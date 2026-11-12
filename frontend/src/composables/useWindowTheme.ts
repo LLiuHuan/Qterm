@@ -12,6 +12,7 @@ type WindowThemeOptions = {
       | 'darkBackgroundEnabled'
       | 'darkBackgroundOpacity'
       | 'darkBackgroundImage'
+      | 'pageBackgroundSize'
       | 'terminalLightTheme'
       | 'terminalDarkTheme'
       | 'terminalThemeBackgroundScope'
@@ -27,6 +28,7 @@ export function useWindowTheme(options: WindowThemeOptions) {
     darkBackgroundEnabled,
     darkBackgroundOpacity,
     darkBackgroundImage,
+    pageBackgroundSize,
     terminalLightTheme,
     terminalDarkTheme,
     terminalThemeBackgroundScope,
@@ -105,8 +107,14 @@ export function useWindowTheme(options: WindowThemeOptions) {
     const assetLibraryCardHover = enabled
       ? 'var(--qt-background-hover)'
       : `color-mix(in srgb, var(--qt-text) 7%, ${assetLibraryCardSurface})`
+
+    const size = pageBackgroundSize.value
+    const backgroundSize = size === 'stretch' ? '100% 100%' : size === 'tile' ? 'auto' : size
+    const backgroundRepeat = size === 'tile' ? 'repeat' : 'no-repeat'
     return {
       '--qt-background-image': enabled && safeImage ? `url(${JSON.stringify(safeImage)})` : 'none',
+      '--qt-background-size': backgroundSize,
+      '--qt-background-repeat': backgroundRepeat,
       '--qt-background-color': 'transparent',
       '--qt-background-opacity': enabled ? String(opacity / 100) : '0',
       '--qt-background-opacity-percent': enabled ? `${opacity}%` : '0%',
@@ -116,7 +124,7 @@ export function useWindowTheme(options: WindowThemeOptions) {
       '--qt-background-border': `color-mix(in srgb, var(--qt-text) ${borderPercent}%, transparent)`,
       '--qt-background-muted': `color-mix(in srgb, var(--qt-text) ${mutedPercent}%, transparent)`,
       '--qt-background-text-shadow': `0 1px 2px rgb(${haloColor} / ${haloAlpha}), 0 0 5px rgb(${haloColor} / ${haloSoftAlpha})`,
-      '--qt-background-icon-shadow': `drop-shadow(0 1px 1px rgb(${haloColor} / ${haloAlpha}))`,
+
       '--qt-background-separator-shadow': `rgb(${haloColor} / ${haloSoftAlpha})`,
       '--qt-theme-revision': String(terminalThemeRevision.value),
       '--qt-terminal': terminalTheme.background,

@@ -39,6 +39,8 @@ type Service struct {
 	lastDesired         int
 	lastBlocked         string
 	hasConnectionReport bool
+
+	commandRunner CommandRunner
 }
 
 func NewService() *Service {

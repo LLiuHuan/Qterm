@@ -3,11 +3,22 @@ import { QtermCheckbox, QtermSettingsRow, QtermSettingsSectionHeader, QtermSwitc
 import { IconButton, QtermButton, QtermInput, QtermTextarea } from '../../components/common'
 import { computed, ref } from 'vue'
 import { VueDraggable } from 'vue-draggable-plus'
-import { Clipboard, GripVertical, Plus, Trash2, Upload } from '@lucide/vue'
+import { Clipboard, GripVertical, Plus, Sparkles, Trash2, Upload } from '@lucide/vue'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/common/overlay-controls'
 import { readClipboardText, writeClipboardText } from '../../services/clipboard'
 import { toast } from 'vue-sonner'
 import type { KeywordHighlightRule } from './settingsStore'
+import {
+  KEYWORD_HIGHLIGHT_PRESETS,
+  hasKeywordHighlightPreset,
+  type KeywordHighlightPreset,
+} from './keywordHighlightPresets'
 import TerminalColorPicker from './TerminalColorPicker.vue'
 import { useI18n } from '@/locales'
 
@@ -70,11 +81,19 @@ function applyImport(): void {
       if (typeof value.color !== 'string' || !/^#[\da-f]{6}$/i.test(value.color)) {
         throw new Error(t('settings.keywordHighlight.error.invalidColor', { index: index + 1 }))
       }
+
+      const backgroundColor = typeof value.backgroundColor === 'string' ? value.backgroundColor.trim() : ''
+      if (backgroundColor && !/^#[\da-f]{6}$/i.test(backgroundColor)) {
+        throw new Error(t('settings.keywordHighlight.error.invalidBackgroundColor', { index: index + 1 }))
+      }
       return {
         enabled: typeof value.enabled === 'boolean' ? value.enabled : true,
         pattern: value.pattern.slice(0, 512),
         note: typeof value.note === 'string' ? value.note.trim().slice(0, 256) : '',
         color: value.color.toLowerCase(),
+        ...(backgroundColor ? { backgroundColor: backgroundColor.toLowerCase() } : {}),
+
+        ...(value.caseSensitive === false ? { caseSensitive: false } : {}),
       }
     })
     emit('update:rules', rules)
@@ -103,6 +122,16 @@ function addRule(): void {
   ])
 }
 
+function addPreset(preset: KeywordHighlightPreset): void {
+  if (props.rules.length >= 100) return
+  if (hasKeywordHighlightPreset(props.rules, preset)) return
+  emit('update:rules', [...props.rules.map((rule) => ({ ...rule })), { ...preset.rule }])
+}
+
+function presetAdded(preset: KeywordHighlightPreset): boolean {
+  return hasKeywordHighlightPreset(props.rules, preset)
+}
+
 function removeRule(index: number): void {
   emit(
     'update:rules',
@@ -122,17 +151,26 @@ const draggableRules = computed({
 interface PreviewSegment {
   text: string
   color?: string
+  backgroundColor?: string
 }
 
 function previewSegments(rules: KeywordHighlightRule[]): PreviewSegment[] {
   const sample = 'ERROR at 192.168.1.100'
-  const matches: Array<{ start: number; end: number; color: string; priority: number }> = []
+  const matches: Array<{ start: number; end: number; color: string; backgroundColor?: string; priority: number }> = []
   rules.forEach((rule, priority) => {
     if (!rule.enabled || !isValidPattern(rule.pattern)) return
     try {
       for (const match of sample.matchAll(new RegExp(rule.pattern, 'gu'))) {
         const start = match.index ?? 0
-        if (match[0]) matches.push({ start, end: start + match[0].length, color: rule.color, priority })
+        if (match[0])
+          matches.push({
+            start,
+            end: start + match[0].length,
+            color: rule.color,
+
+            backgroundColor: /^#[\da-f]{6}$/i.test(rule.backgroundColor ?? '') ? rule.backgroundColor : undefined,
+            priority,
+          })
       }
     } catch {}
   })
@@ -149,8 +187,10 @@ function previewSegments(rules: KeywordHighlightRule[]): PreviewSegment[] {
       .sort((a, b) => b.priority - a.priority)[0]
     const previous = segments[segments.length - 1]
     const color = winner?.color
-    if (previous && previous.color === color) previous.text += sample.slice(start, end)
-    else segments.push({ text: sample.slice(start, end), color })
+    const backgroundColor = winner?.backgroundColor
+    if (previous && previous.color === color && previous.backgroundColor === backgroundColor)
+      previous.text += sample.slice(start, end)
+    else segments.push({ text: sample.slice(start, end), color, backgroundColor })
   }
   return segments.length ? segments : [{ text: sample }]
 }
@@ -200,7 +240,9 @@ const previewRules = computed(() => props.rules)
       <span>WARN retrying connection to api-gateway</span>
       <span>
         <template v-for="(segment, segmentIndex) in previewSegments(previewRules)" :key="segmentIndex">
-          <b v-if="segment.color" :style="{ color: segment.color }">{{ segment.text }}</b>
+          <b v-if="segment.color" :style="{ color: segment.color, backgroundColor: segment.backgroundColor }">{{
+            segment.text
+          }}</b>
           <span v-else>{{ segment.text }}</span>
         </template>
       </span>
@@ -226,6 +268,28 @@ const previewRules = computed(() => props.rules)
             @click="openImportDialog"
             ><Upload :size="14" />{{ t('settings.keywordHighlight.action.import') }}</QtermButton
           >
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <QtermButton
+                variant="outline"
+                size="sm"
+                type="button"
+                class="text-xs"
+                :disabled="props.rules.length >= 100"
+                ><Sparkles :size="14" />{{ t('settings.keywordHighlight.action.addPreset') }}</QtermButton
+              >
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                v-for="preset in KEYWORD_HIGHLIGHT_PRESETS"
+                :key="preset.id"
+                :disabled="presetAdded(preset)"
+                @select="addPreset(preset)"
+              >
+                {{ t(preset.labelKey) }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <QtermButton
             variant="outline"
             size="sm"
@@ -247,6 +311,7 @@ const previewRules = computed(() => props.rules)
         ><span>{{ t('settings.keywordHighlight.table.pattern') }}</span
         ><span>{{ t('settings.keywordHighlight.table.note') }}</span
         ><span>{{ t('settings.keywordHighlight.table.color') }}</span
+        ><span>{{ t('settings.keywordHighlight.table.background') }}</span
         ><span>{{ t('settings.keywordHighlight.table.actions') }}</span>
       </div>
       <div v-if="props.rules.length === 0" class="keyword-highlight-empty text-sm">
@@ -304,6 +369,20 @@ const previewRules = computed(() => props.rules)
               class="keyword-highlight-color-text"
               :aria-label="t('settings.keywordHighlight.rule.hexColor', { index: index + 1 })"
               @update:model-value="updateRule(index, { color: String($event) })"
+            />
+          </div>
+          <div class="keyword-highlight-color-field" :class="{ 'is-empty': !rule.backgroundColor }">
+            <TerminalColorPicker
+              :model-value="rule.backgroundColor ?? ''"
+              :label="t('settings.keywordHighlight.rule.backgroundColor', { index: index + 1 })"
+              @update:model-value="updateRule(index, { backgroundColor: $event })"
+            />
+            <QtermInput
+              :model-value="rule.backgroundColor ?? ''"
+              class="keyword-highlight-color-text"
+              :placeholder="t('settings.keywordHighlight.rule.backgroundNone')"
+              :aria-label="t('settings.keywordHighlight.rule.backgroundHexColor', { index: index + 1 })"
+              @update:model-value="updateRule(index, { backgroundColor: String($event) })"
             />
           </div>
           <IconButton
@@ -365,7 +444,8 @@ const previewRules = computed(() => props.rules)
   overflow: auto;
   border: 1px solid var(--qt-border);
   border-radius: 10px;
-  background: var(--qt-theme-7) !important;
+
+  background: transparent !important;
   color: var(--qt-text);
   font-family: var(--qt-font-mono);
   line-height: 1.65;
@@ -402,7 +482,7 @@ const previewRules = computed(() => props.rules)
 .keyword-highlight-rule-head,
 .keyword-highlight-rule-row {
   display: grid;
-  grid-template-columns: 20px 42px minmax(140px, 1.3fr) minmax(110px, 1fr) minmax(150px, 1fr) 30px;
+  grid-template-columns: 20px 42px minmax(140px, 1.3fr) minmax(100px, 0.9fr) minmax(150px, 1fr) minmax(140px, 1fr) 30px;
   align-items: center;
   gap: 8px;
 }
@@ -480,6 +560,19 @@ const previewRules = computed(() => props.rules)
   flex: 1;
 }
 
+.keyword-highlight-color-field.is-empty :deep(.terminal-color-swatch) {
+  border-style: dashed;
+}
+
+.keyword-highlight-color-field.is-empty :deep(.terminal-color-swatch-fill) {
+  background-color: transparent !important;
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--qt-muted) 60%, transparent) 0 1px,
+    transparent 1px 5px
+  );
+}
+
 .keyword-highlight-empty {
   padding: 28px 12px;
   color: var(--qt-muted);
@@ -531,7 +624,7 @@ const previewRules = computed(() => props.rules)
   color: var(--qt-muted);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .keyword-highlight-rules-header {
     align-items: flex-start;
     flex-direction: column;
@@ -549,11 +642,12 @@ const previewRules = computed(() => props.rules)
 
   .keyword-highlight-rule-row > :nth-child(3),
   .keyword-highlight-rule-row > :nth-child(4),
-  .keyword-highlight-rule-row > :nth-child(5) {
+  .keyword-highlight-rule-row > :nth-child(5),
+  .keyword-highlight-rule-row > :nth-child(6) {
     grid-column: 3;
   }
 
-  .keyword-highlight-rule-row > :nth-child(6) {
+  .keyword-highlight-rule-row > :nth-child(7) {
     grid-column: 4;
     grid-row: 1;
   }

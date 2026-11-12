@@ -238,6 +238,20 @@ button:disabled {
   color: var(--qt-muted, var(--muted-foreground));
 }
 
+[data-slot='tooltip-content'] {
+  border: 1px solid var(--qt-border, var(--border));
+  border-radius: var(--qt-control-radius, 6px);
+  background: var(--qt-panel, var(--popover));
+  color: var(--qt-text, var(--popover-foreground));
+  box-shadow: var(--qt-shadow, 0 8px 24px rgb(0 0 0 / 14%));
+}
+
+[data-slot='tooltip-content'] [data-tooltip-arrow] {
+  background: var(--qt-panel, var(--popover));
+  fill: var(--qt-panel, var(--popover));
+  border-color: var(--qt-border, var(--border));
+}
+
 [data-slot='popover-content'] {
   border: 1px solid var(--qt-border, var(--border));
   border-radius: var(--qt-control-radius, 6px);

@@ -20,8 +20,9 @@
   background-image: var(--qt-background-image, none);
   background-color: var(--qt-background-color, transparent);
   background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
+
+  background-size: var(--qt-background-size, cover);
+  background-repeat: var(--qt-background-repeat, no-repeat);
   opacity: var(--qt-background-opacity, 0);
   transition: opacity 180ms ease;
 }

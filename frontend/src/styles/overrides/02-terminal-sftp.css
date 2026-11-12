@@ -8,7 +8,7 @@
 }
 
 .workspace-pane.has-terminal-metrics > .terminal-session-pane {
-  bottom: 44px;
+  bottom: 36px;
   padding-bottom: 0;
 }
 .terminal-metrics-separator[data-orientation='horizontal'] {
@@ -416,7 +416,9 @@
 
 .qterm-shell.has-page-background
   :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+        [data-ai-inline-field]
+      ),
     select,
     textarea:not(.xterm-helper-textarea),
     [data-slot='input'],
@@ -431,7 +433,9 @@
 
 .qterm-shell.has-page-background
   :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+        [data-ai-inline-field]
+      ),
     select,
     textarea:not(.xterm-helper-textarea),
     [data-slot='input'],
@@ -473,7 +477,9 @@
 
 .qterm-shell
   :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+        [data-ai-inline-field]
+      ),
     select,
     textarea,
     [data-slot='input'],
@@ -511,11 +517,6 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-reference-ring) 16%, transparent) !important;
 }
 
-.qterm-shell.has-page-background:not(.is-dark) .sftp-panel .path-bar.is-editing:focus-within {
-  border-color: transparent !important;
-  box-shadow: none !important;
-}
-
 .terminal-color-swatch {
   display: inline-flex;
   flex: 0 0 32px;
@@ -549,9 +550,4 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   text-shadow: var(--qt-background-text-shadow);
-}
-
-.qterm-shell.has-page-background .sftp-workspace-stage svg,
-.qterm-shell.has-page-background .rdp-workspace-stage svg {
-  filter: var(--qt-background-icon-shadow);
 }

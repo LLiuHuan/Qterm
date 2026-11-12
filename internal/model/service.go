@@ -12,6 +12,8 @@ type ServiceInfo struct {
 	EnabledState string `json:"enabledState"`
 
 	Custom bool `json:"custom"`
+
+	Scope string `json:"scope"`
 }
 
 type ServiceSnapshot struct {

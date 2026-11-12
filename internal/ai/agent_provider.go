@@ -17,6 +17,9 @@ type AgentDelta struct {
 	Content   string
 	Reasoning string
 	Usage     *Usage
+
+	ToolName string
+	ToolArgs string
 }
 
 type AgentTurn struct {
@@ -329,6 +332,20 @@ func readOpenAIAgentStream(body io.Reader, turn *AgentTurn, handle func(AgentDel
 			if handle != nil && (delta.Content != "" || delta.ReasoningContent != "" || usage != nil) {
 				if err := handle(AgentDelta{Content: delta.Content, Reasoning: delta.ReasoningContent, Usage: usage}); err != nil {
 					return err
+				}
+			}
+
+			if handle != nil {
+				for _, call := range delta.ToolCalls {
+					if call.Function.Arguments == "" {
+						continue
+					}
+					if err := handle(AgentDelta{
+						ToolName: accumulator.ensure(call.Index).Name,
+						ToolArgs: call.Function.Arguments,
+					}); err != nil {
+						return err
+					}
 				}
 			}
 		} else if usage != nil && handle != nil {

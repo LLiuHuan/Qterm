@@ -7,6 +7,7 @@ import { useI18n } from '@/locales'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   DEFAULT_SETTINGS,
+  normalizeTerminalFontWeight,
   loadSettings,
   loadSettingsFromPreferences,
   saveSettings,
@@ -181,6 +182,10 @@ export function useSettingsState() {
     settings.themeMode = isDark.value ? 'light' : 'dark'
   }
 
+  function setTerminalFontWeight(weight: number): void {
+    settings.terminalFontWeight = normalizeTerminalFontWeight(weight)
+  }
+
   function setTerminalFontSize(size: number): void {
     const value = Number(size)
     if (!Number.isFinite(value)) return
@@ -217,6 +222,7 @@ export function useSettingsState() {
 
   function resetTerminalTypography(): void {
     settings.terminalFontSize = DEFAULT_SETTINGS.terminalFontSize
+    settings.terminalFontWeight = DEFAULT_SETTINGS.terminalFontWeight
     settings.terminalLineHeight = DEFAULT_SETTINGS.terminalLineHeight
     settings.terminalFontFamily = DEFAULT_SETTINGS.terminalFontFamily
   }
@@ -305,6 +311,7 @@ export function useSettingsState() {
     setThemeMode,
     toggleTheme,
     setTerminalFontSize,
+    setTerminalFontWeight,
     setTerminalLineHeight,
     setTerminalFontFamily,
     setTerminalTheme,

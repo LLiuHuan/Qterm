@@ -57,7 +57,9 @@
 
 .qterm-dialog.has-terminal-theme
   :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+        [data-ai-inline-field]
+      ),
     select,
     textarea,
     [data-slot='input'],
@@ -73,7 +75,9 @@
 
 .qterm-dialog.has-terminal-theme
   :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+        [data-ai-inline-field]
+      ),
     select,
     textarea,
     [data-slot='input'],
@@ -184,7 +188,9 @@ body [data-sonner-toaster] {
 
 .qterm-dialog.has-page-background
   :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+        [data-ai-inline-field]
+      ),
     select,
     textarea,
     [data-slot='input'],
@@ -200,7 +206,9 @@ body [data-sonner-toaster] {
 
 .qterm-dialog.has-page-background
   :is(
-    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not(
+        [data-ai-inline-field]
+      ),
     select,
     textarea,
     [data-slot='input'],
@@ -297,18 +305,6 @@ body [data-sonner-toaster] {
   --qt-panel: color-mix(in srgb, var(--qt-theme-outer) 50%, transparent);
 }
 
-.update-bell-panel {
-  background: color-mix(in srgb, var(--qt-panel) 96%, transparent);
-}
-
-.qterm-shell.has-page-background .update-bell-panel {
-  background: color-mix(in srgb, var(--qt-theme-outer, var(--qt-panel)) 58%, transparent);
-}
-
-.qterm-shell.has-page-background.is-dark .update-bell-panel {
-  background: color-mix(in srgb, var(--qt-theme-outer, var(--qt-panel)) 68%, transparent);
-}
-
 .qterm-context-menu.has-page-background {
   --qt-theme-border: var(--qt-background-border);
   --qt-border: var(--qt-background-border);
@@ -350,7 +346,7 @@ body [data-sonner-toaster] {
 [data-slot='dropdown-menu-sub-content'].has-page-background {
   --qt-theme-border: var(--qt-background-border);
   --qt-border: var(--qt-background-border);
-  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 58%, transparent);
+  --qt-menu-panel: color-mix(in srgb, var(--card) 58%, transparent);
 
   --qt-panel: var(--qt-menu-panel);
   border: 1px solid var(--qt-theme-border) !important;
@@ -363,7 +359,7 @@ body [data-sonner-toaster] {
 [data-slot='dropdown-menu-content'].has-page-background.is-dark,
 [data-slot='dropdown-menu-sub-content'].has-page-background.is-dark {
   --qt-theme-border: color-mix(in srgb, var(--qt-text) 48%, transparent);
-  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 64%, transparent);
+  --qt-menu-panel: color-mix(in srgb, var(--card) 64%, transparent);
 }
 
 :is(.qterm-select-content, .qterm-form-menu).has-page-background
@@ -445,6 +441,47 @@ body [data-sonner-toaster] {
     .terminal-theme-background-derived
   ).is-dark {
   --qt-theme-border: color-mix(in srgb, var(--qt-theme-7) 82%, var(--qt-text) 18%);
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ),
+[data-slot='dropdown-menu-content'].has-page-background:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ),
+[data-slot='dropdown-menu-sub-content'].has-page-background:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ),
+.qterm-context-menu.has-page-background:is(.terminal-theme-background-shell, .terminal-theme-background-derived) {
+  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 58%, transparent);
+  --qt-panel: var(--qt-menu-panel);
+  --qt-border: var(--qt-theme-border);
+  background: var(--qt-menu-panel) !important;
+  background-color: var(--qt-menu-panel) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+:is(.qterm-select-content, .qterm-form-menu).has-page-background.is-dark:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ),
+[data-slot='dropdown-menu-content'].has-page-background.is-dark:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ),
+[data-slot='dropdown-menu-sub-content'].has-page-background.is-dark:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ),
+.qterm-context-menu.has-page-background.is-dark:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ) {
+  --qt-menu-panel: color-mix(in srgb, var(--qt-theme-outer) 64%, transparent);
 }
 
 .qterm-context-menu.has-terminal-theme [data-slot='context-menu-item'],
@@ -633,4 +670,80 @@ body [data-sonner-toaster] {
 .settings-dialog [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']):hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--qt-text) 28%, transparent) !important;
   background: color-mix(in srgb, var(--qt-text) 7%, var(--qt-panel)) !important;
+}
+
+[data-slot='tooltip-content'].has-page-background {
+  --qt-theme-border: var(--qt-background-border);
+  --qt-border: var(--qt-background-border);
+  background: color-mix(in srgb, var(--card) 88%, transparent) !important;
+  color: var(--qt-text, var(--popover-foreground));
+  border: 1px solid var(--qt-theme-border) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+[data-slot='tooltip-content'].has-page-background.is-dark {
+  --qt-border: color-mix(in srgb, var(--qt-text) 48%, transparent);
+  background: color-mix(in srgb, var(--card) 92%, transparent) !important;
+}
+
+[data-slot='tooltip-content'].has-page-background [data-tooltip-arrow] {
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  fill: color-mix(in srgb, var(--card) 88%, transparent);
+}
+
+[data-slot='tooltip-content'].has-page-background.is-dark [data-tooltip-arrow] {
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  fill: color-mix(in srgb, var(--card) 92%, transparent);
+}
+
+[data-slot='tooltip-content']:is(
+  .has-terminal-theme,
+  .terminal-theme-background-shell,
+  .terminal-theme-background-derived
+) {
+  --qt-theme-border: color-mix(in srgb, var(--qt-theme-7) 72%, var(--qt-text) 28%);
+  --qt-border: var(--qt-theme-border);
+  color: var(--qt-text, var(--popover-foreground));
+  border: 1px solid var(--qt-theme-border) !important;
+  background: var(--qt-theme-3, var(--card)) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+[data-slot='tooltip-content']:is(
+    .has-terminal-theme,
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ).is-dark {
+  --qt-theme-border: color-mix(in srgb, var(--qt-theme-7) 82%, var(--qt-text) 18%);
+}
+
+[data-slot='tooltip-content']:is(
+    .has-terminal-theme,
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  )
+  [data-tooltip-arrow] {
+  background: var(--qt-theme-3, var(--card));
+  fill: var(--qt-theme-3, var(--card));
+  border-color: var(--qt-theme-border);
+}
+
+[data-slot='tooltip-content'].has-page-background:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  ) {
+  background: color-mix(in srgb, var(--qt-theme-outer) 88%, transparent) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+
+[data-slot='tooltip-content'].has-page-background:is(
+    .terminal-theme-background-shell,
+    .terminal-theme-background-derived
+  )
+  [data-tooltip-arrow] {
+  background: color-mix(in srgb, var(--qt-theme-outer) 88%, transparent);
+  fill: color-mix(in srgb, var(--qt-theme-outer) 88%, transparent);
 }

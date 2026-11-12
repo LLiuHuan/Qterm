@@ -79,6 +79,7 @@ The interface is available in seven languages: Simplified Chinese, Traditional C
 - **Resource monitoring**: view CPU, memory, disk, network, and other metrics with history charts; available metrics depend on the remote environment.
 - **Processes and services**: view processes, manage services on supported systems, and read logs.
 - **Docker**: manage remote containers, images, volumes, and networks through the current SSH session, and view resource details and container logs.
+- **tmux sessions**: list, create, and kill tmux sessions on the remote host; “Attach” writes `tmux attach` into the current terminal, and sessions survive disconnections.
 - **Authentication tools**: manage TOTP / HOTP entries, import `otpauth://` or QR codes, display verification codes, and copy and show QR codes.
 
 ### AI assistant
@@ -94,15 +95,15 @@ You must configure a model service yourself before using AI. Content selected as
 
 ## Pages and entry points
 
-| Page / area               | What you can do                                                                                                                                       |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Asset library and sidebar | Search and organize hosts, manage groups, open connections, and import existing configurations                                                        |
-| Host editor               | Configure address, authentication, jump host / proxy, and advanced connection parameters per protocol                                                 |
-| Session workspace         | Use the terminal or remote desktop, switch tabs, split panes, and detach windows                                                                      |
-| Right-side tool panel     | Open resource monitoring, processes, services, Docker, SFTP, snippets, command history, port forwarding, authentication, themes, and the AI assistant |
-| Settings → Manage         | Credentials, fingerprints, proxies, port forwarding, snippets, session history, terminal recordings                                                   |
-| Settings → Preferences    | Application, appearance, terminal, remote desktop, keyword highlighting, credential prompts, shortcuts, AI assistant, about                           |
-| Settings → About          | View version and updates, import and export, and other entry points                                                                                   |
+| Page / area               | What you can do                                                                                                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Asset library and sidebar | Search and organize hosts, manage groups, open connections, and import existing configurations                                                                       |
+| Host editor               | Configure address, authentication, jump host / proxy, and advanced connection parameters per protocol                                                                |
+| Session workspace         | Use the terminal or remote desktop, switch tabs, split panes, and detach windows                                                                                     |
+| Right-side tool panel     | Open resource monitoring, processes, services, Docker, tmux sessions, SFTP, snippets, command history, port forwarding, authentication, themes, and the AI assistant |
+| Settings → Manage         | Credentials, fingerprints, proxies, port forwarding, snippets, session history, terminal recordings                                                                  |
+| Settings → Preferences    | Application, appearance, terminal, remote desktop, keyword highlighting, credential prompts, shortcuts, AI assistant, about                                          |
+| Settings → About          | View version and updates, import and export, and other entry points                                                                                                  |
 
 The tool panel opens according to the session type and connection state; for example, Docker requires a connected SSH session and a remote Docker environment.
 

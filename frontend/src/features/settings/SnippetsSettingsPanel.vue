@@ -411,7 +411,8 @@ function handleCreateRequest(): void {
 function handleAssetsImported(): void {
   void load()
 }
-defineExpose({ openCreateDialog: createSnippet, openCreateDialogWithContent })
+
+defineExpose({ openCreateDialog: createSnippet, openCreateDialogWithContent, openEditDialog: editSnippet })
 watch(
   () => props.createRequest,
   (value, previous) => {

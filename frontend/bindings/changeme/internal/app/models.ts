@@ -45,6 +45,15 @@ export interface AIChatStreamResult {
   context: ai$0.ContextBreakdown
 }
 
+export interface AIConversationCompaction {
+  compacted: boolean
+  reason?: string
+  summary?: string
+  keptMessages?: ai$0.Message[] | null
+  beforeBytes: number
+  afterBytes: number
+}
+
 export interface AIModelListInput {
   providerId: string
   type: ai$0.ProviderType
@@ -111,6 +120,24 @@ export interface RecordingSettings {
   effective: string
 
   default: string
+}
+
+export interface RemoteHistory {
+  entries: RemoteHistoryEntry[] | null
+
+  truncated: boolean
+
+  home?: string
+}
+
+export interface RemoteHistoryEntry {
+  shell: string
+
+  command: string
+
+  timestamp: number
+
+  source: string
 }
 
 export interface SerialPortInfo {

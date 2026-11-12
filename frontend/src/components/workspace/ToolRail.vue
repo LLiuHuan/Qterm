@@ -9,7 +9,6 @@ import {
   MonitorUp,
   ScrollText,
   Palette,
-  RefreshCw,
   Gauge,
   Server,
   KeyRound,
@@ -18,12 +17,14 @@ import {
   Search,
   Sparkles,
   Unplug,
+  Layers,
 } from '@lucide/vue'
 import { DockerIcon } from '../../components/common/icon'
 import type { Component } from 'vue'
 import { computed } from 'vue'
 import { Separator } from '../common/control-primitives'
 import IconButton from '../common/button/IconButton.vue'
+import RefreshIconButton from '../common/button/RefreshIconButton.vue'
 import type { ToolPanel } from '@/types/qterm.ts'
 import { useI18n } from '@/locales'
 
@@ -92,6 +93,7 @@ const tools = computed<Array<{ id: ToolPanel; label: string; icon: Component; di
     snippetTool,
     entry('sftp', t('shell.toolRail.sftp'), FolderOpen),
     entry('docker', t('shell.docker.title'), DockerIcon),
+    entry('tmux', t('shell.tmux.title'), Layers),
     entry('tunnels', t('shell.toolRail.tunnels'), Route),
     entry('otp', t('shell.toolRail.otp'), KeyRound),
     entry('processes', t('shell.monitor.tabProcesses'), Gauge),
@@ -185,22 +187,28 @@ const tools = computed<Array<{ id: ToolPanel; label: string; icon: Component; di
     <div class="flex-1"></div>
 
     <template v-if="props.rdpActive">
-      <IconButton tooltip-side="left" :label="t('shell.rdp.reconnect')" @click="emit('rdpReconnect')">
-        <RefreshCw :size="17" aria-hidden="true" />
-      </IconButton>
+      <RefreshIconButton
+        mode="action"
+        tooltip-side="left"
+        :label="t('shell.rdp.reconnect')"
+        size="icon"
+        icon-class="size-[17px]"
+        @click="emit('rdpReconnect')"
+      />
       <IconButton tooltip-side="left" :label="t('shell.rdp.disconnect')" @click="emit('rdpDisconnect')">
         <Unplug :size="17" aria-hidden="true" />
       </IconButton>
     </template>
     <template v-else>
-      <IconButton
+      <RefreshIconButton
+        mode="action"
         tooltip-side="left"
         :label="t('shell.toolRail.reconnect')"
+        size="icon"
+        icon-class="size-[17px]"
         :disabled="!props.canReconnect"
         @click="emit('reconnect')"
-      >
-        <RefreshCw :size="17" aria-hidden="true" />
-      </IconButton>
+      />
       <IconButton
         tooltip-side="left"
         :label="t('shell.toolRail.disconnect')"

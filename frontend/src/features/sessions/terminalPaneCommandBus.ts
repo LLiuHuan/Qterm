@@ -1,6 +1,7 @@
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
 
-export type TerminalPaneCommand = 'clear' | 'search' | 'copySelection' | 'paste' | 'splitRight' | 'splitBottom'
+export type TerminalPaneCommand =
+  'clear' | 'search' | 'copySelection' | 'paste' | 'splitRight' | 'splitBottom' | 'focusTerminal'
 
 export interface TerminalPaneCommandRequest {
   sessionId: string

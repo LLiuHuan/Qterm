@@ -5,6 +5,7 @@ import { Moon, PanelLeftClose, PanelLeftOpen, Sun } from 'lucide'
 import { IconButton, MorphingIcon } from '../common'
 import { useI18n } from '@/locales'
 import { armCurrentWindowDrag } from '../../services/sessionWindows'
+import { Sparkles } from '@lucide/vue'
 import UpdateBell from '../../features/updates/UpdateBell.vue'
 
 const props = defineProps<{
@@ -34,6 +35,7 @@ const emit = defineEmits<{
   openSettings: []
   toggleTheme: []
   lockApp: []
+  openGlobalAi: []
 }>()
 
 function handleTitlebarDoubleClick(event: MouseEvent): void {
@@ -111,6 +113,9 @@ function handleTitlebarDoubleClick(event: MouseEvent): void {
     <div class="topbar-spacer relative z-1 min-w-3 flex-1" style="--wails-draggable: no-drag"></div>
 
     <div class="topbar-actions" :aria-label="t('shell.toolbar.global')">
+      <IconButton :label="t('shell.aiChat.globalEntry')" data-toolbar-global-ai @click="$emit('openGlobalAi')">
+        <Sparkles :size="16" aria-hidden="true" />
+      </IconButton>
       <UpdateBell />
       <IconButton :label="t('shell.toolbar.lock')" :disabled="!props.appLockEnabled" @click="emit('lockApp')">
         <LockKeyhole :size="16" aria-hidden="true" />

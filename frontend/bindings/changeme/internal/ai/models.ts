@@ -1,3 +1,7 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as json$0 from '../../../encoding/json/models.js'
+
 export interface AgentAuditEntry {
   runId: string
   stepId: string
@@ -50,14 +54,20 @@ export interface AgentRun {
 
   draft?: string
 
+  reasoningDraft?: string
+
   modelCalls?: number
   commandRuns?: number
+
+  reasonings?: string[] | null
 
   notes?: string[] | null
 
   noteDurations?: number[] | null
 
   usage?: Usage | null
+
+  allowedTools?: string[] | null
 
   context?: ContextBreakdown | null
 
@@ -86,6 +96,10 @@ export interface AgentStep {
   state: StepState
   title?: string
   command?: string
+
+  args?: json$0.RawMessage
+
+  preview?: ToolPreview | null
   targetSessionId?: string
   risk?: string
   riskReason?: string
@@ -128,12 +142,18 @@ export interface DecideInput {
   SessionID: string
   PolicyVersion: string
 
+  Choice: string
+
+  Remember: boolean
+
   Since: number
 }
 
 export interface Message {
   role: string
   content: string
+
+  images?: string[] | null
 }
 
 export enum ProviderType {
@@ -173,6 +193,12 @@ export interface StartInput {
 
   SessionID: string
 
+  hostIds?: string[] | null
+
+  sessionKind?: string
+
+  targetLabel?: string
+
   Prompt: string
 
   PolicyVersion: string
@@ -197,6 +223,28 @@ export enum StepKind {
   StepKindCommand = 'execute_command',
 
   StepKindAnswer = 'final_answer',
+
+  StepKindListHosts = 'list_hosts',
+
+  StepKindGetHost = 'get_host',
+
+  StepKindSftpList = 'sftp_list',
+
+  StepKindSftpReadFile = 'sftp_read_file',
+
+  StepKindSftpWriteFile = 'sftp_write_file',
+
+  StepKindSftpUploadFile = 'sftp_upload_file',
+
+  StepKindSftpDownloadFile = 'sftp_download_file',
+
+  StepKindLocalListDir = 'local_list_dir',
+
+  StepKindLocalReadFile = 'local_read_file',
+
+  StepKindWebFetch = 'web_fetch',
+
+  StepKindAskUser = 'ask_user',
 }
 
 export enum StepState {
@@ -215,6 +263,11 @@ export interface ToolCall {
   id: string
   name: string
   arguments: string
+}
+
+export interface ToolPreview {
+  kind: string
+  data?: json$0.RawMessage
 }
 
 export interface Usage {

@@ -1,6 +1,22 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowDown, Check, ChevronDown, Copy, History, RefreshCw, Sparkles, SquarePen, Terminal } from '@lucide/vue'
+import {
+  ArrowDown,
+  Check,
+  ChevronDown,
+  Copy,
+  Clock,
+  History,
+  Pencil,
+  RefreshCw,
+  Server,
+  X,
+  Sparkles,
+  SquarePen,
+  Terminal,
+  Archive,
+  Undo2,
+} from '@lucide/vue'
 import { IconButton, QtermButton } from '../../components/common'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { ScrollArea } from '../../components/common/control-primitives'
@@ -24,8 +40,10 @@ import {
 } from '../../components/common/ai'
 import { useI18n } from '../../locales'
 import { toast } from 'vue-sonner'
+import { Events } from '@wailsio/runtime'
 import {
   aiErrorMessage,
+  compactAIConversation,
   normalizeContextBreakdown,
   runAIBackgroundCommand,
   startChatStream,
@@ -67,9 +85,12 @@ import {
 import AiMessageText from './AiMessageText.vue'
 import AiComposer from './AiComposer.vue'
 import { Reasoning, ReasoningContent, ReasoningTrigger } from '../../components/ai-elements/reasoning'
-import { Tool } from '../../components/ai-elements/tool'
 import { Response } from '../../components/ai-elements/response'
 import { Task } from '../../components/ai-elements/task'
+import AiToolCard from './AiToolCard.vue'
+import AiToolConfirmation from './AiToolConfirmation.vue'
+import AiUserQuestion from './AiUserQuestion.vue'
+import AiHostMentionMenu, { type MentionHost } from './AiHostMentionMenu.vue'
 import AiHistoryDialog from '../../components/dialogs/AiHistoryDialog.vue'
 import {
   findProvider,
@@ -108,6 +129,7 @@ import {
   type StructuredReply,
 } from '../../services/aiStructuredOutput'
 import {
+  AGENT_SETTINGS_CHANGED_EVENT,
   readAgentSettings,
   writeAgentSettings,
   RunState,
@@ -122,6 +144,8 @@ const props = defineProps<{
   terminalContext?: string
 
   hostId?: string
+
+  availableHosts?: MentionHost[]
   sessionId?: string
   sessionTitle?: string
   sessionState?: SessionState
@@ -133,7 +157,8 @@ const emit = defineEmits<{ 'update:mode': [value: 'ask' | 'agent'] }>()
 
 const { t } = useI18n()
 
-const connectionAvailable = computed(() => props.sessionState === 'connected')
+const globalMode = computed(() => !props.sessionId && !props.hostId)
+const connectionAvailable = computed(() => props.sessionState === 'connected' || globalMode.value)
 
 interface ChatMessage extends AIMessage {
   id?: string
@@ -154,6 +179,10 @@ interface ChatMessage extends AIMessage {
   feedback?: 'up' | 'down'
 
   context?: AIContextBreakdown
+
+  compacted?: boolean
+
+  compactionGeneration?: number
 }
 
 const messages = ref<ChatMessage[]>([])
@@ -161,6 +190,76 @@ const conversation = ref<AiConversationRecord | null>(null)
 const conversationId = ref('')
 const activeAgentMessageId = ref('')
 const draft = ref('')
+
+const editingIndex = ref(-1)
+
+const contextCompacting = ref(false)
+
+const selectedHosts = ref<MentionHost[]>([])
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024
+const MAX_IMAGE_COUNT = 4
+const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+const pendingImages = ref<string[]>([])
+
+function imageBytes(dataUrl: string): number {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
+  return Math.floor((base64.length * 3) / 4) - padding
+}
+
+function addPendingImages(dataUrls: string[]): void {
+  for (const dataUrl of dataUrls) {
+    const mediaType = dataUrl.slice(5, dataUrl.indexOf(';'))
+    if (!ALLOWED_IMAGE_TYPES.includes(mediaType)) {
+      toast.error(t('shell.aiChat.composer.imageUnsupported'))
+      continue
+    }
+    if (imageBytes(dataUrl) > MAX_IMAGE_BYTES) {
+      toast.error(t('shell.aiChat.composer.imageTooLarge'))
+      continue
+    }
+    if (pendingImages.value.length >= MAX_IMAGE_COUNT) {
+      toast.error(t('shell.aiChat.composer.imageLimit', { count: MAX_IMAGE_COUNT }))
+      break
+    }
+    pendingImages.value = [...pendingImages.value, dataUrl]
+  }
+}
+
+function removePendingImage(index: number): void {
+  pendingImages.value = pendingImages.value.filter((_, current) => current !== index)
+}
+
+interface QueuedMessage {
+  id: string
+  text: string
+
+  images?: string[]
+}
+const queuedMessages = ref<QueuedMessage[]>([])
+
+const displayLevel = ref(readAgentSettings().displayLevel)
+const mentionOpen = ref(false)
+const selectedHostIds = computed(() => selectedHosts.value.map((host) => host.id))
+
+watch(draft, (value: string, previous: string) => {
+  if (!globalMode.value) return
+  if (!value.endsWith('@') || value === previous) return
+  const before = value.slice(0, -1)
+  if (before !== '' && !/\s$/.test(before)) return
+  mentionOpen.value = true
+})
+
+function chooseMentionHost(host: MentionHost): void {
+  draft.value = draft.value.endsWith('@') ? draft.value.slice(0, -1) : draft.value
+  if (!selectedHosts.value.some((item) => item.id === host.id)) selectedHosts.value.push(host)
+  mentionOpen.value = false
+}
+
+function removeMentionHost(id: string): void {
+  selectedHosts.value = selectedHosts.value.filter((host) => host.id !== id)
+}
 const busy = ref(false)
 const error = ref('')
 const contextSources = ref<AiContextSource[]>([])
@@ -255,11 +354,13 @@ function persistUnifiedConversation(): boolean {
     providerId: provider.value?.id,
     model: provider.value?.model,
     updatedAt: Date.now(),
-    title:
-      messages.value
-        .find((message) => message.role === 'user' && !message.legacy)
-        ?.content.trim()
-        .slice(0, 60) || record.title,
+
+    title: messages.value[0]?.compacted
+      ? record.title
+      : messages.value
+          .find((message) => message.role === 'user' && !message.legacy)
+          ?.content.trim()
+          .slice(0, 60) || record.title,
     messages: messages.value
       .filter((message): message is ChatMessage & { id: string } => Boolean(message.id))
       .map((message) => ({
@@ -336,6 +437,7 @@ const agentTurn = useAiAgentTurn({
   getProvider: () => provider.value,
   getApprovalMode: () => approvalMode.value,
   getContextText: () => requestContextText.value,
+  getHostIds: () => selectedHostIds.value,
   onRunUpdated: (run, identity) => {
     if (identityKeyForAgent(identity) !== identityKeyForAgent(currentConversationIdentity())) return
     const target = agentRunMessage(run)
@@ -362,6 +464,10 @@ const agentTurn = useAiAgentTurn({
   },
 })
 
+function isRunLive(run: AgentRun): boolean {
+  return run.state === RunState.RunRunning || run.state === RunState.RunWaitingApproval
+}
+
 function identityKeyForAgent(identity: AiAgentTurnIdentity): string {
   return `${identity.conversationId}\u0000${identity.sessionId}\u0000${identity.providerId}`
 }
@@ -372,8 +478,20 @@ function agentRisk(step: AgentStep): 'readonly' | 'confirm' | 'danger' {
   return 'confirm'
 }
 
-function shouldRenderAgentCommand(step: AgentStep): boolean {
-  return step.kind === StepKind.StepKindCommand && Boolean(step.pendingId)
+function shouldRenderAgentApproval(step: AgentStep): boolean {
+  return Boolean(step.pendingId)
+}
+
+function isCommandStep(step: AgentStep): boolean {
+  return step.kind === StepKind.StepKindCommand
+}
+
+function isAskUserStep(step: AgentStep): boolean {
+  return step.kind === StepKind.StepKindAskUser
+}
+
+function isRememberableTool(step: AgentStep): boolean {
+  return step.kind === StepKind.StepKindSftpWriteFile
 }
 
 function structuredReply(message: ChatMessage): StructuredReply | null {
@@ -471,15 +589,26 @@ function agentRunSeconds(message: ChatMessage): number | null {
 }
 
 function agentAutomaticSteps(message: ChatMessage): AgentStep[] {
+  if (displayLevel.value === 'concise') return []
   return (message.agentRun?.steps ?? []).filter(
-    (step) => step.kind !== StepKind.StepKindAnswer && !shouldRenderAgentCommand(step),
+    (step) => step.kind !== StepKind.StepKindAnswer && !shouldRenderAgentApproval(step),
   )
 }
 
-function decideAgentStep(step: AgentStep, approve: boolean): void {
+const showAgentNotes = computed(() => displayLevel.value === 'detailed')
+
+function answerAgentStep(step: AgentStep, choice: string): void {
   if (!connectionAvailable.value || viewingLegacyHistory.value) return
-  if (!step.pendingId || !props.sessionId) return
-  void agentTurn.decide(step.id, step.pendingId, approve).catch((cause) => {
+  if (!step.pendingId) return
+  void agentTurn.decide(step.id, step.pendingId, true, false, choice).catch((cause) => {
+    error.value = streamFailureMessage(cause)
+  })
+}
+
+function decideAgentStep(step: AgentStep, approve: boolean, remember = false): void {
+  if (!connectionAvailable.value || viewingLegacyHistory.value) return
+  if (!step.pendingId) return
+  void agentTurn.decide(step.id, step.pendingId, approve, remember).catch((cause) => {
     error.value = streamFailureMessage(cause)
   })
 }
@@ -506,6 +635,13 @@ const channelOptions = computed(() => [
 const agentBusy = computed(() => agentTurn.live.value || agentTurn.starting.value)
 const composerBusy = computed(() => busy.value || agentBusy.value)
 const agentDeciding = computed(() => agentTurn.deciding.value)
+
+watch(
+  () => composerBusy.value || executing.value || reviewBusy.value,
+  (busy) => {
+    if (!busy) void flushQueue()
+  },
+)
 const activeAgentRunId = computed(() => agentTurn.run.value?.id)
 const agentError = computed(() => (agentTurn.error.value ? streamFailureMessage(new Error(agentTurn.error.value)) : ''))
 
@@ -752,6 +888,7 @@ function scrollToLatest(behavior: ScrollBehavior = 'auto'): void {
 }
 
 function loadConversation(): void {
+  queuedMessages.value = []
   error.value = ''
   busy.value = false
   resetRequestMetrics()
@@ -839,8 +976,37 @@ watch(
   },
 )
 
+function reloadDisplayLevel(): void {
+  displayLevel.value = readAgentSettings().displayLevel
+}
+
+window.addEventListener(AGENT_SETTINGS_CHANGED_EVENT, reloadDisplayLevel)
+
+const AGENT_DRAFT_EVENT = 'qterm:agent-draft'
+let stopAgentDraftEvents: (() => void) | undefined
+
+function applyAgentDraft(payload: { runId?: string; draft?: string; reasoning?: string }): void {
+  const runId = payload?.runId
+  if (!runId || !activeAgentRunId.value || runId !== activeAgentRunId.value) return
+  const target = messages.value.find((message) => message.agentRun?.id === runId)
+  if (!target?.agentRun) return
+  const patched = {
+    ...target.agentRun,
+    draft: payload.draft ?? '',
+    reasoningDraft: payload.reasoning ?? '',
+  }
+  messages.value = messages.value.map((message) =>
+    message.id === target.id ? { ...message, agentRun: patched, content: agentReplyContent(patched) } : message,
+  )
+}
+
 onMounted(() => {
   void nextTick(bindScrollViewport)
+  try {
+    stopAgentDraftEvents = Events.On(AGENT_DRAFT_EVENT, (event: { data?: unknown }) => {
+      if (event?.data) applyAgentDraft(event.data as { runId?: string; draft?: string; reasoning?: string })
+    })
+  } catch {}
 })
 
 watch(
@@ -862,6 +1028,9 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  stopAgentDraftEvents?.()
+  stopAgentDraftEvents = undefined
+  window.removeEventListener(AGENT_SETTINGS_CHANGED_EVENT, reloadDisplayLevel)
   disposed = true
   clearContextSources()
   stopStream()
@@ -1288,6 +1457,190 @@ async function copyMessage(content: string): Promise<void> {
   }
 }
 
+async function compactContext(): Promise<void> {
+  if (contextCompacting.value) return
+  if (!connectionAvailable.value || viewingLegacyHistory.value) return
+  if (composerBusy.value || executing.value || reviewBusy.value) return
+
+  if (props.chatMode !== 'ask') {
+    toast.info(t('shell.aiChat.compactAskOnly'))
+    return
+  }
+  const target = provider.value
+  if (!target) {
+    error.value = t('shell.aiChat.noProvider')
+    return
+  }
+  await runCompaction(target, { auto: false })
+}
+
+async function runCompaction(target: AIProvider, options: { auto: boolean }): Promise<boolean> {
+  const eligible = messages.value
+    .map((message, index) => ({ message, index }))
+    .filter(({ message }) => {
+      if (message.legacy) return false
+      if (message.role !== 'user' && message.role !== 'assistant') return false
+
+      return message.content.trim() !== '' || (message.images?.length ?? 0) > 0
+    })
+  const keepCount = 4
+  if (eligible.length <= keepCount) {
+    if (!options.auto) toast.info(t('shell.aiChat.compactTooShort'))
+    return false
+  }
+  const boundary = eligible[eligible.length - keepCount].index
+
+  const prior = messages.value.find((message) => message.compacted && message.content.trim())
+  const generation = (prior?.compactionGeneration ?? 0) + 1
+  const prefix = eligible.filter((entry) => entry.index < boundary && !entry.message.compacted)
+  if (prefix.length === 0) {
+    if (!options.auto) toast.info(t('shell.aiChat.compactTooShort'))
+    return false
+  }
+  const payload = prefix.map(({ message }) => ({
+    role: message.role as 'user' | 'assistant',
+    content: message.content,
+    images: message.images,
+  }))
+
+  contextCompacting.value = true
+  try {
+    const result = await compactAIConversation(
+      {
+        providerId: target.id,
+        type: target.type,
+        baseUrl: target.baseUrl,
+        model: target.model,
+        messages: payload,
+      },
+      -1,
+      prior?.content ?? '',
+    )
+    if (!result.compacted) {
+      if (!options.auto) {
+        toast.info(
+          result.reason === 'below_threshold'
+            ? t('shell.aiChat.compactBelowThreshold')
+            : t('shell.aiChat.compactSkipped'),
+        )
+      }
+      return false
+    }
+    const summary: ChatMessage = makeMessage({
+      role: 'assistant',
+      content: result.summary ?? '',
+      mode: 'ask',
+      providerId: target.id,
+      model: target.model,
+      compacted: true,
+
+      compactionGeneration: generation,
+    })
+
+    if (conversation.value) {
+      conversation.value = {
+        ...conversation.value,
+        checkpoint: {
+          messages: messages.value.slice(0, boundary).map((message, offset) => ({
+            ...message,
+            id: message.id ?? `aimsg_checkpoint_${Date.now()}_${offset}`,
+            role: message.role as 'user' | 'assistant',
+            mode: message.mode ?? ('ask' as const),
+          })),
+          createdAt: Date.now(),
+        },
+      }
+    }
+
+    messages.value = [summary, ...messages.value.slice(boundary)]
+    persistUnifiedConversation()
+    toast.success(
+      t(options.auto ? 'shell.aiChat.compactedAuto' : 'shell.aiChat.compacted', {
+        before: Math.max(1, Math.round(result.beforeBytes / 1024)),
+        after: Math.max(1, Math.round(result.afterBytes / 1024)),
+      }),
+    )
+
+    if (generation >= 3) toast.info(t('shell.aiChat.compactGenerations', { count: generation }))
+    return true
+  } catch (cause) {
+    toast.error(cause instanceof Error ? cause.message : String(cause))
+    return false
+  } finally {
+    contextCompacting.value = false
+  }
+}
+
+const AUTO_COMPACT_BYTES = 48 << 10
+
+let skipAutoCompactOnce = false
+
+function textBytes(text: string): number {
+  return new TextEncoder().encode(text).length
+}
+
+async function autoCompactIfNeeded(): Promise<void> {
+  if (props.chatMode !== 'ask') return
+  if (!connectionAvailable.value || viewingLegacyHistory.value) return
+  if (skipAutoCompactOnce) {
+    skipAutoCompactOnce = false
+    return
+  }
+
+  if (contextCompacting.value) return
+  const target = provider.value
+  if (!target) return
+  const bytes = messages.value
+    .filter((message) => !message.legacy && message.role !== 'system')
+    .reduce((total, message) => total + textBytes(message.content), 0)
+  if (bytes < AUTO_COMPACT_BYTES) return
+  contextCompacting.value = true
+  try {
+    await runCompaction(target, { auto: true })
+  } finally {
+    contextCompacting.value = false
+  }
+}
+
+function restoreCompaction(): void {
+  const checkpoint = conversation.value?.checkpoint
+  if (!checkpoint || !checkpoint.messages.length) return
+  if (!messages.value[0]?.compacted) {
+    toast.error(t('shell.aiChat.compactRestoreFailed'))
+    return
+  }
+  messages.value = [...checkpoint.messages, ...messages.value.slice(1)]
+  conversation.value = { ...conversation.value!, checkpoint: undefined }
+  persistUnifiedConversation()
+
+  skipAutoCompactOnce = true
+  toast.success(t('shell.aiChat.compactRestored'))
+}
+
+function beginEditMessage(index: number): void {
+  if (!connectionAvailable.value || viewingLegacyHistory.value) return
+  if (composerBusy.value || executing.value || reviewBusy.value) return
+  const message = messages.value[index]
+  if (!message || message.role !== 'user') return
+  editingIndex.value = index
+  draft.value = message.content
+  pendingImages.value = [...(message.images ?? [])]
+}
+
+function cancelEditMessage(): void {
+  editingIndex.value = -1
+}
+
+function applyPendingEdit(): void {
+  const index = editingIndex.value
+  if (index < 0) return
+  editingIndex.value = -1
+  if (index <= messages.value.length) {
+    messages.value = messages.value.slice(0, index)
+    persistUnifiedConversation()
+  }
+}
+
 function regenerate(index: number): void {
   if (!connectionAvailable.value || viewingLegacyHistory.value) return
   if (composerBusy.value || executing.value || reviewBusy.value) return
@@ -1408,16 +1761,24 @@ function clearHistory(): void {
   toast.success(t('shell.aiChat.historyCleared'))
 }
 
-function agentHistory(): Array<{ role: 'user' | 'assistant'; content: string }> {
-  const history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+function agentHistory(withImages = false): Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }> {
+  const history: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }> = []
 
   for (let index = 0; index < messages.value.length - 1; index += 1) {
     const user = messages.value[index]!
     const answer = messages.value[index + 1]!
+
+    if (user.role === 'assistant' && user.compacted && user.content.trim()) {
+      history.push({ role: 'user', content: t('shell.aiChat.compactPreamble') })
+      history.push({ role: 'assistant', content: user.content })
+      continue
+    }
     if (user.role !== 'user' || user.legacy || answer.role !== 'assistant' || answer.legacy || !answer.content.trim())
       continue
     if (answer.agentRun && answer.agentRun.state !== RunState.RunCompleted) continue
-    history.push({ role: 'user', content: user.content }, { role: 'assistant', content: answer.content })
+
+    const images = withImages && user.images?.length ? { images: user.images } : {}
+    history.push({ role: 'user', content: user.content, ...images }, { role: 'assistant', content: answer.content })
     index += 1
   }
   return history
@@ -1429,19 +1790,26 @@ async function sendAgent(preset?: unknown, reuseUser = false): Promise<void> {
   const text = (presetText || draft.value).trim()
   if (!text) return
   if (composerBusy.value || executing.value || reviewBusy.value) {
-    toast.info(t('shell.aiChat.busyHint'))
+    if (presetText) {
+      toast.info(t('shell.aiChat.busyHint'))
+      return
+    }
+    enqueueMessage(text)
+    draft.value = ''
     return
   }
   if (!provider.value) {
     error.value = t('shell.aiChat.noProvider')
     return
   }
-  if (!props.sessionId) {
+  if (!props.sessionId && !globalMode.value) {
     error.value = t('shell.aiChat.agent.sessionRequired')
     toast.error(error.value)
     return
   }
   if (contextReading.value) return
+
+  applyPendingEdit()
   const attachedContext = captureContext()
   if (attachedContext === null) return
   requestContextText.value = attachedContext
@@ -1500,6 +1868,35 @@ async function sendAgent(preset?: unknown, reuseUser = false): Promise<void> {
   }
 }
 
+function enqueueMessage(text: string): void {
+  queuedMessages.value = [...queuedMessages.value, { id: `queued-${Date.now()}-${queuedMessages.value.length}`, text }]
+}
+
+function removeQueued(id: string): void {
+  queuedMessages.value = queuedMessages.value.filter((item) => item.id !== id)
+}
+
+function editQueued(id: string): void {
+  const target = queuedMessages.value.find((item) => item.id === id)
+  if (!target) return
+  draft.value = target.text
+
+  if (target.images?.length) pendingImages.value = [...target.images]
+  removeQueued(id)
+}
+
+async function flushQueue(): Promise<void> {
+  if (composerBusy.value || executing.value || reviewBusy.value || contextReading.value) return
+  const next = queuedMessages.value[0]
+  if (!next) return
+  queuedMessages.value = queuedMessages.value.slice(1)
+
+  draft.value = next.text
+
+  pendingImages.value = props.chatMode === 'agent' || !next.images ? [] : [...next.images]
+  await send()
+}
+
 async function send(preset?: unknown, reuseUser = false): Promise<void> {
   if (!connectionAvailable.value || viewingLegacyHistory.value) return
   if (props.chatMode === 'agent') {
@@ -1512,7 +1909,12 @@ async function send(preset?: unknown, reuseUser = false): Promise<void> {
   if (!text) return
 
   if (composerBusy.value || executing.value || reviewBusy.value) {
-    toast.info(t('shell.aiChat.busyHint'))
+    if (presetText) {
+      toast.info(t('shell.aiChat.busyHint'))
+      return
+    }
+    enqueueMessage(text)
+    draft.value = ''
     return
   }
   const target = provider.value
@@ -1521,11 +1923,17 @@ async function send(preset?: unknown, reuseUser = false): Promise<void> {
     return
   }
   if (contextReading.value) return
+
+  applyPendingEdit()
+
+  if (!presetText) await autoCompactIfNeeded()
   const attachedContext = captureContext()
   if (attachedContext === null) return
   requestContextText.value = attachedContext
+  const attachedImages = presetText || reuseUser ? [] : [...pendingImages.value]
   if (!presetText) draft.value = ''
-  const history = agentHistory()
+  pendingImages.value = []
+  const history = agentHistory(true)
   const userMessage = reuseUser
     ? undefined
     : makeMessage({
@@ -1534,9 +1942,13 @@ async function send(preset?: unknown, reuseUser = false): Promise<void> {
         mode: 'ask',
         providerId: target.id,
         model: target.model,
+        ...(attachedImages.length ? { images: attachedImages } : {}),
       })
   if (!reuseUser) messages.value = [...messages.value, userMessage!]
-  const requestHistory = [...history, { role: 'user' as const, content: text }]
+  const requestHistory = [
+    ...history,
+    { role: 'user' as const, content: text, ...(attachedImages.length ? { images: attachedImages } : {}) },
+  ]
   persistHistory(target)
   persistUnifiedConversation()
   requestUsage.value = null
@@ -1735,10 +2147,27 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
               <MessageContent
                 :class="
                   message.role === 'user'
-                    ? 'w-fit max-w-[88%] self-end rounded-xl border border-qt-border/70 bg-qt-subtle px-3 py-2'
+                    ? 'w-fit max-w-[88%] self-end rounded-xl border border-qt-border/70 bg-qt-subtle/55 px-3 py-2'
                     : 'max-w-full px-1 py-1'
                 "
               >
+                <div
+                  v-if="message.role === 'user' && message.images?.length"
+                  class="mb-1 flex flex-wrap gap-1.5"
+                  data-ai-message-images
+                >
+                  <a
+                    v-for="(image, imageIndex) in message.images"
+                    :key="imageIndex"
+                    :href="image"
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    class="block size-20 overflow-hidden rounded-md border border-qt-border/70"
+                  >
+                    <img :src="image" alt="" class="size-full object-cover" />
+                  </a>
+                </div>
+
                 <Trace v-if="!message.agentRun && (message.reasoning || thinkText(message))" class="mb-1">
                   <TraceCollapsible>
                     <TraceCollapsibleTrigger>
@@ -1754,6 +2183,25 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
 
                 <template v-if="message.role === 'assistant'">
                   <template v-if="!message.agentRun">
+                    <div v-if="message.compacted" class="mb-1 flex flex-wrap items-center gap-1.5">
+                      <span
+                        class="inline-flex items-center gap-1 rounded-full border border-qt-border px-2 py-0.5 text-[10px] text-qt-muted"
+                        data-ai-compacted-marker
+                      >
+                        <Archive class="size-3" aria-hidden="true" />
+                        {{ t('shell.aiChat.compactedMarker') }}
+                      </span>
+                      <button
+                        v-if="conversation?.checkpoint"
+                        type="button"
+                        class="inline-flex items-center gap-1 rounded-full border border-qt-border px-2 py-0.5 text-[10px] text-qt-muted hover:bg-qt-hover hover:text-qt-text"
+                        data-ai-compact-restore
+                        @click="restoreCompaction()"
+                      >
+                        <Undo2 class="size-3" aria-hidden="true" />
+                        {{ t('shell.aiChat.compactRestore') }}
+                      </button>
+                    </div>
                     <AiMessageText
                       v-if="structuredReply(message)"
                       :text="displayText(message)"
@@ -1859,7 +2307,30 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
                     </template>
                     <div class="flex flex-col gap-1 px-1 pb-1">
                       <Reasoning
-                        v-for="(note, noteIndex) in message.agentRun.notes ?? []"
+                        v-for="(reasoning, reasoningIndex) in message.agentRun.reasonings ?? []"
+                        :key="`agent-reasoning-${reasoningIndex}`"
+                        :default-open="false"
+                      >
+                        <ReasoningTrigger
+                          class="max-w-full"
+                          :label="`${t('shell.aiChat.agent.thinkingLabel')} · ${reasoningIndex + 1}`"
+                        />
+                        <ReasoningContent>
+                          <p class="m-0 whitespace-pre-wrap break-words">{{ reasoning }}</p>
+                        </ReasoningContent>
+                      </Reasoning>
+
+                      <Reasoning
+                        v-if="message.agentRun.reasoningDraft && isRunLive(message.agentRun)"
+                        :default-open="false"
+                      >
+                        <ReasoningTrigger :label="t('shell.aiChat.agent.thinkingLabel')" />
+                        <ReasoningContent>
+                          <p class="m-0 whitespace-pre-wrap break-words">{{ message.agentRun.reasoningDraft }}</p>
+                        </ReasoningContent>
+                      </Reasoning>
+                      <Reasoning
+                        v-for="(note, noteIndex) in showAgentNotes ? (message.agentRun.notes ?? []) : []"
                         :key="`agent-note-${noteIndex}`"
                         :default-open="false"
                       >
@@ -1871,20 +2342,30 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
                           <p class="m-0 whitespace-pre-wrap break-words">{{ note }}</p>
                         </ReasoningContent>
                       </Reasoning>
-                      <Tool
+                      <AiToolCard
                         v-for="step in agentAutomaticSteps(message)"
                         :key="`agent-auto-${step.id}`"
-                        :title="step.title || step.command || step.kind"
-                        :command="step.command || step.title || ''"
-                        :state="step.state"
-                        :output="step.observation ?? undefined"
-                        :exit-code="step.exitCode ?? undefined"
+                        :step="step"
                       />
                     </div>
                   </Task>
+
                   <template v-for="step in message.agentRun?.steps ?? []" :key="`agent-step-${step.id}`">
+                    <AiUserQuestion
+                      v-if="shouldRenderAgentApproval(step) && isAskUserStep(step)"
+                      class="mt-2"
+                      :step="step"
+                      :disabled="
+                        viewingLegacyHistory ||
+                        !connectionAvailable ||
+                        agentDeciding ||
+                        activeAgentRunId !== message.agentRun?.id
+                      "
+                      @select="(choice) => answerAgentStep(step, choice)"
+                      @cancel="decideAgentStep(step, false)"
+                    />
                     <AiConfirmation
-                      v-if="shouldRenderAgentCommand(step)"
+                      v-else-if="shouldRenderAgentApproval(step) && isCommandStep(step)"
                       class="mt-2"
                       :command="step.command || step.title || ''"
                       :risk="agentRisk(step)"
@@ -1892,10 +2373,23 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
                         viewingLegacyHistory ||
                         !connectionAvailable ||
                         agentDeciding ||
-                        !props.sessionId ||
                         activeAgentRunId !== message.agentRun?.id
                       "
                       @confirm="decideAgentStep(step, true)"
+                      @cancel="decideAgentStep(step, false)"
+                    />
+                    <AiToolConfirmation
+                      v-else-if="shouldRenderAgentApproval(step)"
+                      class="mt-2"
+                      :step="step"
+                      :rememberable="isRememberableTool(step)"
+                      :disabled="
+                        viewingLegacyHistory ||
+                        !connectionAvailable ||
+                        agentDeciding ||
+                        activeAgentRunId !== message.agentRun?.id
+                      "
+                      @confirm="decideAgentStep(step, true, $event)"
                       @cancel="decideAgentStep(step, false)"
                     />
                   </template>
@@ -1981,7 +2475,18 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
                   >
                     <Copy class="size-3.5" aria-hidden="true" />
                   </IconButton>
-                  <template v-if="message.role === 'assistant'">
+                  <IconButton
+                    v-if="message.role === 'user'"
+                    class="size-7! min-h-7!"
+                    :label="t('shell.aiChat.editMessage')"
+                    size="icon-sm"
+                    data-ai-message-edit
+                    :disabled="viewingLegacyHistory || !connectionAvailable || composerBusy || executing || reviewBusy"
+                    @click="beginEditMessage(index)"
+                  >
+                    <Pencil class="size-3.5" aria-hidden="true" />
+                  </IconButton>
+                  <template v-if="message.role === 'assistant' && !message.compacted">
                     <IconButton
                       class="size-7! min-h-7!"
                       :label="t('shell.aiChat.regenerate')"
@@ -2062,24 +2567,124 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
       >
         {{ t('shell.aiChat.sessionUnavailable') }}
       </p>
-      <AiComposer
-        v-model="draft"
-        :mode="props.chatMode === 'agent' ? 'agent' : 'ask'"
-        :approval-mode="approvalMode"
-        :provider="provider"
-        :providers="availableProviders"
-        :busy="composerBusy || executing"
-        :locked="reviewBusy || contextReading || !connectionAvailable"
-        :context-count="contextSources.length"
-        :disabled="!provider || !connectionAvailable || viewingLegacyHistory"
-        :placeholder="t(props.chatMode === 'agent' ? 'shell.aiChat.agent.placeholder' : 'shell.aiChat.placeholder')"
-        @update:mode="emit('update:mode', $event)"
-        @context="contextSourcesOpen = true"
-        @approval="setApprovalMode"
-        @model="switchProvider"
-        @submit="send()"
-        @stop="stopCurrentOperation"
-      />
+
+      <div v-if="queuedMessages.length" class="mb-1 flex flex-col gap-1 px-1" data-ai-queue>
+        <div class="flex items-center gap-1 text-xs text-qt-muted">
+          <Clock class="size-3 shrink-0" aria-hidden="true" />
+          <span>{{ t('shell.aiChat.queue.label', { count: queuedMessages.length }) }}</span>
+          <span class="text-qt-muted/70">{{ t('shell.aiChat.queue.hint') }}</span>
+        </div>
+        <div
+          v-for="item in queuedMessages"
+          :key="item.id"
+          class="flex min-w-0 items-center gap-1.5 rounded-lg border border-qt-border bg-qt-subtle/40 px-2 py-1"
+          :data-ai-queue-item="item.id"
+        >
+          <span class="min-w-0 flex-1 truncate text-xs text-qt-text">{{ item.text }}</span>
+          <button
+            type="button"
+            class="shrink-0 rounded p-0.5 text-qt-muted hover:bg-qt-hover hover:text-qt-text"
+            :aria-label="t('shell.aiChat.queue.edit')"
+            @click="editQueued(item.id)"
+          >
+            <Pencil class="size-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="shrink-0 rounded p-0.5 text-qt-muted hover:bg-qt-hover hover:text-qt-danger"
+            :aria-label="t('shell.aiChat.queue.remove')"
+            @click="removeQueued(item.id)"
+          >
+            <X class="size-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="editingIndex >= 0"
+        class="flex min-w-0 items-center gap-1.5 rounded-lg border border-qt-border bg-qt-subtle/40 px-2 py-1"
+        data-ai-edit-banner
+      >
+        <Pencil class="size-3.5 shrink-0 text-qt-muted" aria-hidden="true" />
+        <span class="min-w-0 flex-1 truncate text-xs text-qt-text">{{ t('shell.aiChat.editBanner') }}</span>
+        <button
+          type="button"
+          class="shrink-0 rounded p-0.5 text-qt-muted hover:bg-qt-hover hover:text-qt-text"
+          :aria-label="t('shell.aiChat.editCancel')"
+          data-ai-edit-cancel
+          @click="cancelEditMessage"
+        >
+          <X class="size-3.5" aria-hidden="true" />
+        </button>
+      </div>
+
+      <div v-if="messages.length >= 10 && !viewingLegacyHistory" class="flex items-center justify-end">
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-qt-muted hover:bg-qt-hover hover:text-qt-text disabled:opacity-50"
+          :disabled="contextCompacting || composerBusy || executing || !provider"
+          data-ai-compact-context
+          @click="compactContext()"
+        >
+          <Archive class="size-3.5" :class="contextCompacting ? 'animate-spin' : ''" aria-hidden="true" />
+          {{ t('shell.aiChat.compact') }}
+        </button>
+      </div>
+      <div class="relative">
+        <AiHostMentionMenu
+          v-if="globalMode"
+          :open="mentionOpen"
+          :hosts="props.availableHosts ?? []"
+          :selected="selectedHostIds"
+          @select="chooseMentionHost"
+          @close="mentionOpen = false"
+        />
+        <AiComposer
+          v-model="draft"
+          :mode="props.chatMode === 'agent' ? 'agent' : 'ask'"
+          :approval-mode="approvalMode"
+          :provider="provider"
+          :providers="availableProviders"
+          :busy="composerBusy || executing"
+          :locked="reviewBusy || contextReading || !connectionAvailable"
+          :context-count="contextSources.length"
+          :images="pendingImages"
+          :images-enabled="props.chatMode !== 'agent'"
+          :disabled="!provider || !connectionAvailable || viewingLegacyHistory"
+          :placeholder="t(props.chatMode === 'agent' ? 'shell.aiChat.agent.placeholder' : 'shell.aiChat.placeholder')"
+          @update:mode="emit('update:mode', $event)"
+          @context="contextSourcesOpen = true"
+          @approval="setApprovalMode"
+          @model="switchProvider"
+          @submit="send()"
+          @stop="stopCurrentOperation"
+          @add-images="addPendingImages"
+          @remove-image="removePendingImage"
+        >
+          <template v-if="globalMode && selectedHosts.length" #scope>
+            <div class="ai-scope-row flex w-full min-w-0 items-center gap-1 overflow-x-auto px-2 pt-2" data-ai-scope>
+              <span
+                v-for="host in selectedHosts"
+                :key="host.id"
+                class="inline-flex max-w-56 shrink-0 items-center gap-1 rounded-md border border-qt-border py-0.5 ps-1.5 pe-1 text-xs text-qt-text"
+                :data-ai-scope-host="host.id"
+                :title="host.address || host.name"
+              >
+                <Server class="size-3 shrink-0 text-qt-muted" aria-hidden="true" />
+                <span class="max-w-40 truncate">{{ host.name }}</span>
+                <button
+                  type="button"
+                  class="shrink-0 rounded p-0.5 text-qt-muted hover:bg-qt-hover hover:text-qt-danger"
+                  :aria-label="t('shell.aiChat.mention.removeHost', { name: host.name })"
+                  @click="removeMentionHost(host.id)"
+                >
+                  <X class="size-3" aria-hidden="true" />
+                </button>
+              </span>
+            </div>
+          </template>
+        </AiComposer>
+      </div>
     </div>
   </div>
   <AiContextSourcesDialog
@@ -2139,6 +2744,32 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
 </template>
 
 <style scoped>
+.ai-scope-row {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--qt-text) 22%, transparent) transparent;
+
+  padding-right: 0.75rem;
+}
+
+.ai-scope-row::-webkit-scrollbar {
+  height: 8px;
+}
+
+.ai-scope-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ai-scope-row::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: color-mix(in srgb, var(--qt-text) 22%, transparent);
+}
+
+.ai-scope-row::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--qt-text) 38%, transparent);
+}
+
 .ai-message-scroll :deep([data-slot='scroll-area-viewport']) {
   overflow-x: hidden !important;
   overflow-anchor: none;

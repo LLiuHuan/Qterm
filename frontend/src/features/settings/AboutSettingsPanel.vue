@@ -5,7 +5,7 @@ import { System } from '@wailsio/runtime'
 import { toast } from 'vue-sonner'
 import { IconButton, QtermButton, QtermSwitch } from '../../components/common'
 import { useI18n } from '@/locales'
-import { QTERM_VERSION } from '../../services/appInfo'
+import { QTERM_DEV_BUILD, QTERM_VERSION } from '../../services/appInfo'
 import { writeClipboardText } from '../../services/clipboard'
 import type { CredentialGateway } from '../../services/credentials'
 import {
@@ -49,6 +49,11 @@ const updateState = useUpdateState()
 const updateStatus = computed(() => updateState.status)
 const updateRelease = computed(() => updateStatus.value.release)
 const updateAvailable = updatesAvailable()
+
+const updateDescriptionKey = computed(() => {
+  if (!updateAvailable) return 'about.update.desktopOnly'
+  return QTERM_DEV_BUILD ? 'about.update.devBuild' : 'about.update.description'
+})
 const downloading = computed(() => updateStatus.value.state === 'downloading')
 const installing = computed(() => updateStatus.value.state === 'installing')
 const canCheck = computed(() => updateAvailable && !updateState.busy && !downloading.value)
@@ -193,9 +198,7 @@ async function downloadLog(): Promise<void> {
       <div class="flex items-start justify-between gap-4">
         <span class="flex min-w-0 flex-col gap-0.5">
           <strong class="text-sm">{{ t('about.update.title') }}</strong>
-          <small class="text-xs text-qt-muted">{{
-            updateAvailable ? t('about.update.description') : t('about.update.desktopOnly')
-          }}</small>
+          <small class="text-xs text-qt-muted">{{ t(updateDescriptionKey) }}</small>
         </span>
         <QtermButton variant="outline" type="button" class="text-xs" :disabled="!canCheck" @click="checkNow">
           <RefreshCw :size="14" aria-hidden="true" />

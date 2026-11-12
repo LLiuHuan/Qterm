@@ -21,6 +21,16 @@ export interface AgentSettings {
   inlineLines: number
 
   executionChannel: 'background' | 'terminal'
+
+  displayLevel: AgentDisplayLevel
+}
+
+export type AgentDisplayLevel = 'concise' | 'standard' | 'detailed'
+
+export const AGENT_SETTINGS_CHANGED_EVENT = 'qterm:ai-settings-changed'
+
+function normalizeDisplayLevel(value: unknown): AgentDisplayLevel {
+  return value === 'concise' || value === 'standard' ? value : 'detailed'
 }
 
 const AGENT_SETTINGS_KEY = 'qterm.ai.agent-settings.v1'
@@ -30,6 +40,8 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   stepTimeoutSeconds: 30,
   inlineLines: 10,
   executionChannel: 'background',
+
+  displayLevel: 'detailed',
 }
 
 function clamp(value: unknown, minimum: number, maximum: number, fallback: number): number {
@@ -47,6 +59,7 @@ export function readAgentSettings(): AgentSettings {
       stepTimeoutSeconds: clamp(parsed.stepTimeoutSeconds, 5, 600, DEFAULT_AGENT_SETTINGS.stepTimeoutSeconds),
       inlineLines: clamp(parsed.inlineLines, 1, 200, DEFAULT_AGENT_SETTINGS.inlineLines),
       executionChannel: parsed.executionChannel === 'terminal' ? 'terminal' : 'background',
+      displayLevel: normalizeDisplayLevel(parsed.displayLevel),
     }
   } catch {}
   return { ...DEFAULT_AGENT_SETTINGS }
@@ -59,10 +72,13 @@ export function writeAgentSettings(settings: AgentSettings): void {
     stepTimeoutSeconds: clamp(settings.stepTimeoutSeconds, 5, 600, DEFAULT_AGENT_SETTINGS.stepTimeoutSeconds),
     inlineLines: clamp(settings.inlineLines, 1, 200, DEFAULT_AGENT_SETTINGS.inlineLines),
     executionChannel: settings.executionChannel === 'terminal' ? 'terminal' : 'background',
+    displayLevel: normalizeDisplayLevel(settings.displayLevel),
   }
   try {
     window.localStorage.setItem(AGENT_SETTINGS_KEY, JSON.stringify(next))
   } catch {}
+
+  window.dispatchEvent(new CustomEvent(AGENT_SETTINGS_CHANGED_EVENT))
 }
 
 export interface StartAgentInput {
@@ -71,6 +87,8 @@ export interface StartAgentInput {
   baseUrl: string
   model: string
   sessionId: string
+
+  hostIds?: string[]
   prompt: string
   policyVersion: string
   approvalMode: ApprovalMode
@@ -93,6 +111,7 @@ export async function startAgentRun(input: StartAgentInput): Promise<AgentSnapsh
     BaseURL: input.baseUrl,
     Model: input.model,
     SessionID: input.sessionId,
+    hostIds: input.hostIds ?? [],
     Prompt: input.prompt,
     PolicyVersion: input.policyVersion,
     ApprovalMode: input.approvalMode,
@@ -119,6 +138,10 @@ export async function decideAgentApproval(input: {
   stepId: string
   pendingId: string
   approve: boolean
+
+  remember?: boolean
+
+  choice?: string
   sessionId: string
   policyVersion: string
   since: number
@@ -130,6 +153,8 @@ export async function decideAgentApproval(input: {
     StepID: input.stepId,
     PendingID: input.pendingId,
     Approve: input.approve,
+    Remember: input.remember ?? false,
+    Choice: input.choice ?? '',
     SessionID: input.sessionId,
     PolicyVersion: input.policyVersion,
     Since: input.since,
@@ -202,7 +227,14 @@ class MemoryAgent {
     }
   }
 
-  decide(input: { runId: string; stepId: string; pendingId: string; approve: boolean }): AgentSnapshot {
+  decide(input: {
+    runId: string
+    stepId: string
+    pendingId: string
+    approve: boolean
+    remember?: boolean
+    choice?: string
+  }): AgentSnapshot {
     const run = this.runs.get(input.runId)
     if (!run) throw new Error('ai.agent.run_not_found')
     const step = run.steps?.find((item) => item.id === input.stepId)

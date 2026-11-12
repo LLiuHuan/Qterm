@@ -72,6 +72,7 @@ export type {
   RouteDraftInput,
   RouteTestHop,
   RouteTestResult,
+  SFTPFavoritePath,
   SFTPTransfer,
   ServiceDetail,
   ServiceInfo,

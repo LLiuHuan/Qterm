@@ -2,7 +2,6 @@
 import { QtermButton } from '../common'
 import {
   Activity,
-  Cpu,
   HardDrive,
   Laptop,
   LayoutTemplate,
@@ -10,8 +9,8 @@ import {
   Maximize,
   Maximize2,
   Minimize2,
-  MemoryStick,
   Network,
+  Radio,
   SquareTerminal,
   FolderOpen,
   Monitor,
@@ -41,13 +40,21 @@ import {
 import { useSessionTabDrag } from '../../features/sessions/useSessionTabDrag'
 import { evenPixel } from '../../lib/geometry'
 import HostIcon from '../common/icon/HostIcon.vue'
+import { CPUIcon, GPUIcon, MemoryIcon } from '../common/icon'
 import ResizeHandle from '../common/layout/ResizeHandle.vue'
 import { latencyDisplay } from '../../features/sessions/latency'
 import type { HostRecord } from '@/services/hosts.ts'
 import type { SessionTab, SessionStatus, StreamStatusEvent } from '../../types/qterm'
 import type { ResourceSnapshot, SessionGateway } from '../../services/sessions'
+import { createMonitorGateway } from '../../services/monitor'
+import { formatGpuMemory, gpuMemorySummary, type GpuMemorySummary } from '../../features/monitor/gpuMemory'
 import { Separator } from '../common/control-primitives'
 import BatchCommandBar from '../../features/sessions/BatchCommandBar.vue'
+import SyncTargetPicker from '../../features/terminal-control/components/SyncTargetPicker.vue'
+import SyncStatusBar from '../../features/terminal-control/components/SyncStatusBar.vue'
+import BatchSendPanel from '../../features/terminal-control/components/BatchSendPanel.vue'
+import { useTerminalControl } from '../../features/terminal-control/composables/useTerminalControl'
+import type { TerminalControlSession } from '../../features/terminal-control/types'
 import { useI18n } from '@/locales'
 
 export interface RdpWorkspaceTab {
@@ -104,6 +111,7 @@ const props = defineProps<{
   transparentBackground?: boolean
 
   terminalFontSize: number
+  terminalFontWeight?: import('../../features/settings/settingsStore').TerminalFontWeight
 
   terminalLineHeight?: number
   terminalFontFamily: string
@@ -167,9 +175,23 @@ const props = defineProps<{
   assetLibraryCovered?: boolean
 }>()
 const { t } = useI18n()
+const terminalControl = useTerminalControl(() => props.terminalSessions.map((session) => session.id))
+const {
+  group: syncGroup,
+  task: batchTask,
+  log: batchLog,
+  busy: terminalControlBusy,
+  error: terminalControlError,
+  pickerOpen: syncPickerOpen,
+  pickerMode: syncPickerMode,
+  sourceId: controlSourceId,
+  batchOpen: batchSendOpen,
+} = terminalControl
 
 const emit = defineEmits<{
   selectSession: [sessionId: string]
+
+  fontSizeStep: [delta: number]
   selectSftp: [tabId: string]
   closeSession: [sessionId: string]
 
@@ -271,7 +293,9 @@ const rdpActive = () => Boolean(props.activeRdpTabId)
 
 const auxiliaryActive = () => sftpActive() || rdpActive()
 
-const stageCovered = () => auxiliaryActive() || Boolean(props.assetLibraryCovered)
+const tabsCovered = () => Boolean(props.assetLibraryCovered)
+
+const stageCovered = () => auxiliaryActive() || tabsCovered()
 
 useResizeObserver(stage, (entries) => {
   const entry = entries[0]
@@ -556,23 +580,67 @@ function cancelRename(): void {
 const metrics = ref(new Map<string, ResourceSnapshot>())
 let metricsTimer: number | undefined
 let metricsVersion = 0
+
+const gpuMemory = ref(new Map<string, GpuMemorySummary>())
+
+const gpuProbes = new Map<string, number>()
+const gpuProbeIntervalMs = 15_000
+const monitorGateway = createMonitorGateway()
 function metricSnapshot(session: SessionTab): ResourceSnapshot | null {
   return metrics.value.get(session.id) ?? null
+}
+function gpuSnapshot(session: SessionTab): GpuMemorySummary | null {
+  return gpuMemory.value.get(session.id) ?? null
 }
 function metricText(value: number): string {
   return `${Math.round(value)}%`
 }
+
+async function probeGpuMemory(session: SessionTab): Promise<GpuMemorySummary | null | undefined> {
+  try {
+    const snapshot = await monitorGateway.accelerators(session.id)
+    return gpuMemorySummary(snapshot.devices)
+  } catch {
+    return undefined
+  }
+}
 async function refreshMetrics(): Promise<void> {
   const version = ++metricsVersion
   const sessions = props.terminalSessions.filter((session) => session.kind === 'ssh' && session.state === 'connected')
-  const results = await Promise.allSettled(
-    sessions.map(async (session) => [session.id, await props.sessionGateway?.readResources?.(session.id)] as const),
-  )
+
+  const probedAt = Date.now()
+  const due = sessions.filter((session) => probedAt - (gpuProbes.get(session.id) ?? 0) >= gpuProbeIntervalMs)
+
+  const [results, gpuResults] = await Promise.all([
+    Promise.allSettled(
+      sessions.map(async (session) => [session.id, await props.sessionGateway?.readResources?.(session.id)] as const),
+    ),
+    Promise.allSettled(due.map(async (session) => [session.id, await probeGpuMemory(session)] as const)),
+  ])
   if (version !== metricsVersion) return
   const next = new Map(metrics.value)
   for (const result of results)
     if (result.status === 'fulfilled' && result.value[1]) next.set(result.value[0], result.value[1])
   metrics.value = next
+
+  const liveIds = new Set(sessions.map((session) => session.id))
+  for (const id of gpuProbes.keys()) if (!liveIds.has(id)) gpuProbes.delete(id)
+  const nextGpu = new Map<string, GpuMemorySummary>()
+  for (const session of sessions) {
+    const cached = gpuMemory.value.get(session.id)
+    if (cached) nextGpu.set(session.id, cached)
+  }
+  for (const result of gpuResults) {
+    if (result.status !== 'fulfilled') continue
+    const [id, summary] = result.value
+
+    if (summary === undefined) continue
+    gpuProbes.set(id, probedAt)
+
+    if (summary === null) nextGpu.delete(id)
+    else nextGpu.set(id, summary)
+  }
+  gpuMemory.value = nextGpu
   if (props.terminalShowMetrics === true && metricsVersion === version) {
     metricsTimer = window.setTimeout(() => void refreshMetrics(), 5000)
   }
@@ -581,6 +649,11 @@ function restartMetrics(): void {
   metricsVersion += 1
   if (metricsTimer) window.clearTimeout(metricsTimer)
   metricsTimer = undefined
+
+  if (props.terminalShowMetrics !== true) {
+    gpuMemory.value = new Map()
+    gpuProbes.clear()
+  }
   if (props.terminalShowMetrics !== true || !props.sessionGateway?.readResources) return
   void refreshMetrics()
 }
@@ -662,6 +735,43 @@ const {
   reorderTabs: applyTabBarReorder,
   requestSplit: (destination, direction) => emit('requestSplit', destination, direction),
 })
+
+const controlSessions = computed<TerminalControlSession[]>(() =>
+  props.terminalSessions
+    .filter((session) => session.kind === 'ssh')
+    .map((session, index) => {
+      const split = splitGroups.value.find((group) => groupSessionIds(group.id).includes(session.id))
+      return {
+        id: session.id,
+        title:
+          props.terminalSessions.filter((item) => item.title === session.title).length > 1
+            ? `${session.title} · ${index + 1}`
+            : session.title,
+        address: session.host?.address ?? session.address ?? '',
+        username: session.host?.username ?? '',
+        tabId: split?.id ?? session.id,
+        tabTitle: split
+          ? (props.sessions.find((item) => item.id === split.firstSessionId)?.title ?? session.title)
+          : session.title,
+        ready:
+          session.state === 'connected' &&
+          session.streamState === 'ready' &&
+          terminalControl.eligibleIds.value.includes(session.id),
+      }
+    }),
+)
+
+function openBatchSend(sessionId: string): void {
+  emit('selectSession', sessionId)
+  terminalControl.openBatch(sessionId)
+}
+
+async function handleSyncAction(
+  action: 'create' | 'join' | 'manage' | 'pause' | 'resume' | 'leave' | 'stop',
+  sessionId = '',
+): Promise<void> {
+  await terminalControl.action(action, sessionId)
+}
 
 function requestSplit(sessionID: string, direction: SplitDirection): void {
   emit('requestSplit', sessionID, direction)
@@ -892,7 +1002,9 @@ function finishSplitResize(): void {
             class="session-tab"
             :data-session-id="item.session.id"
             :style="draggingTab === item.session.id ? draggedTabStyle : undefined"
-            :class="{ 'is-active': !auxiliaryActive() && props.activeSessionId === item.session.id }"
+            :class="{
+              'is-active': !auxiliaryActive() && !tabsCovered() && props.activeSessionId === item.session.id,
+            }"
             @click="selectTab(item.session.id)"
             @dblclick="handleTabDoubleClick(item, $event)"
           >
@@ -900,7 +1012,7 @@ function finishSplitResize(): void {
               class="session-tab-trigger inline-flex items-center self-stretch gap-[7px] min-w-0 flex-1"
               :class="{ 'is-renaming': isRenaming('session', item.session.id) }"
               role="tab"
-              :aria-selected="!auxiliaryActive() && props.activeSessionId === item.session.id"
+              :aria-selected="!auxiliaryActive() && !tabsCovered() && props.activeSessionId === item.session.id"
               :aria-label="item.session.title"
               tabindex="0"
               @click.stop="selectTab(item.session.id)"
@@ -919,6 +1031,11 @@ function finishSplitResize(): void {
                 :icon="props.terminalSessions.find((entry) => entry.id === item.session.id)?.host?.icon"
                 :protocol="props.terminalSessions.find((entry) => entry.id === item.session.id)?.host?.protocol"
                 :size="16"
+              />
+              <Radio
+                v-if="syncGroup?.sessionIds.includes(item.session.id)"
+                class="size-3.5 shrink-0 text-qt-accent"
+                :title="t('terminalControl.sync.badge', { count: syncGroup.sessionIds.length })"
               />
 
               <Lock
@@ -1004,6 +1121,11 @@ function finishSplitResize(): void {
                 <LayoutTemplate :size="14" aria-hidden="true" />
               </span>
 
+              <Radio
+                v-if="groupSessionIds(item.group.id).some((id) => syncGroup?.sessionIds.includes(id))"
+                class="size-3.5 shrink-0 text-qt-accent"
+                :title="t('terminalControl.sync.badge', { count: syncGroup?.sessionIds.length ?? 0 })"
+              />
               <span
                 class="session-tab-title min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
                 :class="{ 'tabular-nums': tabOrdinal(item.group.firstSessionId) !== null }"
@@ -1052,7 +1174,7 @@ function finishSplitResize(): void {
             class="session-tab is-sftp-tab"
             :data-sftp-tab-id="item.tab.id"
             :style="draggingTab === item.tab.id ? draggedTabStyle : undefined"
-            :class="{ 'is-active': props.activeSftpTabId === item.tab.id }"
+            :class="{ 'is-active': !tabsCovered() && props.activeSftpTabId === item.tab.id }"
             @click="selectAuxiliaryTab(() => emit('selectSftp', item.tab.id))"
             @dblclick="handleTabDoubleClick(item, $event)"
           >
@@ -1060,7 +1182,7 @@ function finishSplitResize(): void {
               class="session-tab-trigger inline-flex items-center self-stretch gap-[7px] min-w-0 flex-1"
               :class="{ 'is-renaming': isRenaming('sftp', item.tab.id) }"
               role="tab"
-              :aria-selected="props.activeSftpTabId === item.tab.id"
+              :aria-selected="!tabsCovered() && props.activeSftpTabId === item.tab.id"
               :aria-label="item.tab.title"
               tabindex="0"
               @click.stop="selectAuxiliaryTab(() => emit('selectSftp', item.tab.id))"
@@ -1132,7 +1254,7 @@ function finishSplitResize(): void {
             class="session-tab is-rdp-tab"
             :data-rdp-tab-id="item.tab.id"
             :style="draggingTab === item.tab.id ? draggedTabStyle : undefined"
-            :class="{ 'is-active': props.activeRdpTabId === item.tab.id }"
+            :class="{ 'is-active': !tabsCovered() && props.activeRdpTabId === item.tab.id }"
             @click="selectAuxiliaryTab(() => emit('selectRdp', item.tab.id))"
             @dblclick="handleTabDoubleClick(item, $event)"
           >
@@ -1140,7 +1262,7 @@ function finishSplitResize(): void {
               class="session-tab-trigger inline-flex items-center self-stretch gap-[7px] min-w-0 flex-1"
               :class="{ 'is-renaming': isRenaming('rdp', item.tab.id) }"
               role="tab"
-              :aria-selected="props.activeRdpTabId === item.tab.id"
+              :aria-selected="!tabsCovered() && props.activeRdpTabId === item.tab.id"
               :aria-label="item.tab.title"
               tabindex="0"
               @click.stop="selectAuxiliaryTab(() => emit('selectRdp', item.tab.id))"
@@ -1256,6 +1378,11 @@ function finishSplitResize(): void {
               <span class="pane-title min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{{
                 session.title
               }}</span>
+              <Radio
+                v-if="syncGroup?.sessionIds.includes(session.id)"
+                class="size-3.5 shrink-0 text-qt-accent"
+                :title="t('terminalControl.sync.badge', { count: syncGroup.sessionIds.length })"
+              />
               <QtermButton
                 variant="ghost"
                 size="icon-xs"
@@ -1298,6 +1425,12 @@ function finishSplitResize(): void {
             :title="latencyDisplay(session.latencyMs).title"
             :aria-label="t('shell.workspace.latency')"
           >
+            <Radio
+              v-if="syncGroup?.sessionIds.includes(session.id) && !isSplit"
+              class="size-3 shrink-0"
+              :class="syncGroup.status === 'active' ? 'text-qt-success' : 'text-qt-warning'"
+              data-terminal-sync-icon
+            />
             {{ latencyDisplay(session.latencyMs).text }}
           </div>
           <div
@@ -1312,6 +1445,7 @@ function finishSplitResize(): void {
           <TerminalPane
             v-if="props.settingsReady !== false"
             :transparent-background="props.transparentBackground"
+            :sync-group="syncGroup"
             :session-id="session.id"
             :host-id="session.hostId"
             :kind="session.kind"
@@ -1326,6 +1460,8 @@ function finishSplitResize(): void {
             :dark="props.dark"
             :persistent="props.persistent"
             :font-size="props.terminalFontSize"
+            :font-weight="props.terminalFontWeight ?? 400"
+            @font-size-step="emit('fontSizeStep', $event)"
             :line-height="props.terminalLineHeight ?? 1.25"
             :font-family="props.terminalFontFamily"
             :gutter-mode="props.gutterMode ?? 'off'"
@@ -1367,6 +1503,8 @@ function finishSplitResize(): void {
             @close-session="requestCloseSession($event)"
             @reconnect-session="emit('reconnectSession', $event)"
             @disconnect-session="emit('disconnectSession', $event)"
+            @terminal-sync="handleSyncAction"
+            @open-batch-send="openBatchSend"
             @open-sftp="emit('openSftp', session.id)"
             @ai-analyze="
               (sessionId: string, kind: 'selection' | 'recent', text: string) =>
@@ -1387,12 +1525,12 @@ function finishSplitResize(): void {
           >
             <template v-if="metricSnapshot(session)?.metricsSupported">
               <span class="terminal-metric-item metric-cpu inline-flex items-center gap-[8px] flex-none">
-                <Cpu :size="13" stroke-width="1.8" aria-hidden="true" />
+                <CPUIcon :size="13" aria-hidden="true" />
                 CPU <b>{{ metricText(metricSnapshot(session)?.cpuUsagePercent ?? 0) }}</b>
               </span>
               <span class="terminal-metric-item metric-memory inline-flex items-center gap-[8px] flex-none">
                 <Separator orientation="vertical" />
-                <MemoryStick :size="13" stroke-width="1.8" aria-hidden="true" />
+                <MemoryIcon :size="13" aria-hidden="true" />
                 Mem <b>{{ metricText(metricSnapshot(session)?.memoryUsagePercent ?? 0) }}</b>
                 <span class="terminal-metrics-detail text-qt-muted">
                   {{ metricSnapshot(session)?.memoryUsedText }} / {{ metricSnapshot(session)?.memoryTotalText }}
@@ -1417,6 +1555,21 @@ function finishSplitResize(): void {
                 <span class="terminal-metrics-detail text-qt-muted">
                   {{ metricSnapshot(session)?.disks.find((item) => item.mount === '/')?.usedText }} /
                   {{ metricSnapshot(session)?.disks.find((item) => item.mount === '/')?.totalText }}
+                </span>
+              </span>
+              <span
+                v-if="gpuSnapshot(session)"
+                class="terminal-metric-item metric-gpu inline-flex items-center gap-[8px] flex-none"
+              >
+                <Separator orientation="vertical" />
+                <GPUIcon :size="13" aria-hidden="true" />
+                GPU <b>{{ Math.round(gpuSnapshot(session)?.usedMb ?? 0) }}</b>
+                <span class="terminal-metrics-detail text-qt-muted">
+                  <template v-if="(gpuSnapshot(session)?.totalMb ?? 0) > 0">
+                    / {{ formatGpuMemory(gpuSnapshot(session)?.totalMb ?? 0) }} ({{
+                      metricText(gpuSnapshot(session)?.usedPercent ?? 0)
+                    }})
+                  </template>
                 </span>
               </span>
               <span
@@ -1507,8 +1660,58 @@ function finishSplitResize(): void {
       <div v-show="sftpActive()" class="sftp-workspace-stage" :aria-label="t('shell.workspace.sftp')">
         <slot name="sftp-workspace" :tabs="props.sftpTabs ?? []" :active-tab-id="props.activeSftpTabId ?? null" />
       </div>
+      <p
+        v-if="terminalControlError && !syncPickerOpen"
+        class="terminal-control-bar m-0 border-t border-qt-border px-3 py-2 text-xs text-qt-danger"
+        role="alert"
+      >
+        {{ terminalControlError }}
+      </p>
+      <div
+        v-if="batchTask?.status === 'running' && !batchSendOpen"
+        class="terminal-control-bar flex min-h-8 shrink-0 items-center gap-2 border-t border-qt-border px-3 py-1 text-xs"
+        data-batch-running-bar
+      >
+        <QtermButton variant="ghost" size="xs" :aria-expanded="batchSendOpen" @click="batchSendOpen = true">
+          <Network class="size-3.5" />{{ t('terminalControl.batch.title') }}
+          <span class="text-qt-accent">· {{ batchTask.completedRounds ?? 0 }} / {{ batchTask.repeatCount }}</span>
+        </QtermButton>
+        <QtermButton variant="ghost" size="xs" :disabled="terminalControlBusy" @click="terminalControl.cancelBatch">
+          <X class="size-3.5" />{{ t('terminalControl.batch.stop') }}
+        </QtermButton>
+      </div>
+      <SyncStatusBar
+        :group="syncGroup"
+        @action="(action) => handleSyncAction(action === 'end' ? 'stop' : action, props.activeSessionId ?? '')"
+      />
+      <BatchSendPanel
+        v-show="batchSendOpen"
+        :sessions="controlSessions"
+        :current-session-id="auxiliaryActive() ? '' : (props.activeSessionId ?? '')"
+        :initial-session-id="controlSourceId"
+        :sync-group="syncGroup"
+        :task="batchTask"
+        :log="batchLog"
+        :busy="terminalControlBusy"
+        :error="terminalControlError"
+        @start="terminalControl.startBatch"
+        @cancel="terminalControl.cancelBatch"
+        @close="batchSendOpen = false"
+      />
+      <SyncTargetPicker
+        :open="syncPickerOpen"
+        :sessions="controlSessions"
+        :source-session-id="controlSourceId"
+        :selected-ids="syncPickerMode === 'manage' ? (syncGroup?.sessionIds ?? []) : []"
+        :mode="syncPickerMode"
+        :resume-on-apply="terminalControl.resumeAfterManage.value"
+        :busy="terminalControlBusy"
+        :error="terminalControlError"
+        @submit="terminalControl.applyMembers"
+        @cancel="terminalControl.cancelPicker"
+      />
       <BatchCommandBar
-        v-if="props.terminalBatchCommand && isSplit && !auxiliaryActive()"
+        v-if="props.terminalBatchCommand && isSplit && !auxiliaryActive() && !batchSendOpen"
         :key="activeGroupId ?? ''"
         :sessions="props.terminalSessions.filter((session) => activeGroupSessionIds.includes(session.id))"
       />

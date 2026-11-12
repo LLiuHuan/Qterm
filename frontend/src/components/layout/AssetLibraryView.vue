@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { IconButton, QtermButton, QtermInput } from '../common'
+import { IconButton, QtermButton, QtermInput, RefreshIconButton } from '../common'
 import {
   ArrowDownAZ,
   ArrowDownUp,
   ArrowLeft,
   ArrowRightLeft,
   ArrowUpZA,
+  Check,
   ChevronRight,
   CircleHelp,
   Copy,
@@ -19,6 +20,7 @@ import {
   Search,
   Server,
   Trash2,
+  X,
 } from '@lucide/vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AssetContextMenu, { type AssetMenuAction } from '../common/overlay-controls/AssetContextMenu.vue'
@@ -27,7 +29,12 @@ import HostIcon from '../common/icon/HostIcon.vue'
 import { tagColorStyle } from '../../lib/colorTag'
 import type { GroupedHosts } from '../../types/qterm'
 import type { HostRecord } from '@/services/hosts.ts'
-import { compareAsset } from '../../features/hosts/assetTree'
+import { compareAsset, selectionAfterClick } from '../../features/hosts/assetTree'
+import { applyBatchEdit, type BatchPatch } from '../../features/hosts/assetBatch'
+import { hostIconPickerOptions } from '../../features/hosts/builtinIcons'
+import { HOST_PROTOCOLS, hostProtocolDefinition } from '../../features/hosts/hostProtocols'
+import { createHostGateway } from '../../services/hosts'
+import { toast } from 'vue-sonner'
 import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
 import { ScrollArea } from '../common/control-primitives'
 import { hiddenHostTagCount, hostConnectionSummary, hostTags, visibleHostTags } from '@/features/hosts/hostSummary'
@@ -46,6 +53,8 @@ const props = defineProps<{
 
   selectedGroupId?: string | null
   showHostAddress: boolean
+
+  bulkConnectBusy?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -63,7 +72,7 @@ const emit = defineEmits<{
   deleteHost: [host: HostRecord]
   editGroup: [group: GroupedHosts]
   deleteGroup: [group: GroupedHosts]
-  copyHost: [host: HostRecord, kind: 'ip' | 'id']
+  copyHost: [host: HostRecord]
 
   duplicateHost: [host: HostRecord]
 
@@ -71,6 +80,8 @@ const emit = defineEmits<{
   moveGroup: [id: string, parentId: string, targetId: string, position: 'before' | 'after' | 'inside']
 
   toolPanel: [host: HostRecord, tool: 'tunnels' | 'sftp']
+
+  connectGroup: [group: GroupedHosts]
   updateSearchQuery: [value: string]
 }>()
 const { t } = useI18n()
@@ -211,6 +222,7 @@ function hostAriaLabel(host: HostRecord): string {
 }
 
 function selectGroupCard(group: GroupedHosts): void {
+  clearSelection()
   emit('selectGroup', group.id)
 }
 
@@ -265,6 +277,11 @@ function createHostHere(): void {
   else emit('createHost')
 }
 
+function createGroupHere(): void {
+  if (currentGroup.value) emit('createSubgroup', currentGroup.value.id)
+  else emit('createGroup')
+}
+
 function goUp(): void {
   currentGroupId.value = groupPath.value.at(-2)?.id ?? null
 }
@@ -286,7 +303,15 @@ function groupActions(group: GroupedHosts): AssetMenuAction[] {
   }
   collect(group)
   return [
-    { id: 'add-host', label: t('shell.asset.addHostInGroup'), icon: Plus },
+    {
+      id: 'connect-all',
+      label: props.bulkConnectBusy
+        ? t('shell.asset.connectGroupRunning')
+        : t('shell.asset.connectGroupHosts', { count: hostCount(group) }),
+      icon: Link,
+      disabled: props.bulkConnectBusy || hostCount(group) === 0,
+    },
+    { id: 'add-host', label: t('shell.asset.addHostInGroup'), icon: Plus, separatorBefore: true },
     { id: 'create-subgroup', label: t('shell.asset.createSubgroup'), icon: FolderPlus },
     {
       id: 'move-group',
@@ -312,7 +337,8 @@ function groupActions(group: GroupedHosts): AssetMenuAction[] {
 }
 
 function handleGroupAction(group: GroupedHosts, id: string): void {
-  if (id === 'add-host') emit('createHostInGroup', group.id)
+  if (id === 'connect-all') emit('connectGroup', group)
+  else if (id === 'add-host') emit('createHostInGroup', group.id)
   else if (id === 'create-subgroup') emit('createSubgroup', group.id)
   else if (id === 'edit') emit('editGroup', group)
   else if (id === 'delete') emit('deleteGroup', group)
@@ -337,9 +363,8 @@ function hostActionsFor(host: HostRecord): AssetMenuAction[] {
       children: groupMoveTargets.value,
     },
     { id: 'copy-ip', label: t('shell.asset.copyIp'), icon: Copy, separatorBefore: true },
-    { id: 'copy-id', label: t('shell.asset.copyId'), icon: Copy },
-    { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
     { id: 'copy', label: t('shell.asset.copy'), icon: Copy },
+    { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
     { id: 'delete', label: t('shell.asset.delete'), icon: Trash2, destructive: true },
   ]
 }
@@ -350,11 +375,152 @@ function handleHostAction(host: HostRecord, id: string): void {
   else if (id === 'open') emit('openHost', host)
   else if (id === 'edit') emit('editHost', host)
   else if (id === 'delete') emit('deleteHost', host)
-  else if (id === 'copy-ip') emit('copyHost', host, 'ip')
-  else if (id === 'copy-id') emit('copyHost', host, 'id')
+  else if (id === 'copy-ip') emit('copyHost', host)
   else if (id === 'copy') emit('duplicateHost', host)
   else if (id.startsWith('move-group:')) emit('moveAsset', host.id, id.slice('move-group:'.length), '', 'inside')
 }
+
+const selectedHostIds = ref<string[]>([])
+
+const selectionAnchor = ref<string | null>(null)
+
+const batchPanel = ref<'group' | 'icon' | 'protocol' | ''>('')
+
+const batchProgress = ref<{ done: number; total: number } | null>(null)
+const batchRunning = computed(() => batchProgress.value !== null)
+const batchGateway = createHostGateway()
+
+function clearSelection(): void {
+  selectedHostIds.value = []
+  selectionAnchor.value = null
+  batchPanel.value = ''
+}
+
+function clickHostCard(host: HostRecord, event: MouseEvent): void {
+  const toggle = event.metaKey || event.ctrlKey
+  const range = event.shiftKey
+  if (!toggle && !range) {
+    clearSelection()
+    emit('selectHost', host.id)
+    return
+  }
+  const ordered = visibleHosts.value.map((item) => item.id)
+  const next = selectionAfterClick(ordered, selectedHostIds.value, selectionAnchor.value, host.id, {
+    toggle,
+    range,
+  })
+  selectedHostIds.value = next.ids
+  selectionAnchor.value = next.anchor
+}
+
+function isHostSelected(id: string): boolean {
+  return selectedHostIds.value.includes(id)
+}
+
+function toggleBatchPanel(field: 'group' | 'icon' | 'protocol'): void {
+  if (batchRunning.value) return
+  batchPanel.value = batchPanel.value === field ? '' : field
+}
+
+const batchGroupTargets = computed(() =>
+  groupMoveTargets.value.map((item) => ({
+    id: item.id.slice('move-group:'.length),
+    label: item.label,
+  })),
+)
+
+const batchIcons = computed(() => hostIconPickerOptions)
+
+const batchProtocols = computed(() =>
+  HOST_PROTOCOLS.filter((protocol) => protocol.enabled).map((protocol) => ({
+    id: protocol.id,
+    label: protocol.label,
+  })),
+)
+
+async function applyBatch(patch: BatchPatch): Promise<void> {
+  if (batchRunning.value) return
+  const records = selectedHostIds.value
+    .map((id) => props.hosts.find((host) => host.id === id))
+    .filter((host): host is HostRecord => !!host)
+    .map((host) => withAdoptedPort(host, patch.protocol))
+  if (!records.length) {
+    clearSelection()
+    return
+  }
+  batchPanel.value = ''
+  batchProgress.value = { done: 0, total: records.length }
+  const result = await applyBatchEdit(records, patch, batchGateway, (done) => {
+    batchProgress.value = { done, total: records.length }
+  })
+  batchProgress.value = null
+  clearSelection()
+
+  emit('refresh')
+  if (result.failed > 0) toast.error(t('shell.assetBatch.summaryFailed', { done: result.done, failed: result.failed }))
+  else toast.success(t('shell.assetBatch.summary', { count: result.done }))
+}
+
+function withAdoptedPort(host: HostRecord, nextProtocol?: string): HostRecord {
+  if (!nextProtocol || nextProtocol === host.protocol) return host
+  const current = hostProtocolDefinition(host.protocol)
+  const next = hostProtocolDefinition(nextProtocol)
+  if (host.port !== current.defaultPort || current.defaultPort === next.defaultPort) return host
+  return { ...host, port: next.defaultPort }
+}
+
+watch([currentGroupId, () => props.searchQuery], () => {
+  clearSelection()
+})
+
+watch(
+  () => props.hosts,
+  (hosts) => {
+    if (!selectedHostIds.value.length) return
+    const alive = new Set(hosts.map((host) => host.id))
+    const next = selectedHostIds.value.filter((id) => alive.has(id))
+    if (next.length !== selectedHostIds.value.length) {
+      selectedHostIds.value = next
+      if (selectionAnchor.value && !alive.has(selectionAnchor.value)) selectionAnchor.value = null
+      if (!next.length) clearSelection()
+    }
+  },
+)
+
+function handleSelectionKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || !selectedHostIds.value.length) return
+  if (!isLibraryVisible()) return
+  if (isEditableTarget(event.target)) return
+  clearSelection()
+}
+
+function handleSelectionPointerDown(event: MouseEvent): void {
+  if (!selectedHostIds.value.length) return
+  const target = event.target
+  if (!(target instanceof Element)) return
+
+  if (target.closest('[data-asset-card]') || target.closest('[data-asset-batch]')) return
+  if (!isLibraryVisible()) return
+  clearSelection()
+}
+
+let selectionGuardBound = false
+
+onMounted(() => {
+  void nextTick(() => {
+    if (disposed || selectionGuardBound) return
+    selectionGuardBound = true
+    window.addEventListener('keydown', handleSelectionKeydown)
+    window.addEventListener('mousedown', handleSelectionPointerDown)
+  })
+})
+
+onBeforeUnmount(() => {
+  if (!selectionGuardBound) return
+  selectionGuardBound = false
+  window.removeEventListener('keydown', handleSelectionKeydown)
+  window.removeEventListener('mousedown', handleSelectionPointerDown)
+})
 </script>
 
 <template>
@@ -411,7 +577,7 @@ function handleHostAction(host: HostRecord, id: string): void {
         <IconButton :label="t('shell.asset.addHost')" @click="createHostHere">
           <Plus :size="16" aria-hidden="true" />
         </IconButton>
-        <IconButton :label="t('shell.asset.createGroup')" @click="emit('createGroup')">
+        <IconButton :label="t('shell.asset.createGroup')" @click="createGroupHere">
           <FolderPlus :size="16" aria-hidden="true" />
         </IconButton>
         <IconButton
@@ -430,13 +596,123 @@ function handleHostAction(host: HostRecord, id: string): void {
         >
           <component :is="sortIcon" :size="16" aria-hidden="true" />
         </IconButton>
-        <IconButton :label="t('shell.asset.refresh')" @click="emit('refresh')">
-          <RefreshCw :size="16" aria-hidden="true" />
-        </IconButton>
+        <RefreshIconButton
+          :label="t('shell.asset.refresh')"
+          size="icon"
+          :spinning="props.loading"
+          icon-class="size-4"
+          @click="emit('refresh')"
+        />
       </div>
     </div>
 
-    <div class="asset-library-divider h-px flex-none bg-qt-border" aria-hidden="true" tabindex="-1"></div>
+    <div
+      class="asset-library-divider pointer-events-none h-px flex-none bg-qt-border select-none"
+      aria-hidden="true"
+      tabindex="-1"
+    ></div>
+
+    <div
+      v-if="selectedHostIds.length"
+      class="relative flex flex-none flex-wrap items-center gap-2 border-b border-qt-border bg-qt-subtle/60 px-3 py-1.5"
+      data-asset-batch
+      role="toolbar"
+      :aria-label="t('shell.assetBatch.toolbar')"
+    >
+      <span class="text-xs text-qt-muted">{{ t('shell.assetBatch.selected', { count: selectedHostIds.length }) }}</span>
+      <QtermButton
+        size="sm"
+        variant="ghost"
+        :disabled="batchRunning"
+        data-asset-batch-field="group"
+        @click="toggleBatchPanel('group')"
+      >
+        <FolderClosed :size="14" aria-hidden="true" />{{ t('shell.assetBatch.group') }}
+      </QtermButton>
+      <QtermButton
+        size="sm"
+        variant="ghost"
+        :disabled="batchRunning"
+        data-asset-batch-field="icon"
+        @click="toggleBatchPanel('icon')"
+      >
+        <Pencil :size="14" aria-hidden="true" />{{ t('shell.assetBatch.icon') }}
+      </QtermButton>
+      <QtermButton
+        size="sm"
+        variant="ghost"
+        :disabled="batchRunning"
+        data-asset-batch-field="protocol"
+        @click="toggleBatchPanel('protocol')"
+      >
+        <ArrowRightLeft :size="14" aria-hidden="true" />{{ t('shell.assetBatch.protocol') }}
+      </QtermButton>
+      <span v-if="batchProgress" class="flex items-center gap-1 text-xs text-qt-muted" aria-live="polite">
+        <RefreshCw class="spin" :size="12" aria-hidden="true" />
+        {{ t('shell.assetBatch.progress', { done: batchProgress.done, total: batchProgress.total }) }}
+      </span>
+      <QtermButton size="sm" variant="link" class="ml-auto" :disabled="batchRunning" @click="clearSelection()">
+        {{ t('shell.assetBatch.clear') }}
+      </QtermButton>
+
+      <div
+        v-if="batchPanel"
+        class="absolute top-full left-3 z-30 mt-1 max-h-72 w-64 overflow-auto rounded-lg border border-solid border-qt-border bg-qt-panel p-1 shadow-lg"
+        :data-asset-batch-panel="batchPanel"
+        role="listbox"
+        :aria-label="t(`shell.assetBatch.${batchPanel}Title`)"
+      >
+        <template v-if="batchPanel === 'group'">
+          <button
+            v-for="target in batchGroupTargets"
+            :key="target.id || 'root'"
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-qt-hover"
+            @click="applyBatch({ group: target.id })"
+          >
+            <FolderClosed :size="14" class="flex-none text-qt-muted" aria-hidden="true" />
+            <span class="min-w-0 truncate">{{ target.label }}</span>
+          </button>
+        </template>
+        <template v-else-if="batchPanel === 'protocol'">
+          <button
+            v-for="protocol in batchProtocols"
+            :key="protocol.id"
+            type="button"
+            class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-qt-hover"
+            @click="applyBatch({ protocol: protocol.id })"
+          >
+            <ArrowRightLeft :size="14" class="flex-none text-qt-muted" aria-hidden="true" />
+            <span class="min-w-0 truncate">{{ protocol.label }}</span>
+          </button>
+        </template>
+        <template v-else>
+          <div class="grid grid-cols-4 gap-1">
+            <button
+              type="button"
+              class="flex flex-col items-center gap-1 rounded p-1.5 text-[11px] text-qt-muted hover:bg-qt-hover"
+              @click="applyBatch({ icon: '' })"
+            >
+              <span class="grid size-6 place-items-center rounded border-d border-qt-border">
+                <X :size="12" aria-hidden="true" />
+              </span>
+              <span class="truncate">{{ t('shell.assetBatch.noIcon') }}</span>
+            </button>
+            <button
+              v-for="option in batchIcons"
+              :key="option.value"
+              type="button"
+              class="flex flex-col items-center gap-1 rounded p-1.5 text-[11px] text-qt-muted hover:bg-qt-hover"
+              :title="option.label"
+              @click="applyBatch({ icon: option.value })"
+            >
+              <img :src="option.src" :alt="option.label" class="size-6 object-contain" />
+              <span class="w-full truncate text-center">{{ option.label }}</span>
+            </button>
+          </div>
+        </template>
+      </div>
+    </div>
 
     <div
       v-if="props.loading"
@@ -489,7 +765,7 @@ function handleHostAction(host: HostRecord, id: string): void {
       }}</QtermButton>
     </div>
 
-    <ScrollArea v-else type="hover" :scroll-hide-delay="600" class="min-h-0 grow">
+    <ScrollArea v-else type="hover" :scroll-hide-delay="600" class="asset-library-scroll min-h-0 grow">
       <div
         ref="gridRef"
         class="relative flex flex-col gap-5 p-4"
@@ -554,13 +830,23 @@ function handleHostAction(host: HostRecord, id: string): void {
                   'bg-[var(--qt-asset-library-card-hover,var(--qt-hover))]': props.selectedHostId === host.id,
                   'has-host-color': !!hostColorStyle(host),
                   'is-selected': props.selectedHostId === host.id,
+                  'is-multi-selected ring-2 ring-qt-focus': isHostSelected(host.id),
                 }"
                 :style="hostColorStyle(host)"
                 :aria-label="hostAriaLabel(host)"
+                :aria-pressed="isHostSelected(host.id)"
                 :title="hostTitle(host)"
-                @click="emit('selectHost', host.id)"
+                @click="clickHostCard(host, $event)"
                 @dblclick="emit('openHost', host)"
               >
+                <span
+                  v-if="isHostSelected(host.id)"
+                  class="absolute top-1.5 right-1.5 grid size-4 place-items-center rounded-full bg-qt-accent text-qt-accent-text"
+                  aria-hidden="true"
+                >
+                  <Check :size="11" />
+                </span>
+
                 <span
                   class="host-color-tile grid size-10 flex-none place-items-center rounded-lg border-d bg-qt-subtle"
                 >

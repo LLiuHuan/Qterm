@@ -68,9 +68,21 @@ func (s *HostService) CreateHost(input model.HostInput) (model.Host, error) {
 		if errors.Is(err, model.ErrCredentialVaultLocked) {
 			return model.Host{}, errno.New(errno.CodePermissionDenied, "host.password_unavailable", "")
 		}
+
+		if isCustomIDConflict(err) {
+			return model.Host{}, errno.New(errno.CodeInvalidArg, "host.custom_id_taken", "")
+		}
 		return model.Host{}, errno.New(errno.CodeStoreFailed, "host.save_failed", "")
 	}
 	return host, nil
+}
+
+func isCustomIDConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unique constraint failed") && strings.Contains(message, "custom_id")
 }
 
 func (s *HostService) UpdateHost(id string, input model.HostInput) (model.Host, error) {
@@ -156,6 +168,9 @@ func (s *HostService) UpdateHost(id string, input model.HostInput) (model.Host, 
 		}
 		if errors.Is(err, model.ErrCredentialVaultLocked) {
 			return model.Host{}, errno.New(errno.CodePermissionDenied, "host.password_unavailable", "")
+		}
+		if isCustomIDConflict(err) {
+			return model.Host{}, errno.New(errno.CodeInvalidArg, "host.custom_id_taken", "")
 		}
 		return model.Host{}, errno.New(errno.CodeStoreFailed, "host.update_failed", "")
 	}

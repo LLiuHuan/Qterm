@@ -25,6 +25,7 @@ import {
   TERMINAL_SCROLLBACK_MAX,
   TERMINAL_SCROLLBACK_MIN,
   TERMINAL_FONT_SIZE_MAX,
+  TERMINAL_FONT_WEIGHTS,
   TERMINAL_FONT_SIZE_MIN,
   TERMINAL_LINE_HEIGHT_MAX,
   TERMINAL_LINE_HEIGHT_MIN,
@@ -52,6 +53,7 @@ const props = withDefaults(
   defineProps<{
     mode?: 'all' | 'typography' | 'interaction'
     fontSize: number
+    fontWeight?: import('../settings/settingsStore').TerminalFontWeight
 
     lineHeight?: number
 
@@ -104,6 +106,7 @@ const props = withDefaults(
   {
     mode: 'all',
     lineHeight: 1.25,
+    fontWeight: 400,
     autoCopySelection: false,
     copyFeedback: true,
     showLatency: true,
@@ -144,6 +147,7 @@ const { t, locale } = useI18n()
 
 const emit = defineEmits<{
   'update:fontSize': [size: number]
+  'update:fontWeight': [weight: number]
   'update:lineHeight': [lineHeight: number]
   'update:fontFamily': [family: string]
   reset: []
@@ -345,6 +349,7 @@ const effectiveFont = computed(() => selectedFamily.value?.family ?? defaultEffe
 const previewStyle = computed(() => ({
   fontFamily: buildTerminalFontFamily(props.fontFamily),
   fontSize: `${props.fontSize}px`,
+  fontWeight: props.fontWeight,
 
   lineHeight: String(props.lineHeight),
 }))
@@ -416,6 +421,22 @@ const ICON_FILE = '\u{F15B}'
           :increase-label="t('terminal.core.increaseFontSize')"
           @update:model-value="(value) => value !== undefined && emit('update:fontSize', value)"
         />
+      </QtermSettingsRow>
+
+      <QtermSettingsRow :label="t('terminal.core.fontWeight')">
+        <Select
+          :model-value="String(props.fontWeight)"
+          @update:model-value="(value) => emit('update:fontWeight', Number(value))"
+        >
+          <SelectTrigger id="settings-terminal-font-weight" class="w-30" :aria-label="t('terminal.core.fontWeight')"
+            ><SelectValue
+          /></SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="weight in TERMINAL_FONT_WEIGHTS" :key="weight" :value="String(weight)">
+              {{ weight }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </QtermSettingsRow>
 
       <QtermSettingsRow

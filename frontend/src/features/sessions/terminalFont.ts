@@ -69,7 +69,7 @@ function cssFontFamilyLiteral(family: string): string {
   return `"${family.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
 }
 
-export async function ensureTerminalFontReady(size: number, primary?: string): Promise<boolean> {
+export async function ensureTerminalFontReady(size: number, primary?: string, weight = 400): Promise<boolean> {
   if (typeof document === 'undefined' || !document.fonts) return false
   const fonts = document.fonts
   let cache = terminalFontLoadCache.get(fonts)
@@ -79,8 +79,10 @@ export async function ensureTerminalFontReady(size: number, primary?: string): P
   }
   const selected = primary?.trim() ?? ''
   const family = buildTerminalFontFamily(selected)
-  const descriptor = selected ? `${size}px ${cssFontFamilyLiteral(selected)}` : `${size}px ${family}`
-  const key = `${size}:${selected || family}`
+  const descriptor = selected
+    ? `${weight} ${size}px ${cssFontFamilyLiteral(selected)}`
+    : `${weight} ${size}px ${family}`
+  const key = `${weight}:${size}:${selected || family}`
   let loading = cache.get(key)
   if (!loading) {
     loading = Promise.resolve()

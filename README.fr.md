@@ -79,6 +79,7 @@ L’interface est disponible en sept langues : chinois simplifié, chinois tradi
 - **Surveillance des ressources** : consultation des métriques CPU, mémoire, disque et réseau ainsi que de leurs courbes historiques ; les métriques disponibles dépendent de l’environnement distant.
 - **Processus et services** : consultation des processus, gestion des services sur les systèmes pris en charge et lecture des journaux.
 - **Docker** : gestion des conteneurs, images, volumes et réseaux distants via la session SSH active, consultation des détails des ressources et des journaux des conteneurs.
+- **Sessions tmux** : lister, créer et terminer des sessions tmux distantes ; « Se connecter » écrit `tmux attach` dans le terminal courant, et les sessions survivent aux déconnexions.
 - **Outils d’authentification** : gestion des entrées TOTP / HOTP, import `otpauth://` ou par QR code, affichage des codes, copie et présentation du QR code.
 
 ### Assistant IA
@@ -94,15 +95,15 @@ Configurez vous-même le service de modèle avant d’utiliser l’IA. Le conten
 
 ## Pages et points d’entrée
 
-| Page / zone                             | Ce que vous pouvez y faire                                                                                                                                                                                   |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Bibliothèque d’actifs et barre latérale | Rechercher et organiser les hôtes, gérer les groupes, ouvrir des connexions, importer une configuration existante                                                                                            |
-| Éditeur d’hôte                          | Configurer l’adresse, l’authentification, le bastion / proxy et les paramètres de connexion avancés selon le protocole                                                                                       |
-| Espace de travail de session            | Utiliser le terminal ou le bureau à distance, changer d’onglet, diviser les volets, détacher les fenêtres                                                                                                    |
-| Panneau d’outils de droite              | Ouvrir la surveillance des ressources, les processus, les services, Docker, SFTP, les commandes rapides, l’historique des commandes, la redirection de ports, l’authentification, le thème et l’assistant IA |
-| Paramètres → Gestion                    | Identifiants, empreintes, proxys, redirection de ports, commandes rapides, historique des sessions, enregistrements du terminal                                                                              |
-| Paramètres → Préférences                | Application, apparence, terminal, bureau à distance, surlignage des mots-clés, suggestions d’identifiants, raccourcis clavier, assistant IA, à propos                                                        |
-| Paramètres → À propos                   | Version et mises à jour, import et export, etc.                                                                                                                                                              |
+| Page / zone                             | Ce que vous pouvez y faire                                                                                                                                                                                                  |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bibliothèque d’actifs et barre latérale | Rechercher et organiser les hôtes, gérer les groupes, ouvrir des connexions, importer une configuration existante                                                                                                           |
+| Éditeur d’hôte                          | Configurer l’adresse, l’authentification, le bastion / proxy et les paramètres de connexion avancés selon le protocole                                                                                                      |
+| Espace de travail de session            | Utiliser le terminal ou le bureau à distance, changer d’onglet, diviser les volets, détacher les fenêtres                                                                                                                   |
+| Panneau d’outils de droite              | Ouvrir la surveillance des ressources, les processus, les services, Docker, sessions tmux, SFTP, les commandes rapides, l’historique des commandes, la redirection de ports, l’authentification, le thème et l’assistant IA |
+| Paramètres → Gestion                    | Identifiants, empreintes, proxys, redirection de ports, commandes rapides, historique des sessions, enregistrements du terminal                                                                                             |
+| Paramètres → Préférences                | Application, apparence, terminal, bureau à distance, surlignage des mots-clés, suggestions d’identifiants, raccourcis clavier, assistant IA, à propos                                                                       |
+| Paramètres → À propos                   | Version et mises à jour, import et export, etc.                                                                                                                                                                             |
 
 Le panneau d’outils s’ouvre selon le type de session et l’état de la connexion ; Docker, par exemple, nécessite une session SSH connectée et un environnement Docker distant.
 

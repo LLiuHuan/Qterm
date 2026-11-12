@@ -35,6 +35,8 @@ const (
 
 const SFTPTransferStageExtracting = "extracting"
 
+const SFTPTransferStagePacking = "packing"
+
 type SFTPTransfer struct {
 	ID          string                `json:"id"`
 	SessionID   string                `json:"sessionId"`
@@ -117,7 +119,7 @@ func (t SFTPTransfer) Transition(next SFTPTransferState, now time.Time) (SFTPTra
 }
 
 func (t SFTPTransfer) WithStage(stage string, now time.Time) (SFTPTransfer, error) {
-	if stage != "" && stage != SFTPTransferStageExtracting {
+	if stage != "" && stage != SFTPTransferStageExtracting && stage != SFTPTransferStagePacking {
 		return SFTPTransfer{}, ErrInvalidSFTPTransfer
 	}
 	if stage != "" && t.State != SFTPTransferRunning {
@@ -127,6 +129,18 @@ func (t SFTPTransfer) WithStage(stage string, now time.Time) (SFTPTransfer, erro
 		return t, nil
 	}
 	t.Stage = stage
+	t.UpdatedAt = now.UTC()
+	return t, nil
+}
+
+func (t SFTPTransfer) WithTotal(total int64, now time.Time) (SFTPTransfer, error) {
+	if total <= 0 {
+		return SFTPTransfer{}, ErrInvalidSFTPTransfer
+	}
+	if t.State != SFTPTransferRunning || t.Total != 0 {
+		return SFTPTransfer{}, ErrInvalidSFTPTransferTransition
+	}
+	t.Total = total
 	t.UpdatedAt = now.UTC()
 	return t, nil
 }

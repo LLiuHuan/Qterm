@@ -19,7 +19,7 @@ const emit = defineEmits<{
   open: [host: HostRecord]
   edit: [host: HostRecord]
   delete: [host: HostRecord]
-  copy: [host: HostRecord, kind: 'ip' | 'id']
+  copy: [host: HostRecord]
 
   duplicate: [host: HostRecord]
 
@@ -39,9 +39,8 @@ const actions = computed(() => [
   { id: 'tunnel', label: t('shell.asset.tunnel'), icon: ArrowRightLeft, disabled: !sshCapable.value },
   { id: 'sftp', label: t('shell.asset.sftp'), icon: Folder, disabled: !sshCapable.value },
   { id: 'copy-ip', label: t('shell.asset.copyIp'), icon: Copy, separatorBefore: true },
-  { id: 'copy-id', label: t('shell.asset.copyId'), icon: Copy },
-  { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
   { id: 'copy', label: t('shell.asset.copy'), icon: Copy },
+  { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
   { id: 'delete', label: t('shell.asset.delete'), icon: Trash2, destructive: true },
 ])
 
@@ -51,10 +50,11 @@ function handleAction(id: string): void {
   else if (id === 'open') emit('open', props.host)
   else if (id === 'edit') emit('edit', props.host)
   else if (id === 'delete') emit('delete', props.host)
-  else if (id === 'copy-ip') emit('copy', props.host, 'ip')
-  else if (id === 'copy-id') emit('copy', props.host, 'id')
+  else if (id === 'copy-ip') emit('copy', props.host)
   else if (id === 'copy') emit('duplicate', props.host)
 }
+
+const aliasLine = computed(() => (props.host.alias ?? '').trim())
 
 const addressLine = computed(() => {
   const base = `${props.host.address}:${props.host.port}`
@@ -66,14 +66,18 @@ const hostTitle = computed(() => {
   const connection = `${props.host.username}@${props.host.address}:${props.host.port}`
   const base = t('shell.asset.hostTitle', { connection })
   const tags = props.host.tags ?? []
-  return tags.length > 0 ? `${base} · ${tags.join(', ')}` : base
+
+  const withAlias = aliasLine.value ? `${base} · ${aliasLine.value}` : base
+  return tags.length > 0 ? `${withAlias} · ${tags.join(', ')}` : withAlias
 })
 
 const hostAriaLabel = computed(() => {
   const connection = `${props.host.username}@${props.host.address}:${props.host.port}`
   const base = t('shell.asset.hostAria', { name: props.host.name, connection })
   const tags = props.host.tags ?? []
-  return tags.length > 0 ? `${base} · ${tags.join(', ')}` : base
+
+  const withAlias = aliasLine.value ? `${base} · ${aliasLine.value}` : base
+  return tags.length > 0 ? `${withAlias} · ${tags.join(', ')}` : withAlias
 })
 </script>
 
@@ -101,7 +105,9 @@ const hostAriaLabel = computed(() => {
         />
         <HostIcon :icon="props.host.icon" :protocol="props.host.protocol" />
         <span class="host-row-main min-w-0 flex flex-1 flex-col gap-px">
-          <span class="host-name text-sm overflow-hidden text-ellipsis whitespace-nowrap">{{ props.host.name }}</span>
+          <span class="host-name text-sm overflow-hidden text-ellipsis whitespace-nowrap"
+            >{{ props.host.name }}<span v-if="aliasLine" class="text-qt-muted"> · {{ aliasLine }}</span></span
+          >
 
           <span
             v-if="props.showAddress !== false"

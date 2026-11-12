@@ -12,5 +12,6 @@ export type {
   Message,
   StartInput,
   ToolCall,
+  ToolPreview,
   Usage,
 } from './models.js'
