@@ -53,7 +53,7 @@
 .host-icon-scroll > [data-slot='scroll-area-scrollbar'] {
   top: 0;
   bottom: 0;
-  right: -6px;
+  right: -6px !important;
   height: auto !important;
 
   padding-right: 0;

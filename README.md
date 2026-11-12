@@ -131,6 +131,128 @@ qterm close <sessionID>
 
 工具面板会根据会话类型与连接状态开放；例如 Docker 需要已连接的 SSH 会话与远端 Docker 环境。
 
+## 安装
+
+安装包统一发布在 [GitHub Releases](https://github.com/LLiuHuan/Qterm/releases)。展开对应版本的 **Assets**，下载符合系统和处理器架构的文件；`Source code` 是源码压缩包，不是安装包。
+
+| 设备                                    | 选择的架构 |
+| --------------------------------------- | ---------- |
+| Apple Silicon Mac（M 系列）             | `arm64`    |
+| Intel Mac                               | `amd64`    |
+| Intel / AMD 64 位 Windows 或 Linux 电脑 | `amd64`    |
+| ARM64 Windows 电脑或 ARM64 Linux 设备   | `arm64`    |
+
+Windows 可在「设置 → 系统 → 系统信息」查看系统类型；macOS 可在「关于本机」查看芯片；Linux 可执行 `uname -m`，其中 `x86_64` 对应 `amd64`，`aarch64` 对应 `arm64`。目前不提供 32 位安装包。
+
+### macOS
+
+要求 macOS 12 Monterey 或更新版本。
+
+**通过 Homebrew 安装**
+
+先安装 [Homebrew](https://brew.sh/)，再添加 Qterm 的 Tap 并安装应用：
+
+```sh
+brew tap lliuhuan/tap
+brew install --cask lliuhuan/tap/qterm
+```
+
+Homebrew 会根据 Mac 的处理器自动选择 Apple Silicon（arm64）或 Intel（amd64）安装包。安装后，可以从「应用程序」打开 Qterm，或执行：
+
+```sh
+open /Applications/qterm.app
+```
+
+升级到新版本：
+
+```sh
+brew update
+brew upgrade --cask lliuhuan/tap/qterm
+```
+
+- 当前 macOS 安装包使用 ad-hoc 签名，尚未经过 Apple 公证；首次打开若被拦截，可在「系统设置 → 隐私与安全性」中允许打开。
+- 如果之前手动安装过 Qterm，Homebrew 可能提示应用已存在。先退出应用，用 Finder 将原有的 `/Applications/qterm.app` 移到其他目录保留，再安装；无需删除 Qterm 的用户数据。
+
+**手动安装**
+
+1. 下载 `qterm-darwin-arm64.dmg`（Apple Silicon）或 `qterm-darwin-amd64.dmg`（Intel）。
+2. 双击打开 DMG，将 `qterm.app` 拖入「应用程序」。
+3. 从「应用程序」启动；首次打开的安全提示按上面的说明处理。
+
+也可下载同架构的 `.zip`，解压后把 `qterm.app` 移入「应用程序」。手动升级时，退出 Qterm 后用新应用替换旧应用。
+
+### Windows
+
+**安装版**
+
+1. 下载 `qterm-windows-amd64-setup.exe`；ARM64 设备选择 `qterm-windows-arm64-setup.exe`。
+2. 双击运行，按安装向导选择安装目录并完成安装；出现管理员权限提示时确认。
+3. 从开始菜单或桌面快捷方式启动 Qterm。
+
+Qterm 需要 **Microsoft Edge WebView2 Runtime**。安装器会检测并尝试安装缺失的运行时；若自动安装失败，或需要离线安装，可从 [微软 WebView2 官方页面](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) 下载 Evergreen Standalone Installer，选择 x64 或 ARM64 后安装，再启动 Qterm。
+
+**ZIP 版**
+
+下载 `qterm-windows-amd64.zip` 或 `qterm-windows-arm64.zip`，完整解压到可写目录，再运行其中的 `qterm.exe`。ZIP 版同样需要 WebView2 Runtime，不要直接在压缩包预览中运行。
+
+升级时先退出应用，再运行新版安装器；ZIP 版则解压新版并替换旧程序。
+
+### Linux
+
+需要图形桌面会话，以及与发布包匹配的 GTK / WebKitGTK 运行库；当前包声明使用 **GTK 4 与 WebKitGTK 6.0**。较旧发行版可能无法满足这些依赖，不能仅凭 CPU 架构相同就认定兼容。
+
+下面以 `amd64` 为例，ARM64 设备将文件名中的 `amd64` 替换为 `arm64`。先从 Releases 下载文件，再在下载目录执行对应命令。
+
+**Debian / Ubuntu：DEB 包**
+
+下载 `qterm-linux-amd64.deb`，通过 APT 安装并解析依赖：
+
+```sh
+sudo apt update
+sudo apt install ./qterm-linux-amd64.deb
+```
+
+安装后从应用菜单启动，或在终端执行 `qterm`。升级时下载新版 DEB，并重复安装命令。
+
+**Fedora / RHEL 系：RPM 包**
+
+在能提供所需运行库的发行版上，下载 `qterm-linux-amd64.rpm` 并安装：
+
+```sh
+sudo dnf install ./qterm-linux-amd64.rpm
+```
+
+安装后从应用菜单启动，或执行 `qterm`。升级时使用新版 RPM 执行：
+
+```sh
+sudo dnf upgrade ./qterm-linux-amd64.rpm
+```
+
+如果包管理器报告缺少依赖，先确认发行版仓库是否提供所需版本；不要通过忽略依赖强行安装。旧版 CentOS / RHEL 不保证兼容。
+
+**AppImage**
+
+下载 `qterm-linux-amd64.AppImage`，赋予执行权限后启动：
+
+```sh
+chmod +x qterm-linux-amd64.AppImage
+./qterm-linux-amd64.AppImage
+```
+
+若提示 FUSE 缺失，需按当前发行版安装所需的 FUSE 运行库，或改用 DEB / RPM 包。AppImage 也不保证兼容任意旧发行版。升级时退出应用，再使用下载的新版文件。
+
+**tar.gz 版**
+
+下载 `qterm-linux-amd64.tar.gz` 并解压运行：
+
+```sh
+tar -xzf qterm-linux-amd64.tar.gz
+chmod +x qterm
+./qterm
+```
+
+此压缩包只提供程序，不负责安装系统运行库或应用菜单入口。升级时退出应用，再解压新版替换程序。
+
 ## 开始使用
 
 1. 启动应用，按引导完成本地保险库初始化或解锁。
@@ -148,20 +270,6 @@ qterm close <sessionID>
 ### 本地数据与凭据
 
 主机、分组、历史等数据使用本地 SQLite 存储；秘密信息由加密保险库管理。保险库使用 AES-256-GCM，主密码保护使用 Argon2id 派生，并提供密钥调整和恢复包入口。SSH 首次连接需要确认主机密钥，已信任指纹可在设置中管理。
-
-## 平台与使用边界
-
-| 平台    | 分发目标              | 运行依赖 / 注意事项                                              |
-| ------- | --------------------- | ---------------------------------------------------------------- |
-| macOS   | Apple Silicon / Intel | 使用系统 WebView；本地便携包采用临时签名，正式签名与公证尚待完善 |
-| Windows | amd64 / arm64         | 需要 WebView2 Runtime                                            |
-| Linux   | amd64 / arm64         | 需要与构建目标匹配的 GTK / WebKit 运行库                         |
-
-- **RDP 依赖额外 helper**：使用基于 FreeRDP 的 helper 及其动态库。六平台本地打包入口仅在 macOS helper 与目标架构匹配时携带它；Windows / Linux 不自动携带。缺少对应 helper 时无法直接使用 RDP。
-- **远端工具依赖环境**：SFTP 需要服务器提供子系统，Docker 需要远端 CLI 与权限，服务管理和监控受操作系统及已安装工具限制。
-- **浏览器预览仅用于界面开发**：网页中的内存网关不能替代原生 SSH、SFTP、远程桌面或保险库能力。
-- **自动更新已接入**：桌面端可检查 GitHub Release，后台下载并校验 SHA-256，再由用户确认重启安装；就绪后提供顶栏提醒。真实 Release 全流程、Windows / Linux 替换重启及发布 CI 仍需实机验收。
-- **跨平台验收仍在推进**：构建目标与已有实现不代表所有功能已经在六种系统 / 架构组合上验证完毕。
 
 ## 本地开发
 

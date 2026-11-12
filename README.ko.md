@@ -107,6 +107,128 @@ AI를 사용하기 전에 모델 서비스를 직접 설정해야 합니다. 컨
 
 도구 패널의 항목은 세션 유형과 연결 상태에 따라 표시됩니다. 예를 들어 Docker는 연결된 SSH 세션과 원격 Docker 환경이 필요합니다.
 
+## 설치
+
+설치 파일은 [GitHub Releases](https://github.com/LLiuHuan/Qterm/releases)에서 제공합니다. 해당 버전의 **Assets**를 펼쳐 운영체제와 프로세서 아키텍처에 맞는 파일을 다운로드하세요. `Source code`는 소스 코드 압축 파일이며 설치 파일이 아닙니다.
+
+| 기기                                     | 선택할 아키텍처 |
+| ---------------------------------------- | --------------- |
+| Apple Silicon Mac(M 시리즈)              | `arm64`         |
+| Intel Mac                                | `amd64`         |
+| Intel / AMD 64비트 Windows 또는 Linux PC | `amd64`         |
+| ARM64 Windows PC 또는 ARM64 Linux 기기   | `arm64`         |
+
+Windows는 「설정 → 시스템 → 정보」에서 시스템 종류를, macOS는 「이 Mac에 관하여」에서 칩을 확인할 수 있습니다. Linux에서는 `uname -m`을 실행하세요. `x86_64`는 `amd64`, `aarch64`는 `arm64`에 해당합니다. 현재 32비트 설치 파일은 제공하지 않습니다.
+
+### macOS
+
+macOS 12 Monterey 이상이 필요합니다.
+
+**Homebrew로 설치**
+
+먼저 [Homebrew](https://brew.sh/)를 설치한 뒤 Qterm Tap을 추가하고 앱을 설치합니다.
+
+```sh
+brew tap lliuhuan/tap
+brew install --cask lliuhuan/tap/qterm
+```
+
+Homebrew는 Mac의 프로세서에 따라 Apple Silicon(arm64) 또는 Intel(amd64) 설치 파일을 자동으로 선택합니다. 설치 후 「응용 프로그램」에서 Qterm을 열거나 다음 명령을 실행하세요.
+
+```sh
+open /Applications/qterm.app
+```
+
+새 버전으로 업그레이드:
+
+```sh
+brew update
+brew upgrade --cask lliuhuan/tap/qterm
+```
+
+- 현재 macOS 설치 파일은 ad-hoc 서명을 사용하며 Apple 공증을 받지 않았습니다. 처음 실행할 때 차단되면 「시스템 설정 → 개인정보 보호 및 보안」에서 실행을 허용하세요.
+- 이전에 수동으로 Qterm을 설치했다면 Homebrew가 앱이 이미 존재한다고 표시할 수 있습니다. 앱을 종료하고 Finder에서 기존 `/Applications/qterm.app`을 다른 폴더로 옮겨 보관한 뒤 설치하세요. Qterm 사용자 데이터를 삭제할 필요는 없습니다.
+
+**수동 설치**
+
+1. `qterm-darwin-arm64.dmg`(Apple Silicon) 또는 `qterm-darwin-amd64.dmg`(Intel)을 다운로드합니다.
+2. DMG를 두 번 클릭해 열고 `qterm.app`을 「응용 프로그램」으로 드래그합니다.
+3. 「응용 프로그램」에서 실행합니다. 처음 실행할 때 보안 메시지가 나오면 위의 설명을 따르세요.
+
+같은 아키텍처의 `.zip`을 다운로드해 압축을 푼 뒤 `qterm.app`을 「응용 프로그램」으로 옮겨도 됩니다. 수동으로 업그레이드할 때는 Qterm을 종료한 뒤 기존 앱을 새 앱으로 교체하세요.
+
+### Windows
+
+**설치 프로그램**
+
+1. `qterm-windows-amd64-setup.exe`를 다운로드합니다. ARM64 기기는 `qterm-windows-arm64-setup.exe`를 선택하세요.
+2. 두 번 클릭해 실행하고 설치 마법사에서 설치 경로를 선택한 뒤 설치를 완료합니다. 관리자 권한 요청이 나타나면 승인하세요.
+3. 시작 메뉴 또는 바탕 화면 바로 가기에서 Qterm을 실행합니다.
+
+Qterm에는 **Microsoft Edge WebView2 Runtime**이 필요합니다. 설치 프로그램은 런타임을 확인하고 없으면 설치를 시도합니다. 자동 설치에 실패하거나 오프라인 설치가 필요하면 [Microsoft WebView2 공식 페이지](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)에서 Evergreen Standalone Installer의 x64 또는 ARM64 버전을 선택해 설치한 뒤 Qterm을 실행하세요.
+
+**ZIP 버전**
+
+`qterm-windows-amd64.zip` 또는 `qterm-windows-arm64.zip`을 다운로드해 쓰기 가능한 폴더에 모두 압축을 푼 뒤 `qterm.exe`를 실행합니다. ZIP 버전도 WebView2 Runtime이 필요합니다. 압축 파일 미리 보기 안에서 직접 실행하지 마세요.
+
+업그레이드할 때는 앱을 종료한 뒤 새 설치 프로그램을 실행하세요. ZIP 버전은 새 파일의 압축을 풀어 기존 프로그램을 교체합니다.
+
+### Linux
+
+그래픽 데스크톱 세션과 배포 패키지에 맞는 GTK / WebKitGTK 런타임 라이브러리가 필요합니다. 현재 패키지는 **GTK 4 및 WebKitGTK 6.0**을 의존성으로 지정합니다. 오래된 배포판은 이 의존성을 충족하지 못할 수 있으므로 CPU 아키텍처가 같다는 이유만으로 호환성을 판단할 수 없습니다.
+
+아래 예시는 `amd64` 기준입니다. ARM64 기기는 파일명의 `amd64`를 `arm64`로 바꾸세요. 먼저 Releases에서 파일을 다운로드한 뒤 다운로드 폴더에서 해당 명령을 실행합니다.
+
+**Debian / Ubuntu: DEB 패키지**
+
+`qterm-linux-amd64.deb`를 다운로드하고 APT로 의존성을 해결하여 설치합니다.
+
+```sh
+sudo apt update
+sudo apt install ./qterm-linux-amd64.deb
+```
+
+설치 후 앱 메뉴에서 실행하거나 터미널에서 `qterm`을 실행하세요. 업그레이드할 때는 새 DEB를 다운로드하고 같은 설치 명령을 실행합니다.
+
+**Fedora / RHEL 계열: RPM 패키지**
+
+필요한 런타임 라이브러리를 제공하는 배포판에서 `qterm-linux-amd64.rpm`을 다운로드하고 설치합니다.
+
+```sh
+sudo dnf install ./qterm-linux-amd64.rpm
+```
+
+설치 후 앱 메뉴에서 실행하거나 `qterm`을 실행하세요. 업그레이드할 때는 새 RPM으로 다음 명령을 실행합니다.
+
+```sh
+sudo dnf upgrade ./qterm-linux-amd64.rpm
+```
+
+패키지 관리자가 의존성 누락을 보고하면 배포판 저장소에 필요한 버전이 있는지 먼저 확인하세요. 의존성을 무시하고 강제로 설치하지 마세요. 오래된 CentOS / RHEL과의 호환성은 보장하지 않습니다.
+
+**AppImage**
+
+`qterm-linux-amd64.AppImage`를 다운로드하고 실행 권한을 부여한 뒤 실행합니다.
+
+```sh
+chmod +x qterm-linux-amd64.AppImage
+./qterm-linux-amd64.AppImage
+```
+
+FUSE가 없다는 메시지가 나오면 해당 배포판에 필요한 FUSE 런타임 라이브러리를 설치하거나 DEB / RPM 패키지를 사용하세요. AppImage도 모든 오래된 배포판과의 호환성을 보장하지 않습니다. 업그레이드할 때는 앱을 종료하고 새로 다운로드한 파일을 사용합니다.
+
+**tar.gz 버전**
+
+`qterm-linux-amd64.tar.gz`를 다운로드하고 압축을 푼 뒤 실행합니다.
+
+```sh
+tar -xzf qterm-linux-amd64.tar.gz
+chmod +x qterm
+./qterm
+```
+
+이 압축 파일은 프로그램만 제공하며 시스템 런타임 라이브러리나 앱 메뉴 항목을 설치하지 않습니다. 업그레이드할 때는 앱을 종료하고 새 버전의 압축을 풀어 프로그램을 교체하세요.
+
 ## 시작하기
 
 1. 앱을 실행하고 안내에 따라 로컬 보관소를 초기화하거나 잠금을 해제합니다.
@@ -124,20 +246,6 @@ OpenSSH 설정, PuTTY, Xshell, Termius, SecureCRT, MobaXterm, WindTerm, FinalShe
 ### 로컬 데이터와 자격 증명
 
 호스트, 그룹, 기록 등의 데이터는 로컬 SQLite에 저장하고 비밀 정보는 암호화된 보관소에서 관리합니다. 보관소는 AES-256-GCM을 사용하며 마스터 비밀번호 보호에는 Argon2id 파생을 사용합니다. 키 조정과 복구 패키지 진입점도 제공합니다. SSH 첫 연결 시에는 호스트 키 확인이 필요하며, 신뢰한 지문은 설정에서 관리할 수 있습니다.
-
-## 플랫폼과 사용 범위
-
-| 플랫폼  | 배포 대상             | 실행 시 의존성 / 주의 사항                                                                                  |
-| ------- | --------------------- | ----------------------------------------------------------------------------------------------------------- |
-| macOS   | Apple Silicon / Intel | 시스템 WebView를 사용합니다. 로컬 포터블 패키지는 임시 서명이며 정식 서명과 공증은 아직 완료되지 않았습니다 |
-| Windows | amd64 / arm64         | WebView2 Runtime이 필요합니다                                                                               |
-| Linux   | amd64 / arm64         | 빌드 대상과 일치하는 GTK / WebKit 런타임 라이브러리가 필요합니다                                            |
-
-- **RDP는 추가 helper에 의존**: FreeRDP 기반 helper와 그 동적 라이브러리를 사용합니다. 6개 플랫폼 로컬 패키징 진입점은 macOS helper가 대상 아키텍처와 일치할 때만 이를 포함하며, Windows / Linux에는 자동으로 포함하지 않습니다. 해당 helper가 없으면 RDP를 바로 사용할 수 없습니다.
-- **원격 도구는 환경에 의존**: SFTP는 서버의 하위 시스템이 필요하고 Docker는 원격 CLI와 권한이 필요합니다. 서비스 관리와 모니터링은 운영 체제와 설치된 도구에 따라 제한됩니다.
-- **브라우저 미리보기는 화면 개발 전용**: 웹의 인메모리 게이트웨이는 네이티브 SSH, SFTP, 원격 데스크톱, 보관소 기능을 대체할 수 없습니다.
-- **자동 업데이트 연동됨**: 데스크톱 앱은 GitHub Release를 확인하고 백그라운드에서 내려받아 SHA-256을 검증한 뒤, 사용자가 확인하면 다시 시작하여 설치합니다. 준비가 끝나면 상단 표시줄에 알림을 표시합니다. 실제 Release 전체 흐름, Windows / Linux 교체와 재시작, 릴리스 CI는 실기 검증이 필요합니다.
-- **크로스 플랫폼 검증 진행 중**: 빌드 대상과 기존 구현은 모든 기능이 6가지 OS / 아키텍처 조합에서 검증되었다는 뜻이 아닙니다.
 
 ## 로컬 개발
 

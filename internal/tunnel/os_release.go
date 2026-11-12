@@ -67,30 +67,39 @@ func firstNonEmpty(values ...string) string {
 
 func linuxDistributionIcon(output string) string {
 	release := parseOSRelease(output)
-	upstream := ""
-	for _, marker := range []string{release.ID, release.IDLike} {
+	identity := linuxLogoForMarker(release.ID)
+
+	if identity != "" {
+		if !isUpstreamDistroIcon(identity) {
+			return identity
+		}
+		for _, marker := range []string{release.Name, release.PrettyName} {
+			if icon := linuxLogoForMarker(marker); icon != "" && !isUpstreamDistroIcon(icon) {
+				return icon
+			}
+		}
+		return identity
+	}
+
+	nameFallback := ""
+	for _, marker := range []string{release.Name, release.PrettyName} {
 		if icon := linuxLogoForMarker(marker); icon != "" {
+			if nameFallback == "" {
+				nameFallback = icon
+			}
 			if !isUpstreamDistroIcon(icon) {
 				return icon
 			}
-			if upstream == "" {
-				upstream = icon
-			}
 		}
 	}
-	for _, marker := range []string{release.Name, release.PrettyName} {
-		if icon := linuxLogoForMarker(marker); icon != "" && !isUpstreamDistroIcon(icon) {
+	if nameFallback != "" {
+		return nameFallback
+	}
+
+	for _, marker := range strings.Fields(release.IDLike) {
+		if icon := linuxLogoForMarker(marker); icon != "" {
 			return icon
 		}
-	}
-	if upstream != "" {
-		return upstream
-	}
-	if icon := linuxLogoForMarker(release.Name); icon != "" {
-		return icon
-	}
-	if icon := linuxLogoForMarker(release.PrettyName); icon != "" {
-		return icon
 	}
 	return "linux"
 }
@@ -162,7 +171,7 @@ func linuxLogoForMarker(marker string) string {
 		return "neokylin"
 	case hasAnyOSMarker(tokens, "kylin") || hasAnyOSSubstring(marker, "银河麒麟", "麒麟"):
 		return "kylin"
-	case hasAnyOSMarker(tokens, "openeuler", "open-euler"):
+	case hasAnyOSMarker(tokens, "openeuler") || hasAllOSMarkers(tokens, "open", "euler"):
 		return "openeuler"
 	case hasAnyOSMarker(tokens, "euleros", "euler"):
 		return "euleros"

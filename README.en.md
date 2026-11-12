@@ -107,6 +107,128 @@ You must configure a model service yourself before using AI. Content selected as
 
 The tool panel opens according to the session type and connection state; for example, Docker requires a connected SSH session and a remote Docker environment.
 
+## Installation
+
+Installers are published in [GitHub Releases](https://github.com/LLiuHuan/Qterm/releases). Expand the **Assets** section for the version you want and download the file matching your operating system and processor architecture; `Source code` archives are source snapshots, not installers.
+
+| Device                                       | Architecture |
+| -------------------------------------------- | ------------ |
+| Apple Silicon Mac (M-series)                 | `arm64`      |
+| Intel Mac                                    | `amd64`      |
+| 64-bit Intel / AMD Windows or Linux computer | `amd64`      |
+| ARM64 Windows computer or Linux device       | `arm64`      |
+
+On Windows, check the system type in Settings → System → About; on macOS, check the chip in About This Mac; on Linux, run `uname -m` (`x86_64` means `amd64`, and `aarch64` means `arm64`). 32-bit packages are not provided.
+
+### macOS
+
+Requires macOS 12 Monterey or later.
+
+**Install with Homebrew**
+
+Install [Homebrew](https://brew.sh/), then add the Qterm tap and install the app:
+
+```sh
+brew tap lliuhuan/tap
+brew install --cask lliuhuan/tap/qterm
+```
+
+Homebrew selects the arm64 or amd64 package for your Mac automatically. After installation, open Qterm from Applications or run:
+
+```sh
+open /Applications/qterm.app
+```
+
+Upgrade to a newer version:
+
+```sh
+brew update
+brew upgrade --cask lliuhuan/tap/qterm
+```
+
+- The current macOS package uses an ad-hoc signature and is not notarized by Apple. If macOS blocks the first launch, allow Qterm in System Settings → Privacy & Security.
+- If Qterm was installed manually, Homebrew may report that the app already exists. Quit Qterm, move the existing `/Applications/qterm.app` to another directory with Finder if you want to keep it, then install; you do not need to delete Qterm user data.
+
+**Manual installation**
+
+1. Download `qterm-darwin-arm64.dmg` for Apple Silicon or `qterm-darwin-amd64.dmg` for Intel.
+2. Open the DMG and drag `qterm.app` to Applications.
+3. Launch it from Applications; follow the first-launch security instructions above if prompted.
+
+You can also download the ZIP for the same architecture, extract it, and move `qterm.app` to Applications. To upgrade manually, quit Qterm and replace the old app with the new one.
+
+### Windows
+
+**Installer**
+
+1. Download `qterm-windows-amd64-setup.exe`; choose `qterm-windows-arm64-setup.exe` on an ARM64 device.
+2. Run it and follow the installer, choosing an installation directory if needed; approve the administrator prompt when shown.
+3. Start Qterm from the Start menu or desktop shortcut.
+
+Qterm requires the **Microsoft Edge WebView2 Runtime**. The installer checks for it and attempts to install it when missing. If that fails, or if you need an offline installation, download the Evergreen Standalone Installer from the [official Microsoft WebView2 page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/), choose x64 or ARM64, install it, and then start Qterm.
+
+**ZIP package**
+
+Download `qterm-windows-amd64.zip` or `qterm-windows-arm64.zip`, extract the complete archive to a writable directory, and run `qterm.exe` from there. The ZIP package also requires WebView2 Runtime; do not run the executable from the archive preview.
+
+Quit Qterm before upgrading with the installer. For the ZIP package, extract the new version and replace the old program.
+
+### Linux
+
+Linux requires a graphical desktop session and GTK / WebKitGTK runtime libraries matching the package. The current packages declare **GTK 4 and WebKitGTK 6.0**; older distributions may not provide compatible versions, so matching the CPU architecture alone does not guarantee compatibility.
+
+The examples below use `amd64`; replace `amd64` with `arm64` on an ARM64 device. Download the release file first, then run the corresponding command in its download directory.
+
+**Debian / Ubuntu: DEB package**
+
+Download `qterm-linux-amd64.deb` and install it through APT so dependencies are resolved:
+
+```sh
+sudo apt update
+sudo apt install ./qterm-linux-amd64.deb
+```
+
+Launch it from the application menu or run `qterm` in a terminal. Download the new DEB and repeat the same install command to upgrade.
+
+**Fedora / RHEL family: RPM package**
+
+On a distribution that provides the required runtime libraries, download `qterm-linux-amd64.rpm` and install it:
+
+```sh
+sudo dnf install ./qterm-linux-amd64.rpm
+```
+
+Launch it from the application menu or run `qterm`. To upgrade:
+
+```sh
+sudo dnf upgrade ./qterm-linux-amd64.rpm
+```
+
+If the package manager reports missing dependencies, check that your distribution repositories provide the required versions; do not force installation while ignoring dependencies. Older CentOS / RHEL versions are not guaranteed to work.
+
+**AppImage**
+
+Download `qterm-linux-amd64.AppImage`, make it executable, and launch it:
+
+```sh
+chmod +x qterm-linux-amd64.AppImage
+./qterm-linux-amd64.AppImage
+```
+
+If FUSE is missing, install the FUSE runtime required by your distribution or use the DEB / RPM package instead. AppImage compatibility with arbitrarily old distributions is not guaranteed. Quit Qterm before replacing it with a newer file.
+
+**tar.gz package**
+
+Download `qterm-linux-amd64.tar.gz` and extract it:
+
+```sh
+tar -xzf qterm-linux-amd64.tar.gz
+chmod +x qterm
+./qterm
+```
+
+This archive only provides the program; it does not install system libraries or an application-menu entry. To upgrade, quit Qterm and replace the extracted program with the new version.
+
 ## Getting started
 
 1. Launch the app and complete local vault initialization or unlock it as prompted.
@@ -124,20 +246,6 @@ Imports are scanned and previewed first, then you choose the entries you need. T
 ### Local data and credentials
 
 Hosts, groups, history, and other data are stored in local SQLite; secrets are managed by an encrypted vault. The vault uses AES-256-GCM, master password protection uses Argon2id derivation, and key adjustment and recovery package entry points are provided. The first SSH connection requires confirming the host key, and trusted fingerprints can be managed in settings.
-
-## Platforms and limits
-
-| Platform | Distribution targets  | Runtime dependencies / notes                                                                                              |
-| -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| macOS    | Apple Silicon / Intel | Uses the system WebView; local portable packages are ad-hoc signed, and formal signing and notarization are still pending |
-| Windows  | amd64 / arm64         | Requires the WebView2 Runtime                                                                                             |
-| Linux    | amd64 / arm64         | Requires GTK / WebKit runtime libraries that match the build target                                                       |
-
-- **RDP requires an extra helper**: it uses a FreeRDP-based helper and its dynamic libraries. The six-platform local packaging entry point ships it only when the macOS helper matches the target architecture; Windows / Linux do not ship it automatically. Without the matching helper, RDP cannot be used directly.
-- **Remote tools depend on the environment**: SFTP requires the server to provide a subsystem, Docker requires the remote CLI and permissions, and service management and monitoring are limited by the operating system and the installed tools.
-- **The browser preview is for interface development only**: the in-memory gateway in the web page cannot replace native SSH, SFTP, remote desktop, or vault capabilities.
-- **Automatic updates are wired up**: the desktop app can check GitHub Releases, download in the background and verify SHA-256, and then install after the user confirms a restart; a reminder appears in the top bar once it is ready. The full end-to-end Release flow, replacement and restart on Windows / Linux, and the release CI still need real-device verification.
-- **Cross-platform verification is still in progress**: build targets and existing implementations do not mean every feature has been verified on all six system / architecture combinations.
 
 ## Local development
 

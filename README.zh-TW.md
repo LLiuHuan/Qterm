@@ -107,6 +107,128 @@ Qterm 是以 **Go、Wails v3、Vue 3 與 TypeScript** 打造的桌面連線管�
 
 工具面板會依會話類型與連線狀態開放；例如 Docker 需要已連線的 SSH 會話與遠端 Docker 環境。
 
+## 安裝
+
+安裝套件統一發布於 [GitHub Releases](https://github.com/LLiuHuan/Qterm/releases)。展開對應版本的 **Assets**，下載符合系統與處理器架構的檔案；`Source code` 是原始碼壓縮檔，不是安裝套件。
+
+| 裝置                                      | 選擇的架構 |
+| ----------------------------------------- | ---------- |
+| Apple Silicon Mac（M 系列）               | `arm64`    |
+| Intel Mac                                 | `amd64`    |
+| Intel / AMD 64 位元 Windows 或 Linux 電腦 | `amd64`    |
+| ARM64 Windows 電腦或 ARM64 Linux 裝置     | `arm64`    |
+
+Windows 可在「設定 → 系統 → 關於」查看系統類型；macOS 可在「關於這台 Mac」查看晶片；Linux 可執行 `uname -m`，其中 `x86_64` 對應 `amd64`，`aarch64` 對應 `arm64`。目前不提供 32 位元安裝套件。
+
+### macOS
+
+需要 macOS 12 Monterey 或更新版本。
+
+**透過 Homebrew 安裝**
+
+先安裝 [Homebrew](https://brew.sh/)，再加入 Qterm 的 Tap 並安裝應用程式：
+
+```sh
+brew tap lliuhuan/tap
+brew install --cask lliuhuan/tap/qterm
+```
+
+Homebrew 會依 Mac 的處理器自動選擇 Apple Silicon（arm64）或 Intel（amd64）安裝套件。安裝後，可從「應用程式」開啟 Qterm，或執行：
+
+```sh
+open /Applications/qterm.app
+```
+
+升級至新版本：
+
+```sh
+brew update
+brew upgrade --cask lliuhuan/tap/qterm
+```
+
+- 目前 macOS 安裝套件採用 ad-hoc 簽署，尚未經過 Apple 公證；首次開啟若遭阻擋，可在「系統設定 → 隱私權與安全性」中允許開啟。
+- 若先前曾手動安裝 Qterm，Homebrew 可能提示應用程式已存在。先結束應用程式，使用 Finder 將原有的 `/Applications/qterm.app` 移至其他目錄保留，再安裝；不必刪除 Qterm 的使用者資料。
+
+**手動安裝**
+
+1. 下載 `qterm-darwin-arm64.dmg`（Apple Silicon）或 `qterm-darwin-amd64.dmg`（Intel）。
+2. 按兩下開啟 DMG，將 `qterm.app` 拖入「應用程式」。
+3. 從「應用程式」啟動；首次開啟的安全提示依上述說明處理。
+
+也可下載相同架構的 `.zip`，解壓縮後將 `qterm.app` 移入「應用程式」。手動升級時，結束 Qterm 後以新版應用程式取代舊版。
+
+### Windows
+
+**安裝版**
+
+1. 下載 `qterm-windows-amd64-setup.exe`；ARM64 裝置選擇 `qterm-windows-arm64-setup.exe`。
+2. 按兩下執行，依安裝精靈選擇安裝目錄並完成安裝；出現系統管理員權限提示時確認。
+3. 從開始功能表或桌面捷徑啟動 Qterm。
+
+Qterm 需要 **Microsoft Edge WebView2 Runtime**。安裝程式會偵測並嘗試安裝缺少的執行階段；若自動安裝失敗，或需要離線安裝，可從 [Microsoft WebView2 官方頁面](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) 下載 Evergreen Standalone Installer，選擇 x64 或 ARM64 安裝後，再啟動 Qterm。
+
+**ZIP 版**
+
+下載 `qterm-windows-amd64.zip` 或 `qterm-windows-arm64.zip`，完整解壓縮至可寫入的目錄，再執行其中的 `qterm.exe`。ZIP 版同樣需要 WebView2 Runtime，請勿直接在壓縮檔預覽中執行。
+
+升級時先結束應用程式，再執行新版安裝程式；ZIP 版則解壓縮新版並取代舊程式。
+
+### Linux
+
+需要圖形桌面工作階段，以及與發布套件相符的 GTK / WebKitGTK 執行階段函式庫；目前套件宣告使用 **GTK 4 與 WebKitGTK 6.0**。較舊的發行版可能無法滿足這些相依需求，不能僅因 CPU 架構相同就認定相容。
+
+以下以 `amd64` 為例，ARM64 裝置請將檔名中的 `amd64` 改為 `arm64`。先從 Releases 下載檔案，再於下載目錄執行對應命令。
+
+**Debian / Ubuntu：DEB 套件**
+
+下載 `qterm-linux-amd64.deb`，透過 APT 安裝並解析相依套件：
+
+```sh
+sudo apt update
+sudo apt install ./qterm-linux-amd64.deb
+```
+
+安裝後從應用程式選單啟動，或在終端執行 `qterm`。升級時下載新版 DEB，再次執行安裝命令。
+
+**Fedora / RHEL 系列：RPM 套件**
+
+在能提供所需執行階段函式庫的發行版上，下載 `qterm-linux-amd64.rpm` 並安裝：
+
+```sh
+sudo dnf install ./qterm-linux-amd64.rpm
+```
+
+安裝後從應用程式選單啟動，或執行 `qterm`。升級時以新版 RPM 執行：
+
+```sh
+sudo dnf upgrade ./qterm-linux-amd64.rpm
+```
+
+若套件管理員回報缺少相依套件，請先確認發行版套件庫是否提供所需版本；不要忽略相依需求強行安裝。不保證相容舊版 CentOS / RHEL。
+
+**AppImage**
+
+下載 `qterm-linux-amd64.AppImage`，授予執行權限後啟動：
+
+```sh
+chmod +x qterm-linux-amd64.AppImage
+./qterm-linux-amd64.AppImage
+```
+
+若提示缺少 FUSE，需依目前發行版安裝所需的 FUSE 執行階段函式庫，或改用 DEB / RPM 套件。AppImage 也不保證相容所有舊發行版。升級時結束應用程式，再使用下載的新版檔案。
+
+**tar.gz 版**
+
+下載 `qterm-linux-amd64.tar.gz` 並解壓縮執行：
+
+```sh
+tar -xzf qterm-linux-amd64.tar.gz
+chmod +x qterm
+./qterm
+```
+
+此壓縮檔只提供程式，不負責安裝系統執行階段函式庫或應用程式選單項目。升級時結束應用程式，再解壓縮新版取代程式。
+
 ## 開始使用
 
 1. 啟動應用程式，依引導完成本機保險庫初始化或解鎖。
@@ -124,20 +246,6 @@ Qterm 是以 **Go、Wails v3、Vue 3 與 TypeScript** 打造的桌面連線管�
 ### 本機資料與憑據
 
 主機、分組、歷史等資料使用本機 SQLite 儲存；機密資訊由加密保險庫管理。保險庫使用 AES-256-GCM，主密碼保護使用 Argon2id 派生，並提供金鑰調整與恢復包入口。SSH 首次連線需要確認主機金鑰，已信任的指紋可在設定中管理。
-
-## 平台與使用邊界
-
-| 平台    | 發佈目標              | 執行相依 / 注意事項                                                  |
-| ------- | --------------------- | -------------------------------------------------------------------- |
-| macOS   | Apple Silicon / Intel | 使用系統 WebView；本機可攜式套件採用臨時簽章，正式簽章與公證尚待完善 |
-| Windows | amd64 / arm64         | 需要 WebView2 Runtime                                                |
-| Linux   | amd64 / arm64         | 需要與建置目標相符的 GTK / WebKit 執行階段程式庫                     |
-
-- **RDP 需要額外 helper**：使用以 FreeRDP 為基礎的 helper 及其動態程式庫。六平台本機打包入口僅在 macOS helper 與目標架構相符時一併包含；Windows / Linux 不會自動包含。缺少對應 helper 時無法直接使用 RDP。
-- **遠端工具需要環境支援**：SFTP 需要伺服器提供子系統，Docker 需要遠端 CLI 與權限，服務管理與監控受作業系統及已安裝工具限制。
-- **瀏覽器預覽僅供介面開發**：網頁中的記憶體閘道不能取代原生 SSH、SFTP、遠端桌面或保險庫能力。
-- **自動更新已接入**：桌面端可檢查 GitHub Release，於背景下載並校驗 SHA-256，再由使用者確認重新啟動安裝；就緒後在頂部列提供提醒。真實 Release 全流程、Windows / Linux 替換重新啟動及發佈 CI 仍需實機驗收。
-- **跨平台驗收仍在推進**：建置目標與既有實作不代表所有功能都已在六種系統 / 架構組合上驗證完畢。
 
 ## 本機開發
 

@@ -107,6 +107,128 @@ Configurez vous-même le service de modèle avant d’utiliser l’IA. Le conten
 
 Le panneau d’outils s’ouvre selon le type de session et l’état de la connexion ; Docker, par exemple, nécessite une session SSH connectée et un environnement Docker distant.
 
+## Installation
+
+Les installateurs sont publiés dans [GitHub Releases](https://github.com/LLiuHuan/Qterm/releases). Développez la section **Assets** de la version voulue et téléchargez le fichier correspondant à votre système et à votre architecture ; les archives `Source code` sont des instantanés du code source, pas des installateurs.
+
+| Appareil                                        | Architecture |
+| ----------------------------------------------- | ------------ |
+| Mac Apple Silicon (série M)                     | `arm64`      |
+| Mac Intel                                       | `amd64`      |
+| Ordinateur Windows ou Linux Intel / AMD 64 bits | `amd64`      |
+| Ordinateur Windows ou appareil Linux ARM64      | `arm64`      |
+
+Sous Windows, vérifiez le type du système dans Paramètres → Système → Informations ; sous macOS, consultez la puce dans À propos de ce Mac ; sous Linux, exécutez `uname -m` (`x86_64` correspond à `amd64` et `aarch64` à `arm64`). Aucun paquet 32 bits n’est fourni.
+
+### macOS
+
+macOS 12 Monterey ou une version ultérieure est requis.
+
+**Installation avec Homebrew**
+
+Installez [Homebrew](https://brew.sh/), puis ajoutez le tap Qterm et installez l’application :
+
+```sh
+brew tap lliuhuan/tap
+brew install --cask lliuhuan/tap/qterm
+```
+
+Homebrew choisit automatiquement le paquet arm64 ou amd64 correspondant à votre Mac. Après l’installation, ouvrez Qterm depuis Applications ou exécutez :
+
+```sh
+open /Applications/qterm.app
+```
+
+Pour mettre à niveau :
+
+```sh
+brew update
+brew upgrade --cask lliuhuan/tap/qterm
+```
+
+- Le paquet macOS actuel utilise une signature ad hoc et n’est pas notarisé par Apple. Si macOS bloque le premier lancement, autorisez Qterm dans Réglages Système → Confidentialité et sécurité.
+- Si Qterm a été installé manuellement, Homebrew peut signaler que l’application existe déjà. Quittez Qterm, déplacez l’ancien `/Applications/qterm.app` dans un autre dossier avec le Finder si vous souhaitez le conserver, puis installez la nouvelle version ; il n’est pas nécessaire de supprimer les données utilisateur de Qterm.
+
+**Installation manuelle**
+
+1. Téléchargez `qterm-darwin-arm64.dmg` pour Apple Silicon ou `qterm-darwin-amd64.dmg` pour Intel.
+2. Ouvrez le DMG et faites glisser `qterm.app` vers Applications.
+3. Lancez l’application depuis Applications ; suivez les indications de sécurité du premier lancement ci-dessus si nécessaire.
+
+Vous pouvez aussi télécharger le ZIP correspondant, l’extraire et déplacer `qterm.app` dans Applications. Pour une mise à niveau manuelle, quittez Qterm et remplacez l’ancienne application par la nouvelle.
+
+### Windows
+
+**Installateur**
+
+1. Téléchargez `qterm-windows-amd64-setup.exe` ; sur un appareil ARM64, choisissez `qterm-windows-arm64-setup.exe`.
+2. Exécutez-le et suivez l’assistant d’installation ; acceptez la demande de droits administrateur lorsqu’elle apparaît.
+3. Lancez Qterm depuis le menu Démarrer ou le raccourci du bureau.
+
+Qterm nécessite le **Microsoft Edge WebView2 Runtime**. L’installateur le détecte et tente de l’installer s’il manque. En cas d’échec ou pour une installation hors ligne, téléchargez l’Evergreen Standalone Installer depuis la [page officielle Microsoft WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/), choisissez x64 ou ARM64, installez-le, puis lancez Qterm.
+
+**Paquet ZIP**
+
+Téléchargez `qterm-windows-amd64.zip` ou `qterm-windows-arm64.zip`, extrayez toute l’archive dans un dossier accessible en écriture, puis exécutez `qterm.exe`. Le paquet ZIP nécessite lui aussi WebView2 Runtime ; ne lancez pas l’exécutable depuis l’aperçu de l’archive.
+
+Quittez Qterm avant une mise à niveau avec l’installateur. Pour le ZIP, extrayez la nouvelle version et remplacez l’ancien programme.
+
+### Linux
+
+Linux nécessite une session graphique et des bibliothèques d’exécution GTK / WebKitGTK correspondant au paquet. Les paquets actuels déclarent **GTK 4 et WebKitGTK 6.0** ; les anciennes distributions peuvent ne pas fournir des versions compatibles, et une architecture CPU identique ne suffit donc pas à garantir la compatibilité.
+
+Les exemples utilisent `amd64` ; remplacez-le par `arm64` sur un appareil ARM64. Téléchargez d’abord le fichier Release, puis exécutez la commande correspondante dans son dossier.
+
+**Debian / Ubuntu : paquet DEB**
+
+Téléchargez `qterm-linux-amd64.deb` et installez-le avec APT afin de résoudre les dépendances :
+
+```sh
+sudo apt update
+sudo apt install ./qterm-linux-amd64.deb
+```
+
+Lancez-le depuis le menu des applications ou avec `qterm` dans un terminal. Pour mettre à niveau, téléchargez le nouveau DEB et répétez la même commande.
+
+**Famille Fedora / RHEL : paquet RPM**
+
+Sur une distribution fournissant les bibliothèques requises, téléchargez `qterm-linux-amd64.rpm` et installez-le :
+
+```sh
+sudo dnf install ./qterm-linux-amd64.rpm
+```
+
+Lancez-le depuis le menu ou avec `qterm`. Pour mettre à niveau :
+
+```sh
+sudo dnf upgrade ./qterm-linux-amd64.rpm
+```
+
+Si le gestionnaire signale des dépendances manquantes, vérifiez que les dépôts de votre distribution fournissent les versions nécessaires ; ne forcez pas l’installation en ignorant les dépendances. Les anciennes versions de CentOS / RHEL ne sont pas garanties compatibles.
+
+**AppImage**
+
+Téléchargez `qterm-linux-amd64.AppImage`, rendez-le exécutable et lancez-le :
+
+```sh
+chmod +x qterm-linux-amd64.AppImage
+./qterm-linux-amd64.AppImage
+```
+
+Si FUSE manque, installez le runtime FUSE requis par votre distribution ou utilisez plutôt le paquet DEB / RPM. La compatibilité avec des distributions arbitrairement anciennes n’est pas garantie. Quittez Qterm avant de remplacer le fichier par une version plus récente.
+
+**Paquet tar.gz**
+
+Téléchargez `qterm-linux-amd64.tar.gz` et extrayez-le :
+
+```sh
+tar -xzf qterm-linux-amd64.tar.gz
+chmod +x qterm
+./qterm
+```
+
+Cette archive fournit uniquement le programme ; elle n’installe ni bibliothèques système ni entrée dans le menu des applications. Pour mettre à niveau, quittez Qterm et remplacez le programme extrait par la nouvelle version.
+
 ## Prise en main
 
 1. Lancez l’application et suivez l’assistant pour initialiser ou déverrouiller le coffre-fort local.
@@ -124,20 +246,6 @@ L’import analyse et prévisualise d’abord les données, puis vous sélection
 ### Données locales et identifiants
 
 Les hôtes, les groupes et l’historique sont stockés dans une base SQLite locale ; les informations secrètes sont gérées par un coffre-fort chiffré. Le coffre-fort utilise AES-256-GCM, la protection par mot de passe principal repose sur une dérivation Argon2id, et des points d’entrée pour la rotation de clé et le paquet de récupération sont fournis. La première connexion SSH nécessite la confirmation de la clé de l’hôte ; les empreintes approuvées sont gérables dans les paramètres.
-
-## Plateformes et limites d’utilisation
-
-| Plateforme | Cibles de distribution | Dépendances d’exécution / remarques                                                                                                                         |
-| ---------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| macOS      | Apple Silicon / Intel  | Utilise le WebView du système ; le paquet portable local recourt à une signature temporaire, la signature définitive et la notarisation restent à finaliser |
-| Windows    | amd64 / arm64          | Nécessite WebView2 Runtime                                                                                                                                  |
-| Linux      | amd64 / arm64          | Nécessite les bibliothèques d’exécution GTK / WebKit correspondant à la cible de compilation                                                                |
-
-- **RDP nécessite un helper supplémentaire** : utilise un helper basé sur FreeRDP et ses bibliothèques dynamiques. L’entrée de packaging local pour les six plateformes ne l’embarque que si le helper macOS correspond à l’architecture cible ; Windows / Linux ne l’embarquent pas automatiquement. Sans le helper correspondant, RDP n’est pas utilisable directement.
-- **Les outils distants dépendent de l’environnement** : SFTP nécessite un sous-système fourni par le serveur, Docker nécessite la CLI et les droits côté distant, la gestion des services et la surveillance dépendent du système d’exploitation et des outils installés.
-- **L’aperçu dans le navigateur ne sert qu’au développement de l’interface** : la passerelle mémoire de la page web ne remplace pas les capacités natives SSH, SFTP, bureau à distance ou coffre-fort.
-- **Mise à jour automatique intégrée** : l’application de bureau peut vérifier les GitHub Release, télécharger en arrière-plan et vérifier le SHA-256, puis l’utilisateur confirme le redémarrage pour installer ; une notification apparaît dans la barre supérieure une fois la mise à jour prête. Le parcours complet d’une Release réelle, le remplacement et le redémarrage sous Windows / Linux, ainsi que la CI de publication restent à valider sur machine réelle.
-- **La validation multiplateforme est en cours** : les cibles de compilation et l’implémentation existante ne signifient pas que toutes les fonctionnalités ont été validées sur les six combinaisons système / architecture.
 
 ## Développement local
 
