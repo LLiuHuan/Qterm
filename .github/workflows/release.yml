@@ -2,10 +2,11 @@ name: release
 
 # 推 `vX.Y.Z` tag 时产出「安装包 + 便携包 + SHA256SUMS」并创建 GitHub Release。
 #
-# 为什么是 Docker：产物的难点在跨平台工具链（macOS 的 .app/.dmg、Windows 的 NSIS、
-# Linux 的 deb/rpm/AppImage）。这些都跑在同一个 Linux 打包镜像里（build/docker/Dockerfile.release），
+# Docker 复用跨平台工具链，生成 macOS .app 中间 ZIP、Windows NSIS 和 Linux 安装包；
+# 平台编译在同一个 Linux 打包镜像里完成（build/docker/Dockerfile.release），
 # 版本号也只在这个流程里盖章（build/stamp-version.mjs），避免「界面新版本、安装包 0.0.1」。
 #
+# Docker 只负责 macOS 交叉编译中间包，签名 job 在 macOS 完成签名/复验/重新封装。
 # 两个 job 各跑一次镜像：amd64 出 darwin(两种架构) + windows(两种架构) + linux-amd64，
 # arm64 只出 linux-arm64（linux 二进制必须在同架构容器里链接 GTK/WebKit，交叉链接会缺目标架构库）。
 # 资产命名必须保留 `qterm-{os}-{arch}.{zip|tar.gz}`：应用内更新器按这个名字精确匹配
@@ -38,9 +39,11 @@ jobs:
           - os: ubuntu-24.04
             arch: amd64
             targets: darwin,windows,linux
+            signing_flags: --defer-darwin-signing
           - os: ubuntu-24.04-arm
             arch: arm64
             targets: linux
+            signing_flags: ""
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,28 +92,70 @@ jobs:
         run: docker build --platform linux/${{ matrix.arch }} -t qterm-release -f build/docker/Dockerfile.release .
 
       - name: Package artifacts
-        run: node build/release-docker.mjs --skip-frontend --skip-image --targets "${{ matrix.targets }}" --out "$PWD/bin/artifacts"
+        run: node build/release-docker.mjs --skip-frontend --skip-image --targets "${{ matrix.targets }}" ${{ matrix.signing_flags }} --out "$PWD/bin/artifacts"
 
       - name: List artifacts
         run: ls -lh bin/artifacts
 
       - uses: actions/upload-artifact@v4
         with:
-          name: qterm-${{ matrix.arch }}
+          name: qterm-final-${{ matrix.arch }}
           path: |
-            bin/artifacts/qterm-*.dmg
-            bin/artifacts/qterm-*.zip
-            bin/artifacts/qterm-*.tar.gz
-            bin/artifacts/qterm-*.deb
-            bin/artifacts/qterm-*.rpm
-            bin/artifacts/qterm-*.AppImage
-            bin/artifacts/qterm-*-setup.exe
+            bin/artifacts/qterm-windows-*.zip
+            bin/artifacts/qterm-windows-*-setup.exe
+            bin/artifacts/qterm-linux-*.tar.gz
+            bin/artifacts/qterm-linux-*.deb
+            bin/artifacts/qterm-linux-*.rpm
+            bin/artifacts/qterm-linux-*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+
+      # 待签名 ZIP 与可发布产物分开保存；publish 不会下载这个 artifact。
+      - uses: actions/upload-artifact@v4
+        if: matrix.arch == 'amd64'
+        with:
+          name: qterm-input-darwin
+          path: bin/artifacts/qterm-darwin-*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  sign-macos:
+    name: sign-macos-adhoc
+    needs: package
+    runs-on: macos-14
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ github.event.inputs.tag || github.ref_name }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install pinned Wails packaging tool
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: qterm-input-darwin
+          path: bin/signed-artifacts
+      - name: Sign apps and rebuild verified ZIP and DMG
+        run: node build/darwin/finalize-artifacts.mjs bin/signed-artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qterm-final-darwin
+          path: |
+            bin/signed-artifacts/qterm-darwin-*.zip
+            bin/signed-artifacts/qterm-darwin-*.dmg
           if-no-files-found: error
           retention-days: 7
 
   publish:
     name: publish
-    needs: package
+    needs: [package, sign-macos]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -120,8 +165,20 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
+          pattern: qterm-final-*
           path: artifacts
           merge-multiple: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Verify complete final artifact set
+        run: |
+          node --input-type=module <<'JS'
+          import { validateArtifacts } from './build/release-docker.mjs'
+          validateArtifacts('artifacts', { targets: 'darwin,windows,linux' }, 'x64')
+          validateArtifacts('artifacts', { targets: 'linux' }, 'arm64')
+          JS
 
       # 两份 job 各上传一部分，校验和必须在合并后重新生成，否则会缺一半文件。
       - name: Generate SHA256SUMS

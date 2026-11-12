@@ -380,6 +380,15 @@ async function archiveTarget(target, run) {
     target.outputPath,
     `${target.platform}/${target.arch} build output`,
   );
+  if (target.platform === "darwin") {
+    await run("codesign", [
+      "--verify",
+      "--deep",
+      "--strict",
+      "--verbose=2",
+      join(target.targetDirectory, `${APP_NAME}.app`),
+    ]);
+  }
   const archiveArguments =
     target.platform === "linux"
       ? ["-czf", target.archivePath, target.binaryName]

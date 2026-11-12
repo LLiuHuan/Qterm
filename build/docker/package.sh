@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 在 Linux 容器里把一次构建打成「安装包 + 便携包」。
 #
-# 为什么在这个镜像里做：darwin 的 .app/.dmg 与 windows 的 .exe/NSIS 都能在这里交叉产出
-# （zig + macOS SDK + makensis），dmg 用纯 Go 的 UDIF 写入器，不依赖 hdiutil。
+# 为什么在这个镜像里做：darwin 的 .app 中间包与 windows 的 .exe/NSIS 都能在这里交叉产出
+# （zig + macOS SDK + makensis）；macOS 最终 ZIP/DMG 交给 macOS 主机签名与封装。
 # 因此一台机器（甚至一台 Mac）就能出全平台产物，不要求本机装 Windows/Linux。
 #
 # 输入（环境变量）：
@@ -10,7 +10,8 @@
 #   TARGETS    逗号分隔，可选 darwin,windows,linux；默认全部
 #   OUT        产物输出目录（容器内绝对路径），默认 /app/bin/artifacts
 #   HOST_ARCH  linux 目标架构，默认取 `go env GOARCH`；linux 只能打容器自身架构
-#   SKIP_DMG   非空时跳过 dmg（只出 .app 的 zip），用于快速迭代
+#   DEFER_DARWIN_SIGNING 必须为 1：容器里的 macOS 包只能作为待签名中间制品
+#   SKIP_DMG   macOS 中间阶段必须非空；最终 DMG 由 macOS 主机在签名后生成
 #
 # 前置条件：`frontend/dist` 必须已构建（前端在宿主机跑 npm，容器只编译 Go）。
 set -euo pipefail
@@ -47,6 +48,15 @@ go_build() {
 }
 
 package_darwin() {
+  # 不能用 linker 对裸二进制的签名充当完整 .app 签名。
+  if [ "${DEFER_DARWIN_SIGNING:-}" != "1" ]; then
+    echo "[package] macOS 包必须交给 macOS 完成最终签名；只允许 DEFER_DARWIN_SIGNING=1 的中间构建" >&2
+    exit 1
+  fi
+  if [ -z "${SKIP_DMG}" ]; then
+    echo "[package] macOS DMG 必须在完成签名后由 macOS 最终封装" >&2
+    exit 1
+  fi
   local arch dir app
   for arch in amd64 arm64; do
     # 每次用全新的临时目录：不在挂载进来的仓库里写中间产物，也就不需要递归删除。
@@ -59,17 +69,8 @@ package_darwin() {
     cp "${dir}/${APP_NAME}" "${app}/Contents/MacOS/"
     cp build/darwin/Info.plist "${app}/Contents/"
 
-    if [ -z "${SKIP_DMG}" ]; then
-      log "生成 dmg darwin/${arch}"
-      wails3 tool package --format dmg --name "${APP_NAME}" --out "${dir}" \
-        --background "${REPO_ROOT}/build/darwin/dmg-background.png" \
-        --volume-icon "${REPO_ROOT}/build/darwin/icons.icns" \
-        --file-icon "${REPO_ROOT}/build/darwin/dmg-file-icon.icns" \
-        --window-width 540 --window-height 380 >/dev/null
-      mv "${dir}/${APP_NAME}.dmg" "${OUT}/qterm-darwin-${arch}.dmg"
-    fi
 
-    log "打包 darwin/${arch} 便携 zip"
+    log "打包 darwin/${arch} 待签名中间 zip（不可直接发布）"
     ( cd "${dir}" && zip -qry "${OUT}/qterm-darwin-${arch}.zip" "${APP_NAME}.app" )
   done
 }

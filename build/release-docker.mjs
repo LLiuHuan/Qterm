@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
+import { finalizeDarwinArtifacts } from "./darwin/finalize-artifacts.mjs";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -72,6 +73,7 @@ export function parseArguments(argv) {
     skipFrontend: false,
     skipDmg: false,
     skipImage: false,
+    deferDarwinSigning: false,
     out: undefined,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -80,6 +82,8 @@ export function parseArguments(argv) {
     else if (argument === "--skip-frontend") options.skipFrontend = true;
     else if (argument === "--skip-dmg") options.skipDmg = true;
     else if (argument === "--skip-image") options.skipImage = true;
+    else if (argument === "--defer-darwin-signing")
+      options.deferDarwinSigning = true;
     else if (argument === "--targets") options.targets = argv[(index += 1)];
     else if (argument.startsWith("--targets="))
       options.targets = argument.slice("--targets=".length);
@@ -95,6 +99,8 @@ export function parseArguments(argv) {
   }
   if (new Set(targets).size !== targets.length)
     throw new Error("--targets 不能重复");
+  if (options.deferDarwinSigning && !targets.includes("darwin"))
+    throw new Error("--defer-darwin-signing 仅用于 macOS 中间制品");
   if (options.out) relativeToRoot(options.out);
   return options;
 }
@@ -157,6 +163,18 @@ export function validateArtifacts(
   return names;
 }
 
+export function assertSigningHost(options, platform = process.platform) {
+  if (
+    options.targets.split(",").includes("darwin") &&
+    platform !== "darwin" &&
+    !options.deferDarwinSigning
+  ) {
+    throw new Error(
+      "macOS 完整 ad-hoc 签名需要 macOS；CI 中间阶段须显式使用 --defer-darwin-signing，再由 macOS 完成签名",
+    );
+  }
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   const version = readVersion();
@@ -174,9 +192,14 @@ async function main() {
     `TARGETS=${options.targets}`,
     "-e",
     `APP_NAME=qterm`,
+    ...(options.targets.split(",").includes("darwin")
+      ? ["-e", "DEFER_DARWIN_SIGNING=1"]
+      : []),
     "-e",
     `OUT=/app/${relativeToRoot(outDirectory)}`,
-    ...(options.skipDmg ? ["-e", "SKIP_DMG=1"] : []),
+    ...(options.skipDmg || options.targets.split(",").includes("darwin")
+      ? ["-e", "SKIP_DMG=1"]
+      : []),
     IMAGE,
   ];
   const frontendCommand = ["--prefix", "frontend", "run", "build"];
@@ -192,9 +215,15 @@ async function main() {
         `[release-docker] 镜像：docker build -f build/docker/Dockerfile.release -t ${IMAGE} .`,
       );
     console.log(`[release-docker] 打包：docker ${dockerRun.join(" ")}`);
-    console.log("[release-docker] 随后写入 SHA256SUMS");
+    console.log(
+      options.deferDarwinSigning
+        ? "[release-docker] 仅输出待签名中间制品，不生成最终 SHA256SUMS"
+        : "[release-docker] macOS 产物完成本机签名和重新封装后，再写入 SHA256SUMS",
+    );
     return;
   }
+
+  assertSigningHost(options);
 
   if (!options.skipFrontend) {
     console.log("[release-docker] 构建前端（产物被 go:embed 打进二进制）");
@@ -248,6 +277,18 @@ async function main() {
     `/app/${relativeToRoot(outDirectory)}`,
   ]);
 
+  if (options.deferDarwinSigning) {
+    validateArtifacts(outDirectory, { ...options, skipDmg: true });
+    console.log(
+      `[release-docker] 中间制品：${outDirectory}；必须在 macOS 运行 build/darwin/finalize-artifacts.mjs 后才能发布`,
+    );
+    return;
+  }
+  if (options.targets.split(",").includes("darwin")) {
+    await finalizeDarwinArtifacts(outDirectory, {
+      createDmg: !options.skipDmg,
+    });
+  }
   const names = validateArtifacts(outDirectory, options);
   const checksumPath = writeChecksums(outDirectory, names);
   console.log(`[release-docker] 产物 ${names.length} 个：`);

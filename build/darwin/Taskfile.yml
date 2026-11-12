@@ -104,14 +104,16 @@ tasks:
     internal: true
     cmds:
       - lipo -create -output "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-      - rm "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+      - rm "{{.BIN_DIR}}/{{.APP_NAME}}-amd64"
+      - rm "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
 
   build:universal:lipo:go:
     summary: Creates universal binary using wails3 tool lipo (Linux/Windows)
     internal: true
     cmds:
       - wails3 tool lipo -output "{{.BIN_DIR}}/{{.APP_NAME}}" -input "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" -input "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
-      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
+      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64"
+      - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
 
   package:
     summary: Packages the application into a `.app` bundle
@@ -138,6 +140,7 @@ tasks:
     summary: Creates a configurable `.dmg` from the `.app` bundle
     platforms: [darwin]
     cmds:
+      - node build/darwin/sign-app.mjs "{{.BIN_DIR}}/{{.APP_NAME}}.app"
       - >-
         wails3 tool package --format dmg --name "{{.APP_NAME}}" --out "{{.BIN_DIR}}"
         --background "{{.DMG_BACKGROUND}}"
@@ -146,6 +149,8 @@ tasks:
         --window-width "{{.DMG_WINDOW_WIDTH}}"
         --window-height "{{.DMG_WINDOW_HEIGHT}}"
         {{if .DMG_FILES}}--files "{{.DMG_FILES}}"{{end}}
+      - codesign --force --sign - --timestamp=none "{{.BIN_DIR}}/{{.APP_NAME}}.dmg"
+      - codesign --verify --strict --verbose=2 "{{.BIN_DIR}}/{{.APP_NAME}}.dmg"
     vars:
       DMG_BACKGROUND: '{{.DMG_BACKGROUND | default "build/darwin/dmg-background.png"}}'
       DMG_VOLUME_ICON: '{{.DMG_VOLUME_ICON | default "build/darwin/icons.icns"}}'
@@ -186,13 +191,13 @@ tasks:
     summary: Ad-hoc signs the app bundle (macOS only)
     internal: true
     cmds:
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - node build/darwin/sign-app.mjs "{{.BIN_DIR}}/{{.APP_NAME}}.app"
 
   codesign:skip:
-    summary: Skips codesigning when cross-compiling
+    summary: Refuses unsigned cross-compiled app distribution
     internal: true
     cmds:
-      - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
+      - 'echo "无法在 {{OS}} 完成 macOS 签名；请使用 Docker 中间包并在 macOS 执行 build/darwin/finalize-artifacts.mjs。" >&2; exit 1'
 
   run:
     cmds:
@@ -217,7 +222,7 @@ tasks:
         else
           echo "未找到 RDP helper（$HELPER_SRC），跳过随包分发"
         fi
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
+      - node build/darwin/sign-app.mjs "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
 
   sign:
