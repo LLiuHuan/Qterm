@@ -38,7 +38,9 @@ export const settingsAssetsZh: Record<string, string> = {
   'settings.credentialPrompt.kind.password': '密码',
   'settings.credentialPrompt.pattern': '提示正则',
   'settings.credentialPrompt.patternPlaceholder': '例如：password|密码',
-  'settings.credentialPrompt.patternHint': '只匹配当前正在等待输入的那一行，且该行必须以冒号结束。',
+  'settings.credentialPrompt.patternHint':
+    '支持 JavaScript 正则，无需添加 /.../。只匹配以冒号结束的当前提示行；sudo 示例适用于任意用户名。',
+  'settings.credentialPrompt.useSudoExample': '使用 sudo 密码示例',
   'settings.credentialPrompt.patternInvalid': '正则表达式无效，请检查括号与转义。',
   'settings.credentialPrompt.patternRequired': '请填写提示正则。',
   'settings.credentialPrompt.enabled': '已启用',

@@ -41,7 +41,8 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.credentialPrompt.pattern': 'Prompt regex',
   'settings.credentialPrompt.patternPlaceholder': 'For example: password|passphrase',
   'settings.credentialPrompt.patternHint':
-    'Matches only the line currently waiting for input, which must end with a colon.',
+    'Supports JavaScript regex without /.../ delimiters. Matches only the current prompt line ending with a colon. The sudo example works with any username.',
+  'settings.credentialPrompt.useSudoExample': 'Use sudo password example',
   'settings.credentialPrompt.patternInvalid': 'Invalid regular expression. Check brackets and escapes.',
   'settings.credentialPrompt.patternRequired': 'Enter a prompt regex.',
   'settings.credentialPrompt.enabled': 'Enabled',

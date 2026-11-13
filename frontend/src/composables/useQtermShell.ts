@@ -138,7 +138,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   async function typeCredentialIntoSession(sessionId: string, credentialId: string): Promise<void> {
     await credentialPromptRuleGateway.typeIntoSession(sessionId, credentialId)
   }
-  const activeTool = ref<ToolPanel | null>('sftp')
+
+  const activeTool = ref<ToolPanel | null>(null)
   const sidebarCollapsed = ref(false)
   const credentialState = useCredentialState()
   const {

@@ -39,6 +39,7 @@ import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag
 import { ScrollArea } from '../common/control-primitives'
 import { hiddenHostTagCount, hostConnectionSummary, hostTags, visibleHostTags } from '@/features/hosts/hostSummary'
 import { useI18n } from '@/locales'
+import { useHostClipboard } from '../../features/hosts/useHostClipboard'
 
 const props = defineProps<{
   searchVisible: boolean
@@ -85,6 +86,7 @@ const emit = defineEmits<{
   updateSearchQuery: [value: string]
 }>()
 const { t } = useI18n()
+const { copyHostId } = useHostClipboard()
 const searchFieldRef = ref<HTMLLabelElement | null>(null)
 
 watch(
@@ -363,6 +365,7 @@ function hostActionsFor(host: HostRecord): AssetMenuAction[] {
       children: groupMoveTargets.value,
     },
     { id: 'copy-ip', label: t('shell.asset.copyIp'), icon: Copy, separatorBefore: true },
+    { id: 'copy-id', label: t('shell.asset.copyId'), icon: Copy },
     { id: 'copy', label: t('shell.asset.copy'), icon: Copy },
     { id: 'edit', label: t('shell.asset.edit'), icon: Pencil, separatorBefore: true },
     { id: 'delete', label: t('shell.asset.delete'), icon: Trash2, destructive: true },
@@ -376,6 +379,7 @@ function handleHostAction(host: HostRecord, id: string): void {
   else if (id === 'edit') emit('editHost', host)
   else if (id === 'delete') emit('deleteHost', host)
   else if (id === 'copy-ip') emit('copyHost', host)
+  else if (id === 'copy-id') void copyHostId(host)
   else if (id === 'copy') emit('duplicateHost', host)
   else if (id.startsWith('move-group:')) emit('moveAsset', host.id, id.slice('move-group:'.length), '', 'inside')
 }

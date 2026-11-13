@@ -986,6 +986,7 @@ export const shellUiRu: Record<string, string> = {
   'shell.asset.moveToGroup': 'Переместить в группу',
   'shell.asset.moveToRoot': 'Переместить в корень',
   'shell.asset.copyIp': 'Копировать IP',
+  'shell.asset.copyId': 'Копировать ID',
   'shell.asset.edit': 'Изменить',
   'shell.asset.copy': 'Дублировать хост',
   'shell.asset.duplicateSuffix': ' (копия)',
@@ -1011,14 +1012,6 @@ export const shellUiRu: Record<string, string> = {
     'Конфигурация хоста сохраняется локально. Введённый вручную пароль для входа шифруется и сохраняется вместе с хостом; учётные данные с паролем при этом не создаются автоматически.',
   'shell.hostEditor.previewDescription': 'Это предпросмотр в браузере: данные сохраняются только на этой странице.',
   'shell.hostEditor.name': 'Название',
-  'shell.hostEditor.customId': 'Свой ID',
-  'shell.hostEditor.customIdPlaceholder': 'Пусто — не задавать, пример: db-prod-1',
-  'shell.hostEditor.customIdHint':
-    'Строчные буквы, цифры, подчёркивание или дефис; уникальный. Ссылка из CLI через --host.',
-  'shell.hostEditor.alias': 'Псевдоним',
-  'shell.hostEditor.aliasPlaceholder': 'напр. prod-web',
-  'shell.hostEditor.aliasHint':
-    'Только для отображения и поиска. Не используется при подключении. Помогает различать хосты с одинаковым именем.',
   'shell.hostEditor.namePlaceholder': 'Например: Production Web 01',
   'shell.hostEditor.iconHint':
     'Если значок не указан, он выбирается автоматически по удалённой системе после первого успешного подключения.',

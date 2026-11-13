@@ -981,6 +981,7 @@ export const shellUiEn: Record<string, string> = {
   'shell.asset.moveToGroup': 'Move to group',
   'shell.asset.moveToRoot': 'Move to root',
   'shell.asset.copyIp': 'Copy IP',
+  'shell.asset.copyId': 'Copy ID',
   'shell.asset.edit': 'Edit',
   'shell.asset.copy': 'Duplicate host',
   'shell.asset.duplicateSuffix': ' copy',
@@ -1006,14 +1007,6 @@ export const shellUiEn: Record<string, string> = {
     'Host configuration is stored locally. A manually entered login password is encrypted and saved with the host; it does not create a password credential automatically.',
   'shell.hostEditor.previewDescription': 'This is a browser preview; data is stored only on this page.',
   'shell.hostEditor.name': 'Name',
-  'shell.hostEditor.customId': 'Custom ID',
-  'shell.hostEditor.customIdPlaceholder': 'Leave empty to skip, e.g. db-prod-1',
-  'shell.hostEditor.customIdHint':
-    'Lowercase letters, digits, underscore or dash; unique. Reference it from the CLI with --host.',
-  'shell.hostEditor.alias': 'Alias',
-  'shell.hostEditor.aliasPlaceholder': 'e.g. prod-web',
-  'shell.hostEditor.aliasHint':
-    'Shown and searchable only. Not used for connecting. Useful for telling same-named hosts apart.',
   'shell.hostEditor.namePlaceholder': 'For example: Production Web 01',
   'shell.hostEditor.iconHint':
     'When no icon is specified, Qterm selects one based on the remote system after the first successful connection.',

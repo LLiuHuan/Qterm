@@ -984,6 +984,7 @@ export const shellUiJa: Record<string, string> = {
   'shell.asset.moveToGroup': 'グループへ移動',
   'shell.asset.moveToRoot': 'ルートへ移動',
   'shell.asset.copyIp': 'IP をコピー',
+  'shell.asset.copyId': 'ID をコピー',
   'shell.asset.edit': '編集',
   'shell.asset.copy': 'ホストを複製',
   'shell.asset.duplicateSuffix': ' のコピー',
@@ -1009,13 +1010,6 @@ export const shellUiJa: Record<string, string> = {
     'ホスト設定はローカルに保存されます。手動で入力したログインパスワードはこのホストとともに暗号化して保存され、パスワード認証情報が自動的に作成されることはありません。',
   'shell.hostEditor.previewDescription': '現在はブラウザープレビューです。データはこのページにのみ保存されます。',
   'shell.hostEditor.name': '名前',
-  'shell.hostEditor.customId': 'カスタム ID',
-  'shell.hostEditor.customIdPlaceholder': '空欄なら未設定。例: db-prod-1',
-  'shell.hostEditor.customIdHint':
-    '小文字英数字・アンダースコア・ハイフンのみ、全体で一意。CLI から --host で参照できます。',
-  'shell.hostEditor.alias': '別名',
-  'shell.hostEditor.aliasPlaceholder': '例：本番-web',
-  'shell.hostEditor.aliasHint': '表示と検索にのみ使われ、接続には使われません。同名ホストの区別に使えます。',
   'shell.hostEditor.namePlaceholder': '例：Production Web 01',
   'shell.hostEditor.iconHint':
     'アイコンを指定しない場合、初回接続の成功後にリモートのシステムに応じて自動的に選択されます。',

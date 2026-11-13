@@ -132,7 +132,6 @@ func projectHost(host model.Host) HostView {
 		Protocol: host.Protocol,
 		Group:    host.Group,
 		Tags:     append([]string(nil), host.Tags...),
-		CustomID: host.CustomID,
 	}
 }
 

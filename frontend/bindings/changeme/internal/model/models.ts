@@ -340,10 +340,6 @@ export interface Host {
 
   color?: string
   name: string
-
-  alias?: string
-
-  customId?: string
   protocol: string
   address: string
   port: number
@@ -434,10 +430,6 @@ export interface HostInput {
   color?: string
   icon: string
   name: string
-
-  alias?: string
-
-  customId?: string
   protocol: string
   address: string
   port: number

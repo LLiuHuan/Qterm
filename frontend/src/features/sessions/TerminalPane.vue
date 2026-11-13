@@ -143,6 +143,8 @@ import {
   saveCommandHistory,
   suppressCommandHistory,
 } from '../../services/command-history'
+import { createTerminalCompletionInputTracker } from './terminalCompletionInput'
+import { isCommandCompletionCandidate } from './terminalCompletionPolicy'
 import type { CommandHistory } from '../../../bindings/changeme/internal/model/models'
 import type { KeywordHighlightRule, TerminalRenderEngine } from '../settings/settingsStore'
 import { useI18n } from '@/locales'
@@ -387,6 +389,10 @@ const completionQuery = ref('')
 const completionPosition = ref({ left: 18, top: 24 })
 let completionHistory: CommandHistory[] = []
 let typedCommand = ''
+const completionInputTracker = createTerminalCompletionInputTracker()
+
+let completionInputWasAlternate = false
+const consumedCompletionKeys = new Set<string>()
 let commandLineHasShellTab = false
 
 let commandLineHasShellHistoryRecall = false
@@ -488,8 +494,7 @@ function closeCredentialSuggestion(): void {
 }
 
 function resetCommandInputTracking(): void {
-  typedCommand = ''
-  closeCompletion()
+  resetTypedCommand()
   commandLineBuffer = createCommandLineBuffer()
   pendingShellTabSubmission = null
   clearShellTabSubmitTimer()
@@ -640,6 +645,11 @@ function handleCredentialKey(event: KeyboardEvent): boolean {
 }
 
 function refreshCompletionItems(): void {
+  if (syncCompletionInputScreenState()) {
+    completionQuery.value = ''
+    closeCompletion()
+    return
+  }
   const query = typedCommand.trim()
   completionQuery.value = query
 
@@ -655,6 +665,7 @@ function refreshCompletionItems(): void {
     .filter((item): item is { command: string; score: number; order: number } =>
       Boolean(item.command && item.score !== null),
     )
+    .filter((item) => isCommandCompletionCandidate(item.command))
     .filter((item) => {
       const length = Array.from(item.command).length
       return length >= (props.historyMinLength ?? 1) && length <= (props.historyMaxLength ?? 4096)
@@ -712,21 +723,42 @@ function clearShellTabSubmitTimer(): void {
 function resetTypedCommand(): void {
   typedCommand = ''
   closeCompletion()
+  completionInputTracker.reset()
+}
+
+function clearTypedCommand(): void {
+  typedCommand = ''
+  closeCompletion()
+}
+
+function isAlternateScreenActive(): boolean {
+  return terminal?.buffer.active.type === 'alternate'
+}
+
+function syncCompletionInputScreenState(): boolean {
+  const alternate = isAlternateScreenActive()
+  if (alternate !== completionInputWasAlternate) {
+    completionInputWasAlternate = alternate
+    resetCommandInputTracking()
+    consumedCompletionKeys.clear()
+  }
+  if (alternate) closeCompletion()
+  return alternate
 }
 
 function trackTypedInput(data: string): void {
-  for (const char of data) {
-    const code = char.codePointAt(0) ?? 0
-    if (char === '\r' || char === '\n' || char === '\x03' || char === '\x15') {
-      resetTypedCommand()
-    } else if (char === '\x7f' || char === '\b') {
+  if (syncCompletionInputScreenState()) return
+  for (const action of completionInputTracker.feed(data)) {
+    if (action.type === 'reset') {
+      clearTypedCommand()
+    } else if (action.type === 'backspace') {
       typedCommand = Array.from(typedCommand).slice(0, -1).join('')
       refreshCompletionItems()
-    } else if (char === '\x17') {
+    } else if (action.type === 'delete-word') {
       typedCommand = typedCommand.replace(/\s+\S*$/, '')
       refreshCompletionItems()
-    } else if (code >= 0x20 && code !== 0x7f) {
-      typedCommand += char
+    } else {
+      typedCommand += action.value
       refreshCompletionItems()
     }
   }
@@ -766,9 +798,12 @@ async function hideCompletionCommand(command: string): Promise<void> {
   }
 }
 
-const consumedCompletionKeys = new Set<string>()
-
 function handleCompletionKey(event: KeyboardEvent): boolean {
+  if (syncCompletionInputScreenState()) {
+    consumedCompletionKeys.clear()
+    return true
+  }
+
   if (event.type !== 'keydown' && consumedCompletionKeys.has(event.key)) {
     if (event.type === 'keyup') consumedCompletionKeys.delete(event.key)
     event.preventDefault()
@@ -958,6 +993,7 @@ function bindTerminalOutputCapture(sessionId: string): void {
 
   const boundSessionID = sessionId
   outputSubscription = terminal.onWriteParsed(() => {
+    syncCompletionInputScreenState()
     const current = terminal?.buffer.active
     if (!current) return
     const bottom = current.cursorY + current.baseY
@@ -3164,6 +3200,10 @@ onMounted(async () => {
     if (credentialOpen.value) closeCredentialSuggestion()
     if (!ended.value && streamStatus.value === 'ready') {
       if (zmodemActive.value) {
+        return
+      }
+      if (syncCompletionInputScreenState()) {
+        sendLocalTerminalInput(data)
         return
       }
 

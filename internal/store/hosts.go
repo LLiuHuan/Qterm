@@ -29,11 +29,7 @@ func (s *Store) ListHosts(ctx context.Context) ([]model.Host, error) {
 		       h.vnc_transport, h.vnc_ws_path, h.vnc_allow_insecure_tls, h.vnc_rfb_password_mode,
 		       h.connection_type, h.terminal_type,
 		       h.jump_host_id, h.proxy_mode, h.proxy_host, h.proxy_port, h.proxy_username,
-		       h.proxy_id,
-		       -- 迁移 045：别名追加在末位，既有列顺序一个都不动，避免 scan 错位。
-		       h.alias,
-		       -- 迁移 046：自定义 ID 同样追加在末位。
-		       h.custom_id
+		       h.proxy_id
 		FROM hosts h
 		LEFT JOIN groups g ON g.id = h.group_id
 		ORDER BY CASE WHEN h.group_id IS NULL THEN -1 ELSE g.sort_order END,
@@ -125,10 +121,6 @@ func (s *Store) ListHosts(ctx context.Context) ([]model.Host, error) {
 			&proxyUsername,
 
 			&proxyID,
-
-			&host.Alias,
-
-			&host.CustomID,
 		); err != nil {
 			return nil, fmt.Errorf("scan host: %w", err)
 		}
@@ -162,23 +154,6 @@ func (s *Store) ListHosts(ctx context.Context) ([]model.Host, error) {
 	return hosts, nil
 }
 
-func (s *Store) GetHostByCustomID(ctx context.Context, customID string) (model.Host, error) {
-	customID = strings.ToLower(strings.TrimSpace(customID))
-	if customID == "" {
-		return model.Host{}, ErrNotFound
-	}
-	var id string
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id FROM hosts WHERE custom_id = ? COLLATE NOCASE`, customID).Scan(&id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return model.Host{}, ErrNotFound
-		}
-		return model.Host{}, fmt.Errorf("read host by custom id: %w", err)
-	}
-	return s.GetHost(ctx, id)
-}
-
 func (s *Store) GetHost(ctx context.Context, id string) (model.Host, error) {
 	const query = `
 		SELECT h.id, h.icon, h.color, h.name, h.protocol, h.address, h.port, h.username,
@@ -194,11 +169,7 @@ func (s *Store) GetHost(ctx context.Context, id string) (model.Host, error) {
 		       h.vnc_transport, h.vnc_ws_path, h.vnc_allow_insecure_tls, h.vnc_rfb_password_mode,
 		       h.connection_type, h.terminal_type,
 		       h.jump_host_id, h.proxy_mode, h.proxy_host, h.proxy_port, h.proxy_username,
-		       h.proxy_id,
-		       -- 迁移 045：别名追加在末位，既有列顺序一个都不动，避免 scan 错位。
-		       h.alias,
-		       -- 迁移 046：自定义 ID 同样追加在末位。
-		       h.custom_id
+		       h.proxy_id
 		FROM hosts h
 		LEFT JOIN groups g ON g.id = h.group_id
 		WHERE h.id = ?`
@@ -279,10 +250,6 @@ func (s *Store) GetHost(ctx context.Context, id string) (model.Host, error) {
 		&proxyUsername,
 
 		&proxyID,
-
-		&host.Alias,
-
-		&host.CustomID,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.Host{}, ErrNotFound
@@ -385,10 +352,6 @@ func normalizeEncoding(value string) string {
 		return "utf-8"
 	}
 	return value
-}
-
-func normalizeHostCustomID(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func normalizeConnectionType(value string) string {
@@ -512,16 +475,14 @@ func (s *Store) CreateHostWithPasswords(ctx context.Context, host model.Host, gr
 			vnc_scale, vnc_auto_reconnect, vnc_auto_reconnect_attempts,
 			vnc_transport, vnc_ws_path, vnc_allow_insecure_tls, vnc_rfb_password_mode,
 			connection_type, terminal_type,
-			jump_host_id, proxy_mode, proxy_host, proxy_port, proxy_username, proxy_id,
-			alias, custom_id
+			jump_host_id, proxy_mode, proxy_host, proxy_port, proxy_username, proxy_id
 		) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''),
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?, ?,
-			?, ?
+			?, ?, ?, ?
 		)`
 	if _, err := tx.ExecContext(
 		ctx,
@@ -558,10 +519,6 @@ func (s *Store) CreateHostWithPasswords(ctx context.Context, host model.Host, gr
 		proxyMode, proxyHost, proxyPort, proxyUsername,
 
 		nullableString(host.ProxyID),
-
-		host.Alias,
-
-		host.CustomID,
 	); err != nil {
 		return model.Host{}, fmt.Errorf("insert host: %w", err)
 	}
@@ -598,8 +555,6 @@ func (s *Store) DuplicateHost(ctx context.Context, id, newID, name string) (mode
 	duplicate := original
 	duplicate.ID = newID
 	duplicate.Name = name
-
-	duplicate.CustomID = ""
 	duplicate.CreatedAt = now
 	duplicate.UpdatedAt = now
 
@@ -705,8 +660,7 @@ func (s *Store) UpdateHostWithPasswords(ctx context.Context, host model.Host, gr
 		    vnc_scale = ?, vnc_auto_reconnect = ?, vnc_auto_reconnect_attempts = ?,
 		    vnc_transport = ?, vnc_ws_path = ?, vnc_allow_insecure_tls = ?, vnc_rfb_password_mode = ?,
 		    connection_type = ?, terminal_type = ?,
-		    jump_host_id = ?, proxy_mode = ?, proxy_host = ?, proxy_port = ?, proxy_username = ?, proxy_id = ?,
-		    alias = ?, custom_id = ?
+		    jump_host_id = ?, proxy_mode = ?, proxy_host = ?, proxy_port = ?, proxy_username = ?, proxy_id = ?
 		WHERE id = ?`
 	proxyMode, proxyHost, proxyPort, proxyUsername := normalizeHostProxyColumns(
 		textValue(host.ProxyMode), textValue(host.ProxyHost), intValue(host.ProxyPort),
@@ -744,9 +698,6 @@ func (s *Store) UpdateHostWithPasswords(ctx context.Context, host model.Host, gr
 		nullableString(textValue(host.JumpHostID)),
 		proxyMode, proxyHost, proxyPort, proxyUsername,
 		nullableString(host.ProxyID),
-
-		host.Alias,
-		host.CustomID,
 		host.ID,
 	)
 	if err != nil {

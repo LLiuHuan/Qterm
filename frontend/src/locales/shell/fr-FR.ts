@@ -998,6 +998,7 @@ export const shellUiFr: Record<string, string> = {
   'shell.asset.moveToGroup': 'Déplacer vers le groupe',
   'shell.asset.moveToRoot': 'Déplacer à la racine',
   'shell.asset.copyIp': "Copier l'IP",
+  'shell.asset.copyId': 'Copier l’ID',
   'shell.asset.edit': 'Modifier',
   'shell.asset.copy': "Dupliquer l'hôte",
   'shell.asset.duplicateSuffix': ' (copie)',
@@ -1024,14 +1025,6 @@ export const shellUiFr: Record<string, string> = {
   'shell.hostEditor.previewDescription':
     'Aperçu dans le navigateur : les données ne sont conservées que sur cette page.',
   'shell.hostEditor.name': 'Nom',
-  'shell.hostEditor.customId': 'ID personnalisé',
-  'shell.hostEditor.customIdPlaceholder': 'Laisser vide pour ne pas définir, ex. db-prod-1',
-  'shell.hostEditor.customIdHint':
-    'Lettres minuscules, chiffres, tiret bas ou tiret ; unique. Référençable en CLI via --host.',
-  'shell.hostEditor.alias': 'Alias',
-  'shell.hostEditor.aliasPlaceholder': 'ex. prod-web',
-  'shell.hostEditor.aliasHint':
-    "Affiché et recherchable uniquement. N'est pas utilisé pour la connexion. Utile pour distinguer des hôtes de même nom.",
   'shell.hostEditor.namePlaceholder': 'Par exemple : Production Web 01',
   'shell.hostEditor.iconHint':
     "Sans icône spécifiée, Qterm en choisit une d'après le système distant après la première connexion réussie.",

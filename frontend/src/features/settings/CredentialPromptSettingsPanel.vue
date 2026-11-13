@@ -22,7 +22,7 @@ import type {
   CredentialPromptRuleGateway,
   CredentialPromptRuleRecord,
 } from '@/services/credentialPromptRules.ts'
-import { isValidPromptPattern } from '../sessions/credentialAutofill'
+import { isValidPromptPattern, SUDO_PASSWORD_PROMPT_PATTERN } from '../sessions/credentialAutofill'
 import { useI18n } from '@/locales'
 
 const props = defineProps<{ gateway: CredentialPromptRuleGateway }>()
@@ -89,6 +89,11 @@ async function loadRules(): Promise<void> {
 function resetDraft(): void {
   editingID.value = null
   draft.value = { kind: 'password', pattern: '', enabled: true }
+}
+
+function useSudoExample(): void {
+  draft.value = { ...draft.value, kind: 'password', pattern: SUDO_PASSWORD_PROMPT_PATTERN }
+  error.value = ''
 }
 
 function openCreateDialog(): void {
@@ -354,6 +359,11 @@ watch(searchQuery, () => {
               }}</QtermFormMessage>
               <QtermFormMessage v-else>{{ t('settings.credentialPrompt.patternHint') }}</QtermFormMessage>
             </label>
+            <div class="flex items-center">
+              <QtermButton variant="outline" size="sm" type="button" :disabled="saving" @click="useSudoExample">
+                {{ t('settings.credentialPrompt.useSudoExample') }}
+              </QtermButton>
+            </div>
             <QtermFormMessage v-if="error" variant="error">{{ error }}</QtermFormMessage>
           </div>
           <QtermDialogFooter>

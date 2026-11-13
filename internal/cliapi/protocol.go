@@ -60,8 +60,6 @@ type HostView struct {
 	Protocol string   `json:"protocol"`
 	Group    string   `json:"group,omitempty"`
 	Tags     []string `json:"tags,omitempty"`
-
-	CustomID string `json:"customId,omitempty"`
 }
 
 type SessionView struct {

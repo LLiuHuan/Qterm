@@ -33,10 +33,6 @@ export interface HostDraft {
 
   color?: string
   name: string
-
-  alias?: string
-
-  customId?: string
   protocol?: string
   address: string
   port: number
@@ -588,9 +584,6 @@ class WailsHostGateway implements HostGateway {
       icon: input.icon || '',
 
       color: input.color || '',
-
-      alias: input.alias ?? '',
-      customId: input.customId ?? '',
       protocol: input.protocol || 'ssh',
       serialBaud: input.serialBaud ?? 0,
       serialDataBits: input.serialDataBits ?? 8,
@@ -623,9 +616,6 @@ class WailsHostGateway implements HostGateway {
       icon: input.icon || '',
 
       color: input.color || '',
-
-      alias: input.alias ?? '',
-      customId: input.customId ?? '',
       protocol: input.protocol || 'ssh',
       serialBaud: input.serialBaud ?? 0,
       serialDataBits: input.serialDataBits ?? 8,

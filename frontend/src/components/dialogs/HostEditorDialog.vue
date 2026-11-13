@@ -911,38 +911,6 @@ function updateAddress(value: unknown): void {
             </div>
 
             <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-              <Label for="host-alias">{{ t('shell.hostEditor.alias') }}</Label>
-              <QtermInput
-                id="host-alias"
-                :model-value="props.draft.alias ?? ''"
-                name="alias"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                :placeholder="t('shell.hostEditor.aliasPlaceholder')"
-                @update:model-value="(value) => updateDraft({ alias: String(value) })"
-              />
-              <QtermFormMessage variant="hint">{{ t('shell.hostEditor.aliasHint') }}</QtermFormMessage>
-            </div>
-
-            <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-              <Label for="host-custom-id">{{ t('shell.hostEditor.customId') }}</Label>
-              <QtermInput
-                id="host-custom-id"
-                :model-value="props.draft.customId ?? ''"
-                name="customId"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-                :placeholder="t('shell.hostEditor.customIdPlaceholder')"
-                @update:model-value="(value) => updateDraft({ customId: String(value) })"
-              />
-              <QtermFormMessage variant="hint">{{ t('shell.hostEditor.customIdHint') }}</QtermFormMessage>
-            </div>
-
-            <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
               <Label>{{ t('shell.hostEditor.colorTag') }}</Label>
               <ColorTagField
                 :model-value="props.draft.color"

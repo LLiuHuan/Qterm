@@ -41,7 +41,8 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.credentialPrompt.pattern': 'Регулярное выражение подсказки',
   'settings.credentialPrompt.patternPlaceholder': 'Например: password|пароль',
   'settings.credentialPrompt.patternHint':
-    'Сопоставление выполняется только со строкой, которая сейчас ожидает ввода, и такая строка должна заканчиваться двоеточием.',
+    'Поддерживаются регулярные выражения JavaScript без разделителей /.../. Проверяется только текущая строка с двоеточием в конце. Пример sudo подходит для любого имени пользователя.',
+  'settings.credentialPrompt.useSudoExample': 'Использовать пример пароля sudo',
   'settings.credentialPrompt.patternInvalid': 'Некорректное регулярное выражение. Проверьте скобки и экранирование.',
   'settings.credentialPrompt.patternRequired': 'Введите регулярное выражение подсказки.',
   'settings.credentialPrompt.enabled': 'Включено',

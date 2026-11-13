@@ -40,7 +40,9 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.credentialPrompt.kind.password': '비밀번호',
   'settings.credentialPrompt.pattern': '프롬프트 정규식',
   'settings.credentialPrompt.patternPlaceholder': '예: password|비밀번호',
-  'settings.credentialPrompt.patternHint': '현재 입력을 기다리는 줄만 대상으로 하며, 그 줄은 콜론으로 끝나야 합니다.',
+  'settings.credentialPrompt.patternHint':
+    'JavaScript 정규식을 지원하며 /.../는 필요하지 않습니다. 콜론으로 끝나는 현재 프롬프트 줄만 일치시킵니다. sudo 예시는 모든 사용자 이름에 적용됩니다.',
+  'settings.credentialPrompt.useSudoExample': 'sudo 비밀번호 예시 사용',
   'settings.credentialPrompt.patternInvalid': '정규식이 유효하지 않습니다. 괄호와 이스케이프를 확인하세요.',
   'settings.credentialPrompt.patternRequired': '프롬프트 정규식을 입력하세요.',
   'settings.credentialPrompt.enabled': '사용',

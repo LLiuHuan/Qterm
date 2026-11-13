@@ -42,7 +42,8 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.credentialPrompt.pattern': 'Expression régulière',
   'settings.credentialPrompt.patternPlaceholder': 'Exemple : password|passphrase',
   'settings.credentialPrompt.patternHint':
-    'Ne correspond qu’à la ligne en attente de saisie, laquelle doit se terminer par deux-points.',
+    'Accepte les expressions régulières JavaScript sans délimiteurs /.../. Seule la ligne actuelle se terminant par deux-points est testée. L’exemple sudo accepte tout nom d’utilisateur.',
+  'settings.credentialPrompt.useSudoExample': 'Utiliser l’exemple de mot de passe sudo',
   'settings.credentialPrompt.patternInvalid':
     'Expression régulière invalide. Vérifiez les parenthèses et les échappements.',
   'settings.credentialPrompt.patternRequired': 'Saisissez une expression régulière d’invite.',

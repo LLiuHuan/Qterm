@@ -1,5 +1,7 @@
 export type CredentialPromptKind = 'username' | 'password'
 
+export const SUDO_PASSWORD_PROMPT_PATTERN = String.raw`^\[sudo\]\s+password\s+for\s+[^:]+:\s*$`
+
 export interface CredentialPromptRule {
   id: string
   kind: CredentialPromptKind

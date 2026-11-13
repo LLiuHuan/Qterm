@@ -591,15 +591,6 @@ export const errorMessages = {
     ja: 'ホストがパスワードなし sudo を拒否しました。ダイアログに sudo パスワードを入力して再試行してください。',
     ru: 'Хост отклонил sudo без пароля; введите пароль sudo в диалоге и повторите.',
   },
-  'host.custom_id_taken': {
-    fr: 'Cet ID personnalisé est déjà utilisé par un autre hôte.',
-    zh: '该自定义 ID 已被其他主机占用。',
-    zhHant: '該自訂 ID 已被其他主機佔用。',
-    en: 'That custom ID is already used by another host',
-    ko: '이 사용자 지정 ID는 다른 호스트가 사용 중입니다.',
-    ja: 'このカスタム ID は他のホストが使用しています。',
-    ru: 'Этот ID уже занят другой машиной.',
-  },
   'sftp.sudo_password_required': {
     fr: 'Un mot de passe sudo est requis pour cette suppression.',
     zh: '这次提权删除需要 sudo 密码。',

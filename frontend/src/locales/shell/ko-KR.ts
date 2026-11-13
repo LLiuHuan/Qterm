@@ -967,6 +967,7 @@ export const shellUiKo: Record<string, string> = {
   'shell.asset.moveToGroup': '그룹으로 이동',
   'shell.asset.moveToRoot': '루트로 이동',
   'shell.asset.copyIp': 'IP 복사',
+  'shell.asset.copyId': 'ID 복사',
   'shell.asset.edit': '편집',
   'shell.asset.copy': '호스트 복제',
   'shell.asset.duplicateSuffix': ' 복사본',
@@ -992,14 +993,6 @@ export const shellUiKo: Record<string, string> = {
     '호스트 설정은 로컬에 저장됩니다. 직접 입력한 로그인 비밀번호는 해당 호스트와 함께 암호화되어 저장되며, 비밀번호 자격 증명이 자동으로 만들어지지는 않습니다.',
   'shell.hostEditor.previewDescription': '현재는 브라우저 미리 보기이며, 데이터는 이 페이지에만 저장됩니다.',
   'shell.hostEditor.name': '이름',
-  'shell.hostEditor.customId': '사용자 지정 ID',
-  'shell.hostEditor.customIdPlaceholder': '비우면 설정하지 않음, 예: db-prod-1',
-  'shell.hostEditor.customIdHint':
-    '소문자·숫자·밑줄·하이픈만 사용하며 전역에서 고유해야 합니다. CLI에서 --host로 참조할 수 있습니다.',
-  'shell.hostEditor.alias': '별칭',
-  'shell.hostEditor.aliasPlaceholder': '예: 운영-web',
-  'shell.hostEditor.aliasHint':
-    '표시와 검색에만 사용되며 연결에는 사용되지 않습니다. 이름이 같은 호스트를 구분할 때 유용합니다.',
   'shell.hostEditor.namePlaceholder': '예: Production Web 01',
   'shell.hostEditor.iconHint': '아이콘을 지정하지 않으면 첫 연결에 성공한 후 원격 시스템에 따라 자동으로 선택됩니다.',
   'shell.hostEditor.colorTag': '색상 태그',

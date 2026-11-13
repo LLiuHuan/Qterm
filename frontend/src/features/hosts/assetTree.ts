@@ -33,15 +33,7 @@ export function buildAssetTree(hosts: HostRecord[], groups: GroupRecord[], query
     .filter(
       (host) =>
         !normalizedQuery ||
-        [
-          host.name,
-          host.alias ?? '',
-          host.customId ?? '',
-          host.address,
-          host.username,
-          host.group,
-          ...(host.tags ?? []),
-        ]
+        [host.name, host.address, host.username, host.group, ...(host.tags ?? [])]
           .join(' ')
           .toLocaleLowerCase()
           .includes(normalizedQuery) ||

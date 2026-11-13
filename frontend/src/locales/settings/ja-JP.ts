@@ -41,7 +41,8 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.credentialPrompt.pattern': 'プロンプトの正規表現',
   'settings.credentialPrompt.patternPlaceholder': '例：password|パスワード',
   'settings.credentialPrompt.patternHint':
-    '現在入力待ちになっている行だけが対象で、その行はコロンで終わる必要があります。',
+    'JavaScript の正規表現に対応し、/.../ は不要です。コロンで終わる現在のプロンプト行だけを対象にします。sudo の例は任意のユーザー名に対応します。',
+  'settings.credentialPrompt.useSudoExample': 'sudo パスワードの例を使う',
   'settings.credentialPrompt.patternInvalid': '正規表現が無効です。括弧とエスケープを確認してください。',
   'settings.credentialPrompt.patternRequired': 'プロンプトの正規表現を入力してください。',
   'settings.credentialPrompt.enabled': '有効',

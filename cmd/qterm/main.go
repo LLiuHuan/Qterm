@@ -362,11 +362,10 @@ func (c *client) cmdHosts(args []string) error {
 		rows := make([][]string, 0, len(filtered))
 		for _, host := range filtered {
 			rows = append(rows, []string{
-				host.ID, host.CustomID, host.Name, host.Address, fmt.Sprint(host.Port), host.Protocol, host.Group, strings.Join(host.Tags, ","),
+				host.ID, host.Name, host.Address, fmt.Sprint(host.Port), host.Protocol, host.Group, strings.Join(host.Tags, ","),
 			})
 		}
-
-		writeTable(c.stdout, []string{"ID", "CUSTOM-ID", "NAME", "ADDRESS", "PORT", "PROTOCOL", "GROUP", "TAGS"}, rows)
+		writeTable(c.stdout, []string{"ID", "NAME", "ADDRESS", "PORT", "PROTOCOL", "GROUP", "TAGS"}, rows)
 	})
 	return nil
 }
@@ -378,7 +377,7 @@ func filterHosts(hosts []cliapi.HostView, query string) []cliapi.HostView {
 	}
 	filtered := make([]cliapi.HostView, 0, len(hosts))
 	for _, host := range hosts {
-		fields := []string{host.ID, host.CustomID, host.Name, host.Address, host.Group}
+		fields := []string{host.ID, host.Name, host.Address, host.Group}
 		fields = append(fields, host.Tags...)
 		for _, field := range fields {
 			if strings.Contains(strings.ToLower(field), keyword) {

@@ -13,10 +13,6 @@ export function hostToDraft(host: HostRecord): HostEditorDraft {
 
     color: host.color || '',
     name: host.name,
-
-    alias: host.alias || '',
-
-    customId: host.customId || '',
     protocol: host.protocol || 'ssh',
     address: host.address,
     port: host.port,
