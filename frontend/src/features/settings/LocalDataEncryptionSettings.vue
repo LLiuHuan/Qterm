@@ -62,6 +62,16 @@ const isCustom = computed(() => props.status?.encryptionMode === 'custom')
 const isUnlocked = computed(() => props.status?.state === 'unlocked')
 const isCustomLocked = computed(() => isCustom.value && !isUnlocked.value)
 const isResettable = computed(() => ['locked', 'recoveryRequired', 'error'].includes(props.status?.state ?? ''))
+
+const canChangeKey = computed(() => {
+  if (isCustom.value && !currentKey.value.trim()) return false
+  return Boolean(newKey.value && confirmation.value)
+})
+const canExportRecovery = computed(
+  () => Boolean(exportPath.value.trim()) && Boolean(exportPackagePassword.value) && Boolean(exportConfirmation.value),
+)
+const canImportRecovery = computed(() => Boolean(importPath.value.trim()) && Boolean(importPackagePassword.value))
+
 const modeTitle = computed(() => t(isCustom.value ? 'security.core.customMode' : 'security.core.systemMode'))
 const modeDescription = computed(() =>
   t(isCustom.value ? 'security.core.customModeDescription' : 'security.core.systemModeDescription'),
@@ -343,18 +353,26 @@ function submitResetVault(): void {
 
         <form id="local-encryption-key-form" class="dialog-body" @submit.prevent="submit">
           <div v-if="isCustom" class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="current-encryption-key">{{ t('security.core.currentEncryptionKey') }}</Label>
+            <Label for="current-encryption-key"
+              >{{ t('security.core.currentEncryptionKey') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <QtermSecretInput
               id="current-encryption-key"
+              :required="true"
               v-model="currentKey"
               autocomplete="current-password"
               autofocus
             />
           </div>
           <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="new-encryption-key">{{ t('security.core.newEncryptionKey') }}</Label>
+            <Label for="new-encryption-key"
+              >{{ t('security.core.newEncryptionKey') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <QtermSecretInput
               id="new-encryption-key"
+              :required="true"
               v-model="newKey"
               autocomplete="new-password"
               :autofocus="!isCustom"
@@ -362,9 +380,13 @@ function submitResetVault(): void {
             />
           </div>
           <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="encryption-key-confirmation">{{ t('security.core.confirmEncryptionKey') }}</Label>
+            <Label for="encryption-key-confirmation"
+              >{{ t('security.core.confirmEncryptionKey') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <QtermSecretInput
               id="encryption-key-confirmation"
+              :required="true"
               v-model="confirmation"
               autocomplete="new-password"
               :placeholder="t('security.core.confirmEncryptionKey')"
@@ -379,7 +401,7 @@ function submitResetVault(): void {
             <QtermButton variant="outline" type="button" :disabled="props.working" @click="closeDialog">
               {{ t('security.core.cancel') }}
             </QtermButton>
-            <QtermButton type="submit" form="local-encryption-key-form" :disabled="props.working">
+            <QtermButton type="submit" form="local-encryption-key-form" :disabled="props.working || !canChangeKey">
               {{ props.working ? t('security.core.saving') : t('security.core.save') }}
             </QtermButton>
           </div>
@@ -403,10 +425,15 @@ function submitResetVault(): void {
 
         <form id="local-encryption-export-form" class="dialog-body" @submit.prevent="submitExportRecovery">
           <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="local-encryption-export-path">{{ t('security.core.savePath') }}</Label>
+            <Label for="local-encryption-export-path"
+              >{{ t('security.core.savePath') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <div class="flex items-center gap-2">
               <QtermInput
                 id="local-encryption-export-path"
+                required
+                aria-required="true"
                 v-model="exportPath"
                 class="min-w-0 flex-1"
                 autocomplete="off"
@@ -426,18 +453,26 @@ function submitResetVault(): void {
             </div>
           </div>
           <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="local-encryption-export-password">{{ t('security.core.packagePassword') }}</Label>
+            <Label for="local-encryption-export-password"
+              >{{ t('security.core.packagePassword') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <QtermSecretInput
               id="local-encryption-export-password"
+              :required="true"
               v-model="exportPackagePassword"
               autocomplete="new-password"
               :placeholder="t('security.core.packagePasswordPlaceholder')"
             />
           </div>
           <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="local-encryption-export-confirmation">{{ t('security.core.packagePasswordConfirm') }}</Label>
+            <Label for="local-encryption-export-confirmation"
+              >{{ t('security.core.packagePasswordConfirm') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <QtermSecretInput
               id="local-encryption-export-confirmation"
+              :required="true"
               v-model="exportConfirmation"
               autocomplete="new-password"
               :placeholder="t('security.core.packagePasswordConfirmPlaceholder')"
@@ -451,7 +486,11 @@ function submitResetVault(): void {
             <QtermButton variant="outline" type="button" :disabled="props.working" @click="closeExportDialog">
               {{ t('security.core.cancel') }}
             </QtermButton>
-            <QtermButton type="submit" form="local-encryption-export-form" :disabled="props.working">
+            <QtermButton
+              type="submit"
+              form="local-encryption-export-form"
+              :disabled="props.working || !canExportRecovery"
+            >
               {{ props.working ? t('security.core.exporting') : t('security.core.exportRecovery') }}
             </QtermButton>
           </div>
@@ -475,10 +514,15 @@ function submitResetVault(): void {
 
         <form id="local-encryption-import-form" class="dialog-body" @submit.prevent="submitImportRecovery">
           <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="local-encryption-import-path">{{ t('security.core.recoveryPath') }}</Label>
+            <Label for="local-encryption-import-path"
+              >{{ t('security.core.recoveryPath') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <div class="flex items-center gap-2">
               <QtermInput
                 id="local-encryption-import-path"
+                required
+                aria-required="true"
                 v-model="importPath"
                 class="min-w-0 flex-1"
                 autocomplete="off"
@@ -498,9 +542,13 @@ function submitResetVault(): void {
             </div>
           </div>
           <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
-            <Label for="local-encryption-import-password">{{ t('security.core.packagePassword') }}</Label>
+            <Label for="local-encryption-import-password"
+              >{{ t('security.core.packagePassword') }}
+              <span class="required-mark text-qt-danger" aria-hidden="true">*</span></Label
+            >
             <QtermSecretInput
               id="local-encryption-import-password"
+              :required="true"
               v-model="importPackagePassword"
               autocomplete="current-password"
               :placeholder="t('security.core.packagePasswordExportPlaceholder')"
@@ -515,7 +563,11 @@ function submitResetVault(): void {
             <QtermButton variant="outline" type="button" :disabled="props.working" @click="closeImportDialog">
               {{ t('security.core.cancel') }}
             </QtermButton>
-            <QtermButton type="submit" form="local-encryption-import-form" :disabled="props.working">
+            <QtermButton
+              type="submit"
+              form="local-encryption-import-form"
+              :disabled="props.working || !canImportRecovery"
+            >
               {{ props.working ? t('security.core.importing') : t('security.core.importAndUnlock') }}
             </QtermButton>
           </div>

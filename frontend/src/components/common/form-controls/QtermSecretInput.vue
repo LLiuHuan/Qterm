@@ -19,6 +19,8 @@ const props = withDefaults(
     placeholder?: string
     disabled?: boolean
 
+    required?: boolean
+
     ariaLabel?: string
 
     autocomplete?: string
@@ -40,6 +42,7 @@ const props = withDefaults(
     name: undefined,
     placeholder: undefined,
     disabled: false,
+    required: false,
     ariaLabel: undefined,
     autocomplete: 'off',
     autofocus: false,
@@ -76,6 +79,8 @@ function toggleReveal(): void {
       :type="revealed ? 'text' : 'password'"
       :placeholder="props.placeholder"
       :disabled="props.disabled"
+      :required="props.required || undefined"
+      :aria-required="props.required ? 'true' : undefined"
       :aria-label="inputLabel"
       :aria-invalid="props.invalid ? 'true' : undefined"
       :class="props.inputClass"
