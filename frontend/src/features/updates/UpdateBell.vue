@@ -65,7 +65,7 @@ async function installNow(): Promise<void> {
       >
         <QtermDialogHeader :title="t('about.update.bell.title', { version })" @close="dismiss" />
 
-        <div class="mt-3 flex min-h-0 flex-col gap-1.5" data-update-notes-block>
+        <div class="dialog-body" data-update-notes-block>
           <span class="text-xs text-qt-muted">{{ t('about.update.releaseNotes') }}</span>
           <div class="max-h-[46vh] overflow-auto rounded-md border-d p-3 text-xs text-qt-muted" data-update-notes>
             <AiMessageText v-if="notes" :text="notes" />
