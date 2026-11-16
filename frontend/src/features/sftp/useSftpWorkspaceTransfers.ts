@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue'
-import type { ExternalToast } from 'vue-sonner'
+import type { ToastOptions } from '../../services/toast'
 import { claimSession, claimTransfer } from '../../services/transferOwnership'
 import { sftpErrorMessage, type SFTPTransferRecord, type SftpGateway } from '../../services/sftp'
 import type { SftpBrowserEntry } from './SftpBrowserPane.vue'
@@ -8,9 +8,9 @@ import type { SftpWorkspacePaneState } from './useSftpWorkspacePane'
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
 type WorkspaceToast = {
-  error: (message: string, options?: ExternalToast) => unknown
-  success: (message: string, options?: ExternalToast) => unknown
-  info: (message: string, options?: ExternalToast) => unknown
+  error: (message: string, options?: ToastOptions) => unknown
+  success: (message: string, options?: ToastOptions) => unknown
+  info: (message: string, options?: ToastOptions) => unknown
 }
 
 export interface UseSftpWorkspaceTransfersOptions {

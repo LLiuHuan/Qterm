@@ -4,6 +4,7 @@ import { ArrowRightLeft, Copy, Folder, Link, Pencil, Trash2 } from '@lucide/vue'
 import AssetContextMenu from '../common/overlay-controls/AssetContextMenu.vue'
 import HostIcon from '../common/icon/HostIcon.vue'
 import { tagColorStyle } from '../../lib/colorTag'
+import { hostAddressLine } from '../../features/hosts/hostSummary'
 import type { HostRecord } from '@/services/hosts.ts'
 import { computed } from 'vue'
 import { useI18n } from '@/locales'
@@ -58,11 +59,7 @@ function handleAction(id: string): void {
   else if (id === 'copy') emit('duplicate', props.host)
 }
 
-const addressLine = computed(() => {
-  const base = `${props.host.address}:${props.host.port}`
-  const tags = (props.host.tags ?? []).filter((tag) => tag.trim() !== '')
-  return tags.length > 0 ? `${base} · ${tags.join('、')}` : base
-})
+const addressLine = computed(() => hostAddressLine(props.host))
 
 const hostTitle = computed(() => {
   const connection = `${props.host.username}@${props.host.address}:${props.host.port}`

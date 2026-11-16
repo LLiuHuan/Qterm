@@ -18,6 +18,10 @@ const props = defineProps<{
   formatValue: (value: number) => string
 
   caption?: string
+
+  compact?: boolean
+
+  maximum?: number
 }>()
 
 const VIEWBOX_WIDTH = 300
@@ -27,10 +31,12 @@ const CHART_RIGHT = VIEWBOX_WIDTH - 4
 const CHART_TOP = 6
 const CHART_BOTTOM = VIEWBOX_HEIGHT - 6
 
-const maxValue = computed(() => {
-  const values = props.series.flatMap((item) => item.values.map((value) => Math.max(0, value)))
-  return Math.max(1, ...values)
+const peakValue = computed(() => {
+  const values = props.series.flatMap((item) => item.values.filter((value) => Number.isFinite(value) && value >= 0))
+  return Math.max(0, ...values)
 })
+
+const maxValue = computed(() => Math.max(props.maximum ?? 1, 1, peakValue.value))
 
 const pointCount = computed(() => Math.max(...props.series.map((item) => item.values.length), 0))
 
@@ -49,11 +55,38 @@ function toPolyline(values: number[]): string {
     .join(' ')
 }
 
-const peakText = computed(() => props.peakLabel.replace('{value}', props.formatValue(maxValue.value)))
+const peakText = computed(() => props.peakLabel.replace('{value}', props.formatValue(peakValue.value)))
 </script>
 
 <template>
-  <div class="grid gap-1">
+  <span
+    v-if="compact"
+    class="inline-flex h-3.5 w-8 shrink-0 items-center justify-center"
+    :title="!hasChart ? emptyText : undefined"
+  >
+    <svg
+      v-if="hasChart"
+      class="h-full w-full"
+      :viewBox="`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`"
+      preserveAspectRatio="none"
+      role="img"
+      :aria-label="series.map((item) => item.label).join(' / ')"
+    >
+      <polyline
+        v-for="item in series"
+        :key="item.label"
+        :points="toPolyline(item.values)"
+        fill="none"
+        :stroke="item.color"
+        stroke-width="1.5"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        vector-effect="non-scaling-stroke"
+      />
+    </svg>
+    <span v-else class="text-xs text-qt-muted" :aria-label="emptyText">—</span>
+  </span>
+  <div v-else class="grid gap-1">
     <div class="flex items-center justify-between gap-2 text-[0.625rem] text-qt-muted">
       <div class="flex items-center gap-2">
         <span v-for="item in series" :key="item.label" class="inline-flex items-center gap-1">

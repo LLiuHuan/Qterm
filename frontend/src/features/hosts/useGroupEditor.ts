@@ -1,5 +1,5 @@
 import { onScopeDispose, ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { hostErrorMessage, type GroupRecord, type HostGateway } from '@/services/hosts.ts'
 import { useI18n } from '@/locales'
 

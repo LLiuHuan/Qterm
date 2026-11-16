@@ -227,6 +227,8 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.portForwards.dialog.deleteHint':
     'S’il est en cours d’exécution, le transfert est d’abord arrêté, puis la configuration supprimée.',
   'settings.portForwards.group.renameTitle': 'Renommer le groupe',
+  'settings.portForwards.toast.removed': 'Redirection de port supprimée',
+  'settings.portForwards.toast.groupDissolved': 'Groupe dissous',
   'settings.portForwards.group.name': 'Nom du groupe',
   'settings.portForwards.group.namePlaceholder': 'Par exemple : bases de données',
   'settings.portForwards.group.nameRequired': 'Le nom du groupe est obligatoire',
@@ -253,6 +255,8 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.snippets.error.delete': 'Échec de la suppression. Réessayez.',
   'settings.snippets.toast.copied': 'Contenu de la commande copié',
   'settings.snippets.toast.copyFailed': 'Échec de la copie. Copiez-le manuellement.',
+  'settings.snippets.toast.removed': 'Extrait supprimé',
+  'settings.snippets.toast.groupRemoved': 'Groupe supprimé',
   'settings.snippets.search.placeholder': 'Rechercher un extrait de commande par nom ou contenu…',
   'settings.snippets.search.aria': 'Rechercher un extrait de commande par nom ou contenu',
   'settings.snippets.search.clear': 'Effacer la recherche',
@@ -449,6 +453,7 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.knownHosts.copy': 'Copier l’empreinte',
   'settings.knownHosts.copied': 'Empreinte copiée',
   'settings.knownHosts.copyFailed': 'Échec de la copie de l’empreinte',
+  'settings.knownHosts.removed': 'Empreinte supprimée',
   'settings.knownHosts.noFingerprint': 'Aucune empreinte (analyse échouée)',
   'settings.import.description':
     'Lit les hôtes depuis `~/.ssh/config` et permet de choisir ceux à importer. Les doublons sont ignorés par défaut ; identifiants et clés privées ne sont jamais importés.',
@@ -810,6 +815,13 @@ export const settingsCoreFr: Record<string, string> = {
   'appearance.core.hostColorStyle.background': 'Fond teinté',
   'appearance.core.hostColorStyle.backgroundHelp':
     'Teinte toute la ligne de l’hôte d’un léger voile de la couleur, avec un contour assorti au survol ou à la sélection.',
+  'appearance.core.toastEngine': 'Style des notifications',
+  'appearance.core.toastEngine.classic': 'Classique',
+  'appearance.core.toastEngine.classicHelp':
+    "Plusieurs notifications s'empilent en haut au centre et disparaissent d'elles-mêmes ; pratique pour lire plusieurs résultats à la fois.",
+  'appearance.core.toastEngine.morph': 'Morphose',
+  'appearance.core.toastEngine.morphHelp':
+    "Une seule notification reste à l'écran et se transforme sur place (ding) ; environ 45 Ko sont chargés à la demande.",
   'appearance.core.assetLibraryLayout': 'Disposition de la bibliothèque de ressources',
   'appearance.core.assetLibraryLayout.sidebar': 'Menu de la barre latérale',
   'appearance.core.assetLibraryLayout.sidebarHelp':
@@ -997,6 +1009,9 @@ export const settingsCoreFr: Record<string, string> = {
   'terminal.core.networkLatency': 'Afficher la latence du réseau',
   'terminal.core.networkLatencyHelp': 'Affiche la latence actuelle en haut à droite des terminaux SSH connectés.',
   'terminal.core.metrics': 'Afficher les métriques en bas du terminal',
+  'terminal.core.metricsChart': 'Utiliser des mini-courbes pour les indicateurs',
+  'terminal.core.metricsChartHelp':
+    'Affiche les taux en mini-courbes et conserve les capacités et débits en texte. Survolez pour voir les taux.',
   'terminal.core.metricsHelp':
     'Une fois activé, les terminaux SSH compatibles affichent en bas le CPU, la mémoire, la charge système, l’utilisation du répertoire racine et le débit réseau.',
   'terminal.core.translateSection': 'Traduction',

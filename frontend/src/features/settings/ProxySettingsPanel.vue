@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { Loader2, Network, Pencil, Plus, Trash2 } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { IconButton, QtermButton, QtermEmptyState } from '../../components/common'
 import { ScrollArea } from '../../components/common/control-primitives'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'

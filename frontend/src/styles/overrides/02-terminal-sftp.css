@@ -357,10 +357,6 @@
 .qterm-shell.has-page-background
   :is(
     .text-action:hover:not(:disabled),
-    .asset-empty button:hover,
-    .asset-action:hover,
-    .asset-group-title:hover,
-    .host-row:hover,
     .sftp-breadcrumbs button:hover:not(:disabled),
     .snippet-panel-row:hover,
     .snippet-row:hover,

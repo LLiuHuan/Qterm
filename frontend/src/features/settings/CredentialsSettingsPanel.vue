@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Label, ScrollArea } from '../../components/common/control-primitives'
 import { computed, ref, watch } from 'vue'
 import { FileKey, KeyRound, Loader2, LockKeyhole, Pencil, Search, Trash2, X } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import {
   credentialErrorMessage,

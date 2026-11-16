@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../services/toast'
 import { useI18n } from '../locales'
 import { hostErrorMessage, type HostRecord } from '../services/hosts'
 import { closeCurrentWindow, openSessionWindow } from '../services/sessionWindows'

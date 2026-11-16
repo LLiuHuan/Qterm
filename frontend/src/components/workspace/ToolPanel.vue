@@ -42,14 +42,13 @@ import type { SessionGateway } from '../../services/sessions'
 import type { SftpGateway } from '../../services/sftp'
 import type { DockerGateway } from '../../services/docker'
 import type { SessionTab, ToolPanel } from '../../types/qterm'
-import type { ResourceSnapshot } from '../../services/sessions'
 import type { CommandHistory } from '../../../bindings/changeme/internal/model/models'
 import { ScrollArea } from '../common/control-primitives'
 import { createSnippetGateway, type Snippet } from '../../services/snippets'
 import { sendTerminalInput } from '../../services/terminal'
 import { clearCommandHistory, deleteCommandHistory, listCommandHistory } from '../../services/command-history'
 import { writeClipboardText } from '../../services/clipboard'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../common/control-primitives'
 import {
   getTerminalTheme,
@@ -61,7 +60,9 @@ import {
 import { useI18n } from '@/locales'
 import SnippetIcon from '../../features/snippets/SnippetIcon.vue'
 import ResourceSparkline from './ResourceSparkline.vue'
-import { createResourceHistory, resourceHistoryFor } from '../../composables/useResourceHistory'
+import { resourceDisks, resourceNetworks } from '../../features/monitor/resourceSelection'
+import { createResourceHistory } from '../../composables/useResourceHistory'
+import { acquireResourceFeed, type ResourceFeedLease } from '../../features/monitor/resourceFeed'
 import { formatByteRate, formatPercent } from '../../lib/format'
 import { snippetColorStyle } from '../../features/snippets/appearance'
 import { useSnippetGroupPagination } from '../../features/snippets/useSnippetGroupPagination'
@@ -168,17 +169,18 @@ const emit = defineEmits<{
 
   'focus-terminal': []
 }>()
-const resource = ref<ResourceSnapshot | null>(null)
-const resourceError = ref('')
-const resourceLoading = ref(false)
 
-const resourceHistory = shallowRef(resourceHistoryFor(props.activeSession?.id ?? ''))
-watch(
-  () => props.activeSession?.id,
-  (id) => {
-    resourceHistory.value = id ? resourceHistoryFor(id) : createResourceHistory()
-  },
-)
+const resourceLease = shallowRef<ResourceFeedLease | null>(null)
+const emptyResourceHistory = createResourceHistory()
+const resource = computed(() => resourceLease.value?.snapshot.value ?? null)
+const resourceError = computed(() => {
+  const cause = resourceLease.value?.error.value
+  return cause ? errorMessage(cause, t('shell.toolPanel.resourceUnavailable')) : ''
+})
+const resourceLoading = computed(() => resourceLease.value?.loading.value ?? false)
+const resourceHistory = computed(() => resourceLease.value?.history ?? emptyResourceHistory)
+let resourceSessionId = ''
+let resourceGateway: SessionGateway | undefined
 const cpuTrend = computed(() => resourceHistory.value.points.value.map((point) => point.cpu))
 const networkRxTrend = computed(() => resourceHistory.value.points.value.map((point) => point.rx))
 const networkTxTrend = computed(() => resourceHistory.value.points.value.map((point) => point.tx))
@@ -275,20 +277,8 @@ const selectedTerminalTheme = computed(() => (props.dark === true ? props.termin
 const showCores = ref(false)
 const showNetworks = ref(false)
 const showDisks = ref(false)
-const visibleNetworks = computed(() => {
-  const items = resource.value?.networks ?? []
-  if (showNetworks.value) return items
-  const primary = items.find((item) => item.name === 'eth0') ?? items[0]
-  return primary ? [primary] : []
-})
-const visibleDisks = computed(() => {
-  const items = resource.value?.disks ?? []
-  if (showDisks.value) return items
-  const xfs = items.filter((item) => item.fileSystemType.toLowerCase() === 'xfs')
-  if (xfs.length > 0) return xfs
-
-  return items.filter((item) => item.mount.startsWith('/dev/'))
-})
+const visibleNetworks = computed(() => resourceNetworks(resource.value?.networks, showNetworks.value))
+const visibleDisks = computed(() => resourceDisks(resource.value?.disks, showDisks.value))
 function tone(value: number, kind: 'cpu' | 'memory' | 'disk'): string {
   const limits = kind === 'cpu' ? [60, 80, 90] : [70, 85, 95]
   return value < limits[0] ? 'is-green' : value < limits[1] ? 'is-yellow' : value < limits[2] ? 'is-orange' : 'is-red'
@@ -296,38 +286,19 @@ function tone(value: number, kind: 'cpu' | 'memory' | 'disk'): string {
 function boundedPercent(value: number): number {
   return Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0
 }
-let timer: number | undefined
-let pollingVersion = 0
-async function pollResource(version: number, sessionId: string) {
-  resourceLoading.value = resource.value === null
-  try {
-    const next = await props.sessionGateway.readResources!(sessionId)
-    if (version !== pollingVersion) return
-    resource.value = next
-    resourceError.value = ''
-    resourceHistory.value.push(next)
-  } catch (error) {
-    if (version !== pollingVersion) return
-    resource.value = null
-    resourceError.value = errorMessage(error, t('shell.toolPanel.resourceUnavailable'))
-  } finally {
-    if (version === pollingVersion) {
-      resourceLoading.value = false
-      timer = window.setTimeout(() => void pollResource(version, sessionId), 5000)
-    }
-  }
-}
 function restartResourcePolling() {
-  pollingVersion += 1
-  if (timer) window.clearTimeout(timer)
-  timer = undefined
-  resource.value = null
-  resourceError.value = ''
-  resourceLoading.value = false
   const session = props.activeSession
-
-  if (session?.kind !== 'local' && session?.state === 'connected' && props.sessionGateway.readResources) {
-    void pollResource(pollingVersion, session.id)
+  const available = session?.kind !== 'local' && session?.state === 'connected' && props.sessionGateway.readResources
+  if (available && resourceLease.value && resourceSessionId === session.id && resourceGateway === props.sessionGateway)
+    return
+  resourceLease.value?.release(!!session && resourceSessionId === session.id && session.state !== 'connected')
+  resourceLease.value = null
+  resourceSessionId = ''
+  resourceGateway = undefined
+  if (available) {
+    resourceSessionId = session.id
+    resourceGateway = props.sessionGateway
+    resourceLease.value = acquireResourceFeed(props.sessionGateway, session.id)
   }
 }
 
@@ -467,6 +438,7 @@ async function removeCommand(id: string): Promise<void> {
   commandBusy.value = true
   try {
     await deleteCommandHistory(id)
+    toast.success(t('shell.toolPanel.commandRemoved'))
     await loadCommands()
   } catch (cause) {
     commandError.value = errorMessage(cause, t('shell.toolPanel.deleteHistoryFailed'))
@@ -481,6 +453,7 @@ async function clearCommands(): Promise<void> {
   try {
     await clearCommandHistory(hostID)
     clearCommandsOpen.value = false
+    toast.success(t('shell.toolPanel.commandsCleared'))
     await loadCommands()
   } catch (cause) {
     commandError.value = errorMessage(cause, t('shell.toolPanel.clearHistoryFailed'))
@@ -493,9 +466,13 @@ function commandTime(value: string): string {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString()
 }
 
-watch(() => [props.activeSession?.id, props.activeSession?.state, props.activeSession?.kind], restartResourcePolling, {
-  immediate: true,
-})
+watch(
+  () => [props.sessionGateway, props.activeSession?.id, props.activeSession?.state, props.activeSession?.kind],
+  restartResourcePolling,
+  {
+    immediate: true,
+  },
+)
 watch(() => props.tool, loadSnippets, { immediate: true })
 watch(snippetQuery, (query) => {
   resetToolSnippetGroupPagination()
@@ -519,8 +496,7 @@ function handleCommandHistoryChanged(event: Event): void {
   void loadCommands()
 }
 onBeforeUnmount(() => {
-  pollingVersion += 1
-  if (timer) window.clearTimeout(timer)
+  resourceLease.value?.release()
   if (snippetsLoadingTimer !== undefined) window.clearTimeout(snippetsLoadingTimer)
   window.removeEventListener('qterm:command-history-changed', handleCommandHistoryChanged)
   window.removeEventListener('qterm:assets-imported', handleAssetsImported)

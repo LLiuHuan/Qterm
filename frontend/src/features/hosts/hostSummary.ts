@@ -12,6 +12,12 @@ export function hostTags(host: HostRecord): string[] {
   return (host.tags ?? []).filter((tag) => tag.trim() !== '')
 }
 
+export function hostAddressLine(host: HostRecord): string {
+  const base = `${host.address}:${host.port}`
+  const tags = hostTags(host)
+  return tags.length > 0 ? `${base} · ${tags.join('、')}` : base
+}
+
 const HOST_CARD_TAG_LIMIT = 3
 
 export function visibleHostTags(host: HostRecord): string[] {

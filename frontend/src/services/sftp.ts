@@ -76,6 +76,8 @@ export interface SFTPTransferRecord {
   updatedAt: string
 
   stage?: string
+
+  error?: string
 }
 
 export interface SFTPTransferSelectionResult {

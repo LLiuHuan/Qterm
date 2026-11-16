@@ -2,6 +2,7 @@ import { onScopeDispose, ref } from 'vue'
 import { hostErrorMessage, type HostGateway, type HostRecord } from '@/services/hosts.ts'
 import type { PendingDelete } from '../../types/qterm'
 import { useI18n } from '@/locales'
+import { toast } from '../../services/toast'
 
 interface AssetDeletionOptions {
   hostGateway: Pick<HostGateway, 'remove' | 'removeGroup'>
@@ -49,6 +50,12 @@ export function useAssetDeletion({ hostGateway, closeHostSessions, onDeleted }: 
       }
       if (disposed) return
       pendingDelete.value = null
+
+      toast.success(
+        target.kind === 'host'
+          ? t('shell.success.hostDeleted', { name: target.name })
+          : t('shell.success.groupDeleted', { name: target.name }),
+      )
       await onDeleted()
     } catch (error) {
       if (!disposed) deleteError.value = hostErrorMessage(error, t('shell.error.deleteAsset'))

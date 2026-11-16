@@ -6,24 +6,45 @@ import (
 	"context"
 	"os"
 	"os/exec"
-	"strconv"
+	"path/filepath"
 )
 
 func (s *Service) launchReplacer(_ context.Context, stagedPath, executable string) error {
-	script, err := writeHelperScript(s.helperScriptDir(), "qterm-update.ps1", windowsReplacerScript())
-	if err != nil {
-		return installFailed("helper")
+
+	if err := verifyTargetWritable(executable); err != nil {
+		return err
 	}
-	command := exec.Command(
-		"cmd", "/c", "start", "", "/b",
-		"powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-		"-File", script,
-		"-ProcessId", strconv.Itoa(os.Getpid()),
-		"-Target", executable,
-		"-Archive", stagedPath,
-	)
+	if err := applyStagedExecutable(stagedPath, executable); err != nil {
+		return err
+	}
+	relaunchExecutable(executable)
+
+	if dir := filepath.Dir(stagedPath); dir != "" {
+		_ = os.RemoveAll(dir)
+	}
+	return nil
+}
+
+func relaunchExecutable(executable string) {
+	command := exec.Command("explorer.exe", executable)
 	if err := command.Start(); err != nil {
-		return installFailed("spawn")
+		return
 	}
-	return command.Process.Release()
+	_ = command.Process.Release()
+}
+
+func verifyTargetWritable(executable string) error {
+	probe, err := os.CreateTemp(filepath.Dir(executable), ".qterm-write-probe-*")
+	if err != nil {
+		return installFailed("target-readonly")
+	}
+	name := probe.Name()
+	_ = probe.Close()
+	_ = os.Remove(name)
+	return nil
+}
+
+func cleanupStaleUpdateFiles(executable string) {
+	_ = os.Remove(executable + ".old")
+	_ = os.Remove(executable + ".new")
 }

@@ -28,7 +28,7 @@ import { createHostGateway, type GroupRecord, type HostRecord } from '@/services
 import { createSnippetGateway, type Snippet } from '@/services/snippets.ts'
 import DeleteConfirmDialog from '../../components/dialogs/DeleteConfirmDialog.vue'
 import { useI18n } from '@/locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { writeClipboardText } from '@/services/clipboard.ts'
 import HostIconPicker from '../../components/dialogs/HostIconPicker.vue'
 import SegmentedTabs from '../../components/common/layout/SegmentedTabs.vue'
@@ -372,9 +372,11 @@ async function confirmRemove(): Promise<void> {
   deleteSaving.value = true
   deleteError.value = ''
   try {
-    if (deleteGroupId.value) await snippetGateway.removeGroup(deleteGroupId.value)
+    const removingGroup = Boolean(deleteGroupId.value)
+    if (removingGroup) await snippetGateway.removeGroup(deleteGroupId.value)
     else await snippetGateway.remove(deleteTarget.value.id)
     deleteTarget.value = null
+    toast.success(t(removingGroup ? 'settings.snippets.toast.groupRemoved' : 'settings.snippets.toast.removed'))
     await load()
   } catch (cause) {
     deleteError.value = errorMessage(cause, t('settings.snippets.error.delete'))

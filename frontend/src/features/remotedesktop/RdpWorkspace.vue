@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import type { RdpOpenInput } from '../../../bindings/changeme/internal/model/models'
 import RdpCanvasPane from './RdpCanvasPane.vue'
 

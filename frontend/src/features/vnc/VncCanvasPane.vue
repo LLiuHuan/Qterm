@@ -146,7 +146,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { QtermButton, QtermInput, SessionOverlay } from '../../components/common'
 import { useI18n } from '@/locales'
 import { readClipboardText } from '../../services/clipboard'

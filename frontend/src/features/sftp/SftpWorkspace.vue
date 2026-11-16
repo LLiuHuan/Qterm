@@ -2,7 +2,7 @@
 import { FormField, QtermButton, QtermCheckbox, QtermFormMessage, QtermInput } from '../../components/common'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import DeleteConfirmDialog from '../../components/dialogs/DeleteConfirmDialog.vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import {
   CheckCircle2,
   Eye,

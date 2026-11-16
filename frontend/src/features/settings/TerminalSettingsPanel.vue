@@ -35,7 +35,7 @@ import {
 import { SegmentedTabs } from '../../components/common'
 import { QtermSettingsRow, QtermSettingsSectionHeader } from '../../components/common'
 import { hasNativeFileDialogs, pickLocalShellDirectory, pickLocalShellExecutable } from '@/services/file-dialogs.ts'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import TranslationCredentials from './TranslationCredentials.vue'
 import type {
   TerminalCursorStyle,
@@ -62,6 +62,7 @@ const props = withDefaults(
     copyFeedback?: boolean
     showLatency?: boolean
     showMetrics?: boolean
+    metricsChart?: boolean
     gutterMode?: TerminalGutterMode
     translateEnabled?: boolean
     translateTarget?: string
@@ -111,6 +112,7 @@ const props = withDefaults(
     copyFeedback: true,
     showLatency: true,
     showMetrics: false,
+    metricsChart: false,
     gutterMode: 'off',
     translateEnabled: true,
     translateTarget: 'zh-CN',
@@ -155,6 +157,7 @@ const emit = defineEmits<{
   'update:copyFeedback': [value: boolean]
   'update:showLatency': [value: boolean]
   'update:showMetrics': [value: boolean]
+  'update:metricsChart': [value: boolean]
   'update:gutterMode': [value: TerminalGutterMode]
   'update:translateEnabled': [value: boolean]
   'update:translateTarget': [value: string]
@@ -634,6 +637,18 @@ const ICON_FILE = '\u{F15B}'
           :model-value="props.showMetrics"
           :aria-label="t('terminal.core.metrics')"
           @update:model-value="emit('update:showMetrics', $event)"
+        />
+      </QtermSettingsRow>
+      <QtermSettingsRow
+        class="settings-switch-row c-p"
+        :label="t('terminal.core.metricsChart')"
+        :description="t('terminal.core.metricsChartHelp')"
+      >
+        <QtermSwitch
+          :model-value="props.metricsChart"
+          :disabled="!props.showMetrics"
+          :aria-label="t('terminal.core.metricsChart')"
+          @update:model-value="emit('update:metricsChart', $event)"
         />
       </QtermSettingsRow>
 

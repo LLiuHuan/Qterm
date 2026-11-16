@@ -13,6 +13,8 @@ export interface TransferProgressItem {
   label: string
 
   stage?: string
+
+  detail?: string
   completed?: boolean
   action?: 'cancel' | 'retry' | 'dismiss' | 'pause' | 'resume'
 
@@ -73,6 +75,7 @@ function itemLabel(item: TransferProgressItem): string {
         <span class="transfer-main text-sm">
           <strong>{{ item.name }}</strong>
           <small class="text-xs">{{ itemLabel(item) }} · {{ item.progress }}%</small>
+          <small v-if="item.detail" class="truncate" :title="item.detail">{{ item.detail }}</small>
           <span
             class="transfer-track"
             role="progressbar"

@@ -8,7 +8,7 @@ import { QtermButton } from '../common'
 import { ScrollArea } from '../common/control-primitives'
 import DeleteConfirmDialog from './DeleteConfirmDialog.vue'
 import { useI18n } from '@/locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 
 const props = defineProps<{
   modelValue?: string

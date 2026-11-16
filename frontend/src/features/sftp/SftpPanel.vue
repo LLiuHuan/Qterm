@@ -9,7 +9,7 @@ import {
 } from '../../components/common'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Undo2, LocateFixed, Eye, EyeOff, FolderPlus, FolderUp, Trash2, Upload } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import {
   QtermDialog,
   QtermDialogContent,

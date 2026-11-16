@@ -5,6 +5,7 @@ import { QtermEmptyState, QtermSearchField } from '@/components/common'
 import { ScrollArea } from '@/components/common/control-primitives'
 import QtermLoadMore from '@/components/common/layout/QtermLoadMore.vue'
 import { useI18n } from '@/locales'
+import { toast } from '../../services/toast'
 import ProcessDetailDialog from './ProcessDetailDialog.vue'
 import { createMonitorGateway, type ProcessAction, type ProcessInfo } from '@/services/monitor'
 import { errorMessage } from '@/services/errors'
@@ -150,6 +151,8 @@ async function runProcessAction(action: ProcessAction): Promise<void> {
   try {
     await gateway.processAction(props.sessionId, process.pid, process.startTime, action)
     detailProcess.value = null
+
+    toast.success(t(action === 'kill' ? 'shell.monitor.killed' : 'shell.monitor.terminated', { pid: process.pid }))
     await refresh()
   } catch (cause) {
     actionError.value = errorMessage(cause, t('shell.monitor.actionFailed'))

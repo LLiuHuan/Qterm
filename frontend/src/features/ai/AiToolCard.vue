@@ -7,7 +7,7 @@ import { IconButton } from '../../components/common'
 import { useI18n } from '../../locales'
 import { writeClipboardText } from '../../services/clipboard'
 import { StepKind, type AgentStep } from '../../services/aiAgent'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 
 const props = defineProps<{
   step: AgentStep

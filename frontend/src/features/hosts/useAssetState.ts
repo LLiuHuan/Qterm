@@ -1,5 +1,5 @@
 import { computed, onScopeDispose, ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { hostErrorMessage, type GroupRecord, type HostGateway, type HostRecord } from '@/services/hosts.ts'
 import { buildAssetTree, type AssetSortMode } from './assetTree'
 import { useI18n } from '@/locales'
@@ -22,10 +22,11 @@ export function useAssetState(hostGateway: HostGateway) {
   const groupedHosts = computed(() => assetTree.value.groupedHosts)
   const rootEntries = computed(() => assetTree.value.rootEntries)
 
-  async function loadHosts(): Promise<void> {
+  async function loadHosts(options: { silent?: boolean } = {}): Promise<void> {
     if (disposed) return
     const version = ++loadVersion
-    loadingHosts.value = true
+    const silent = options.silent === true
+    if (!silent) loadingHosts.value = true
     hostLoadError.value = ''
     try {
       const [hostRecords, groupRecords] = await Promise.all([hostGateway.list(), hostGateway.listGroups()])
@@ -38,7 +39,7 @@ export function useAssetState(hostGateway: HostGateway) {
       if (!disposed && version === loadVersion)
         hostLoadError.value = hostErrorMessage(error, t('shell.error.loadHosts'))
     } finally {
-      if (!disposed && version === loadVersion) loadingHosts.value = false
+      if (!silent && !disposed && version === loadVersion) loadingHosts.value = false
     }
   }
 
@@ -79,13 +80,12 @@ export function useAssetState(hostGateway: HostGateway) {
     targetId: string,
     position: 'before' | 'after' | 'inside',
   ): Promise<void> {
-    sortMode.value = 'custom'
     try {
       await hostGateway.reorderHost(id, groupId, targetId, position)
     } catch (error) {
       if (!disposed) toast.error(hostErrorMessage(error, t('shell.app.moveHostFailed')))
     } finally {
-      await loadHosts()
+      await loadHosts({ silent: true })
     }
   }
 
@@ -95,13 +95,12 @@ export function useAssetState(hostGateway: HostGateway) {
     targetId: string,
     position: 'before' | 'after' | 'inside',
   ): Promise<void> {
-    sortMode.value = 'custom'
     try {
       await hostGateway.reorderGroup(id, parentId, targetId, position)
     } catch (error) {
       if (!disposed) toast.error(hostErrorMessage(error, t('shell.app.moveGroupFailed')))
     } finally {
-      await loadHosts()
+      await loadHosts({ silent: true })
     }
   }
 

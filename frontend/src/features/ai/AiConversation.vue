@@ -39,7 +39,7 @@ import {
   TraceTitle,
 } from '../../components/common/ai'
 import { useI18n } from '../../locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { Events } from '@wailsio/runtime'
 import {
   aiErrorMessage,

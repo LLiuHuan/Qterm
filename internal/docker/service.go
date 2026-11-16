@@ -432,18 +432,21 @@ func (s *Service) RemoveNetwork(ctx context.Context, networkID string) error {
 	return nil
 }
 
-func (s *Service) PruneNetworks(ctx context.Context) error {
-	if _, err := s.execute(ctx, dockerPruneNetworksCommand()); err != nil {
-		return MapError(err)
+func (s *Service) PruneNetworks(ctx context.Context) (int, error) {
+	output, err := s.execute(ctx, dockerPruneNetworksCommand())
+	if err != nil {
+		return 0, MapError(err)
 	}
-	return nil
+
+	return pruneEntryCount(output, "Deleted Networks", false), nil
 }
 
-func (s *Service) PruneVolumes(ctx context.Context) error {
-	if _, err := s.execute(ctx, dockerPruneVolumesCommand()); err != nil {
-		return MapError(err)
+func (s *Service) PruneVolumes(ctx context.Context) (int, error) {
+	output, err := s.execute(ctx, dockerPruneVolumesCommand())
+	if err != nil {
+		return 0, MapError(err)
 	}
-	return nil
+	return pruneEntryCount(output, "Deleted Volumes", false), nil
 }
 
 func markNetworkState(networks []model.DockerNetwork, inUse map[string]struct{}) {
@@ -463,11 +466,35 @@ func isBuiltInNetwork(name string) bool {
 	}
 }
 
-func (s *Service) PruneImages(ctx context.Context, all bool) error {
-	if _, err := s.execute(ctx, dockerPruneImagesCommand(all)); err != nil {
-		return MapError(err)
+func (s *Service) PruneImages(ctx context.Context, all bool) (int, error) {
+	output, err := s.execute(ctx, dockerPruneImagesCommand(all))
+	if err != nil {
+		return 0, MapError(err)
 	}
-	return nil
+
+	return pruneEntryCount(output, "Deleted Images", true), nil
+}
+
+func pruneEntryCount(output []byte, section string, onlyDeleted bool) int {
+	count := 0
+	inSection := false
+	for _, raw := range strings.Split(string(output), "\n") {
+		line := strings.TrimSpace(strings.TrimRight(raw, "\r"))
+		if !inSection {
+			if line == section+":" {
+				inSection = true
+			}
+			continue
+		}
+		if line == "" || strings.HasPrefix(line, "Total reclaimed space") {
+			break
+		}
+		if onlyDeleted && !strings.HasPrefix(line, "deleted:") {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func (s *Service) execute(ctx context.Context, args []string) ([]byte, error) {

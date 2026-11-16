@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
 import { FileArchive, FolderOpen } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { QtermButton, QtermFormMessage, QtermInput } from '../../components/common'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { Label } from '../../components/common/control-primitives'

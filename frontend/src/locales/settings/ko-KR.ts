@@ -219,6 +219,8 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.portForwards.dialog.deleteConfirm': "'{name}'을(를) 삭제할까요?",
   'settings.portForwards.dialog.deleteHint': '실행 중이라면 포워딩을 먼저 중지한 뒤 설정을 삭제합니다.',
   'settings.portForwards.group.renameTitle': '그룹 이름 변경',
+  'settings.portForwards.toast.removed': '포트 포워딩을 삭제했습니다',
+  'settings.portForwards.toast.groupDissolved': '그룹을 해제했습니다',
   'settings.portForwards.group.name': '그룹 이름',
   'settings.portForwards.group.namePlaceholder': '예: 데이터베이스',
   'settings.portForwards.group.nameRequired': '그룹 이름을 입력하세요.',
@@ -244,6 +246,8 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.snippets.error.delete': '삭제하지 못했습니다. 다시 시도하세요',
   'settings.snippets.toast.copied': '명령 내용을 복사했습니다',
   'settings.snippets.toast.copyFailed': '복사하지 못했습니다. 직접 복사하세요',
+  'settings.snippets.toast.removed': '스니펫을 삭제했습니다',
+  'settings.snippets.toast.groupRemoved': '그룹을 삭제했습니다',
   'settings.snippets.search.placeholder': '이름이나 내용으로 빠른 명령 검색…',
   'settings.snippets.search.aria': '이름이나 내용으로 빠른 명령 검색',
   'settings.snippets.search.clear': '검색 비우기',
@@ -431,6 +435,7 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.knownHosts.copy': '지문 복사',
   'settings.knownHosts.copied': '지문을 복사했습니다',
   'settings.knownHosts.copyFailed': '지문 복사에 실패했습니다',
+  'settings.knownHosts.removed': '지문 기록을 삭제했습니다',
   'settings.knownHosts.noFingerprint': '지문 없음(파싱 실패)',
   'settings.import.description':
     '`~/.ssh/config`에서 호스트를 읽어 가져올 항목을 선택합니다. 중복 항목은 기본적으로 건너뛰며 자격 증명과 개인 키는 가져오지 않습니다.',
@@ -774,6 +779,13 @@ export const settingsCoreKo: Record<string, string> = {
   'appearance.core.hostColorStyle.background': '배경색',
   'appearance.core.hostColorStyle.backgroundHelp':
     '호스트 행 전체에 아주 옅은 같은 색 배경을 깔고, 마우스를 올리거나 선택하면 같은 색 테두리를 추가합니다.',
+  'appearance.core.toastEngine': '알림 스타일',
+  'appearance.core.toastEngine.classic': '클래식',
+  'appearance.core.toastEngine.classicHelp':
+    '여러 알림이 상단 가운데에 쌓이고 시간이 지나면 자동으로 사라집니다. 여러 결과를 한 번에 확인할 때 좋습니다.',
+  'appearance.core.toastEngine.morph': '모프',
+  'appearance.core.toastEngine.morphHelp':
+    '알림을 한 번에 하나만 남기고 상태가 바뀌면 그 자리에서 형태가 바뀝니다(ding). 약 45KB는 필요할 때 불러옵니다.',
   'appearance.core.assetLibraryLayout': '자산 라이브러리 레이아웃',
   'appearance.core.assetLibraryLayout.sidebar': '사이드바 메뉴',
   'appearance.core.assetLibraryLayout.sidebarHelp':
@@ -954,6 +966,9 @@ export const settingsCoreKo: Record<string, string> = {
   'terminal.core.networkLatency': '네트워크 지연 시간 표시',
   'terminal.core.networkLatencyHelp': '연결된 SSH 터미널의 오른쪽 위에 현재 지연 시간을 표시합니다.',
   'terminal.core.metrics': '지표 모니터링 표시',
+  'terminal.core.metricsChart': '지표에 미니 곡선 사용',
+  'terminal.core.metricsChartHelp':
+    '사용률을 미니 곡선으로 표시하고 용량과 네트워크 속도는 텍스트로 유지합니다. 마우스를 올려 사용률을 확인하세요.',
   'terminal.core.metricsHelp':
     '켜면 지표 모니터링을 지원하는 SSH 터미널의 하단에 CPU, 메모리, 시스템 부하, 루트 사용률, 네트워크 속도를 표시합니다.',
   'terminal.core.translateSection': '번역',

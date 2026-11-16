@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/common/control-primitives'
 import QtermLoadMore from '@/components/common/layout/QtermLoadMore.vue'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '@/components/common/dialog'
 import { useI18n } from '@/locales'
+import { toast } from '../../services/toast'
 import type { HostRecord } from '@/services/hosts'
 import {
   PORT_FORWARD_STATUS_EVENT,
@@ -264,6 +265,8 @@ async function confirmDelete(): Promise<void> {
   try {
     await actions.remove(target)
     pendingDelete.value = null
+
+    toast.success(t('settings.portForwards.toast.removed'))
   } finally {
     deleting.value = false
   }
@@ -284,6 +287,7 @@ function confirmGroupDelete(): void {
     ),
   )
   pendingGroupDelete.value = null
+  toast.success(t('settings.portForwards.toast.groupDissolved'))
 }
 </script>
 

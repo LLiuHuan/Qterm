@@ -19,7 +19,7 @@ function sessionTabKind(kind?: string | null): SessionKind {
   return 'ssh'
 }
 import { finishSessionHistory, recordSessionStart, type SessionHistoryRecord } from '../services/history'
-import { toast } from 'vue-sonner'
+import { toast } from '../services/toast'
 import { useI18n } from '../locales'
 
 export const AUTO_RECONNECT_DELAY_MS = 3000

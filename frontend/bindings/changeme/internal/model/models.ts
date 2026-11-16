@@ -976,6 +976,8 @@ export interface SFTPTransfer {
   rateBytesPerSecond: number
 
   stage?: string
+
+  error?: string
 }
 
 export enum SFTPTransferDirection {

@@ -14,7 +14,6 @@ import {
   KeyRound,
   Route,
   Scaling,
-  Search,
   Sparkles,
   Unplug,
   Layers,
@@ -179,9 +178,6 @@ const tools = computed<Array<{ id: ToolPanel; label: string; icon: Component; di
         @click="emit('toggleTool', 'history')"
       >
         <History :size="17" aria-hidden="true" />
-      </IconButton>
-      <IconButton tooltip-side="left" :label="t('shell.toolRail.findDisabled')" disabled>
-        <Search :size="17" aria-hidden="true" />
       </IconButton>
     </template>
     <div class="flex-1"></div>

@@ -2,28 +2,40 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { FolderClosed } from '@lucide/vue'
 import HostIcon from '../common/icon/HostIcon.vue'
-import { hiddenHostTagCount, hostConnectionSummary, hostTags, visibleHostTags } from '../../features/hosts/hostSummary'
+import {
+  hiddenHostTagCount,
+  hostAddressLine,
+  hostConnectionSummary,
+  hostTags,
+  visibleHostTags,
+} from '../../features/hosts/hostSummary'
+import { ASSET_DRAG_RETURN_MS } from '../../features/hosts/assetDrag'
 import type { HostRecord } from '@/services/hosts.ts'
 
-const props = defineProps<{
-  kind: 'host' | 'group'
+const props = withDefaults(
+  defineProps<{
+    kind: 'host' | 'group'
 
-  host?: HostRecord | null
+    host?: HostRecord | null
 
-  label: string
+    label: string
 
-  valid: boolean
+    valid: boolean
 
-  x: number
-  y: number
+    x: number
+    y: number
 
-  anchorX: number
-  anchorY: number
+    anchorX: number
+    anchorY: number
 
-  sourceWidth: number
+    sourceWidth: number
 
-  returnTo?: { left: number; top: number; width: number; height: number } | null
-}>()
+    returnTo?: { left: number; top: number; width: number; height: number } | null
+
+    variant?: 'card' | 'row'
+  }>(),
+  { host: null, returnTo: null, variant: 'card' },
+)
 
 const emit = defineEmits<{ returned: [] }>()
 
@@ -48,7 +60,13 @@ const hasTags = computed(
 )
 
 const title = computed(() => (props.kind === 'host' ? (props.host?.name ?? props.label) : props.label))
+
 const subtitle = computed(() => (props.kind === 'host' && props.host ? hostConnectionSummary(props.host) : ''))
+
+const rowSubtitle = computed(() => (props.kind === 'host' && props.host ? hostAddressLine(props.host) : ''))
+
+const RETURN_OFFSETS = [0, 0.18, 0.42, 0.66, 0.86, 1]
+const RETURN_OPACITY = [1, 1, 0.95, 0.85, 0.6, 0.15]
 
 watch(
   () => props.returnTo,
@@ -64,13 +82,30 @@ watch(
     const dy = target.top - base.top
     const scaleX = target.width > 0 ? target.width / base.width : 1
     const scaleY = target.height > 0 ? target.height / base.height : 1
-    const animation = element.animate(
-      [
-        { transform: 'translate3d(0, 0, 0) scale(1, 1)', opacity: 1 },
-        { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${scaleX}, ${scaleY})`, opacity: 0.35 },
-      ],
-      { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)', fill: 'forwards' },
-    )
+    const distance = Math.hypot(dx, dy)
+
+    const lift = Math.min(110, Math.max(24, distance * 0.22))
+    const controlX = dx * 0.5
+    const controlY = dy * 0.5 - lift * 2
+    const frames = RETURN_OFFSETS.map((offset, index) => {
+      const inverse = 1 - offset
+
+      const x = 2 * inverse * offset * controlX + offset * offset * dx
+      const y = 2 * inverse * offset * controlY + offset * offset * dy
+      const scale = 1 + (scaleX - 1) * offset
+      const scaleVertical = 1 + (scaleY - 1) * offset
+      return {
+        offset,
+        transform: `translate3d(${x}px, ${y}px, 0) scale(${scale}, ${scaleVertical})`,
+        opacity: RETURN_OPACITY[index],
+      }
+    })
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const animation = element.animate(frames, {
+      duration: reduceMotion ? 1 : ASSET_DRAG_RETURN_MS,
+      easing: 'cubic-bezier(0.25, 0.8, 0.35, 1)',
+      fill: 'forwards',
+    })
     animation.onfinish = () => emit('returned')
     animation.oncancel = () => emit('returned')
   },
@@ -88,6 +123,28 @@ watch(
       aria-hidden="true"
     >
       <div
+        v-if="props.variant === 'row'"
+        class="flex min-w-0 items-center gap-2.5 rounded-md border border-qt-border bg-[var(--qt-panel)] px-[7px] shadow-[0_8px_20px_rgb(0_0_0/18%)]"
+        :class="rowSubtitle ? 'min-h-10 py-1' : 'min-h-8'"
+        :style="{ width: cardWidth }"
+      >
+        <HostIcon
+          v-if="props.kind === 'host'"
+          class="flex-none"
+          :icon="props.host?.icon ?? ''"
+          :protocol="props.host?.protocol ?? ''"
+          :size="16"
+        />
+        <span v-else class="grid size-4 flex-none place-items-center text-qt-info">
+          <FolderClosed :size="16" />
+        </span>
+        <span class="host-row-main min-w-0 flex flex-1 flex-col gap-px">
+          <span class="truncate text-sm">{{ title }}</span>
+          <span v-if="rowSubtitle" class="truncate text-xs text-qt-muted">{{ rowSubtitle }}</span>
+        </span>
+      </div>
+      <div
+        v-else
         class="flex min-w-0 items-center gap-3 rounded-lg border-d bg-[var(--qt-panel)] p-3 text-left shadow-[0_10px_24px_rgb(0_0_0/18%)]"
         :style="{ width: cardWidth }"
       >

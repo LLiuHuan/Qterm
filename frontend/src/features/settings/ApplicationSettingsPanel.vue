@@ -35,7 +35,7 @@ import { FolderOpen, FolderSearch, RotateCcw } from '@lucide/vue'
 import { detectX11Server, type X11DetectionResult } from '../../services/x11'
 import { openRecordingDirectory, selectRecordingDirectory } from '../../services/recordings'
 import { selectSFTPEditor, selectSFTPLocalDirectorySetting } from '@/services/sftp.ts'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { LOCALE_OPTIONS, isSupportedLocale, useI18n } from '@/locales'
 
 const props = withDefaults(

@@ -35,6 +35,8 @@ const (
 
 const SFTPTransferStageExtracting = "extracting"
 
+const maxTransferErrorRunes = 300
+
 const SFTPTransferStagePacking = "packing"
 
 type SFTPTransfer struct {
@@ -52,6 +54,8 @@ type SFTPTransfer struct {
 	RateBytesPerSecond int64 `json:"rateBytesPerSecond"`
 
 	Stage string `json:"stage,omitempty"`
+
+	Error string `json:"error,omitempty"`
 }
 
 func NewSFTPTransfer(
@@ -112,6 +116,8 @@ func (t SFTPTransfer) Transition(next SFTPTransferState, now time.Time) (SFTPTra
 	t.UpdatedAt = now.UTC()
 
 	t.Stage = ""
+
+	t.Error = ""
 	if next == SFTPTransferCompleted {
 		t.Transferred = t.Total
 	}
@@ -129,6 +135,23 @@ func (t SFTPTransfer) WithStage(stage string, now time.Time) (SFTPTransfer, erro
 		return t, nil
 	}
 	t.Stage = stage
+	t.UpdatedAt = now.UTC()
+	return t, nil
+}
+
+func (t SFTPTransfer) WithError(reason string, now time.Time) (SFTPTransfer, error) {
+	if t.State != SFTPTransferFailed {
+		return SFTPTransfer{}, ErrInvalidSFTPTransferTransition
+	}
+	reason = strings.Join(strings.Fields(reason), " ")
+	if reason == "" {
+		return t, nil
+	}
+	if utf8.RuneCountInString(reason) > maxTransferErrorRunes {
+		runes := []rune(reason)
+		reason = string(runes[:maxTransferErrorRunes]) + "…"
+	}
+	t.Error = reason
 	t.UpdatedAt = now.UTC()
 	return t, nil
 }

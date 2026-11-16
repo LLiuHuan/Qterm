@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import type { TerminalRecordingEvent } from '../../../bindings/changeme/internal/model/models'
 import {
   REPLAY_FALLBACK_COLUMNS,

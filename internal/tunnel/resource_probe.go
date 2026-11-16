@@ -2,6 +2,8 @@ package tunnel
 
 import (
 	"context"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,6 +17,10 @@ const (
 	resourceDiskProbeTimeout = 3 * time.Second
 
 	resourceSampleWindowMax = 5 * time.Minute
+
+	resourceSnapshotCacheTTL = 5 * time.Second
+
+	resourceCPUCoreSlotLimit = 8192
 )
 
 const linuxResourceCountersCommand = `
@@ -93,6 +99,10 @@ type resourceSampler struct {
 	sampledAt    time.Time
 	disks        []model.DiskResource
 	disksAt      time.Time
+
+	snapshot      ResourceSnapshot
+	snapshotAt    time.Time
+	snapshotReady bool
 }
 
 func (c *Connection) ReadResources(ctx context.Context) (ResourceSnapshot, error) {
@@ -101,6 +111,18 @@ func (c *Connection) ReadResources(ctx context.Context) (ResourceSnapshot, error
 	}
 	c.resources.mu.Lock()
 	defer c.resources.mu.Unlock()
+
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return ResourceSnapshot{}, err
+		}
+		if c.resources.snapshotReady {
+			age := time.Since(c.resources.snapshotAt)
+			if age >= 0 && age < resourceSnapshotCacheTTL {
+				return cloneResourceSnapshot(c.resources.snapshot), nil
+			}
+		}
+	}
 
 	if !c.resources.staticLoaded {
 		out, err := c.runProbe(ctx, linuxResourceStaticCommand, resourceProbeOutputLimit)
@@ -167,7 +189,30 @@ func (c *Connection) ReadResources(ctx context.Context) (ResourceSnapshot, error
 	c.resources.sampledAt = now
 
 	result.MetricsSupported = resourceMetricsSupported(result.MetricsSupported, result.MemoryTotalBytes, len(counters.cpu))
-	return finalizeResourceSnapshot(result), nil
+	result = finalizeResourceSnapshot(result)
+
+	c.resources.snapshot = cloneResourceSnapshot(result)
+	c.resources.snapshotAt = time.Now()
+	c.resources.snapshotReady = true
+	return cloneResourceSnapshot(c.resources.snapshot), nil
+}
+
+func cloneResourceSnapshot(snapshot ResourceSnapshot) ResourceSnapshot {
+	snapshot.CPUPerCore = slices.Clone(snapshot.CPUPerCore)
+	snapshot.Networks = slices.Clone(snapshot.Networks)
+	snapshot.Disks = slices.Clone(snapshot.Disks)
+	snapshot.LoadAverage1 = cloneFloat64Pointer(snapshot.LoadAverage1)
+	snapshot.LoadAverage5 = cloneFloat64Pointer(snapshot.LoadAverage5)
+	snapshot.LoadAverage15 = cloneFloat64Pointer(snapshot.LoadAverage15)
+	return snapshot
+}
+
+func cloneFloat64Pointer(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	cloned := *value
+	return &cloned
 }
 
 func resourceMetricsSupported(marker bool, memoryTotalBytes uint64, cpuCount int) bool {
@@ -316,18 +361,22 @@ func diffCPU(previous map[string]resourceCPUCounter, current map[string]resource
 		return clampPercent((1 - float64(idleDelta)/float64(totalDelta)) * 100), true
 	}
 
-	perCore := make([]float64, 0, len(current))
+	perCore := []float64{}
 	coreSum := 0.0
 	coreCount := 0
 	for name := range current {
-		if name == "cpu" {
+		coreIndex, ok := resourceCPUCoreIndex(name)
+		if !ok {
 			continue
 		}
 		value, ok := usage(name)
 		if !ok {
 			continue
 		}
-		perCore = append(perCore, value)
+		if coreIndex >= len(perCore) {
+			perCore = append(perCore, make([]float64, coreIndex+1-len(perCore))...)
+		}
+		perCore[coreIndex] = value
 		coreSum += value
 		coreCount++
 	}
@@ -336,6 +385,18 @@ func diffCPU(previous map[string]resourceCPUCounter, current map[string]resource
 		aggregate = clampPercent(coreSum / float64(coreCount))
 	}
 	return aggregate, perCore
+}
+
+func resourceCPUCoreIndex(name string) (int, bool) {
+	if !strings.HasPrefix(name, "cpu") {
+		return 0, false
+	}
+	suffix := strings.TrimPrefix(name, "cpu")
+	index, err := strconv.Atoi(suffix)
+	if err != nil || index < 0 || index >= resourceCPUCoreSlotLimit || strconv.Itoa(index) != suffix {
+		return 0, false
+	}
+	return index, true
 }
 
 func diffNetworks(previous map[string]resourceNetCounter, current map[string]resourceNetCounter, window time.Duration) []model.NetworkResource {

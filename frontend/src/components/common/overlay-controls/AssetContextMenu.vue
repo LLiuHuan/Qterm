@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Check } from '@lucide/vue'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -16,6 +17,8 @@ export interface AssetMenuAction {
   label: string
   destructive?: boolean
   disabled?: boolean
+
+  checked?: boolean
   icon?: Component
   separatorBefore?: boolean
 
@@ -41,10 +44,13 @@ const emit = defineEmits<{ action: [id: string] }>()
               v-for="child in action.children"
               :key="child.id"
               :disabled="child.disabled"
+              :data-checked="child.checked ? '' : undefined"
+              :class="child.checked ? 'bg-accent data-disabled:opacity-100' : undefined"
               @select="emit('action', child.id)"
             >
               <component :is="child.icon" v-if="child.icon" :size="14" aria-hidden="true" />
               {{ child.label }}
+              <Check v-if="child.checked" class="ml-auto size-3.5" aria-hidden="true" />
             </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconButton, QtermButton, QtermInput, RefreshIconButton } from '../common'
+import { IconButton, QtermButton, QtermSearchField, RefreshIconButton } from '../common'
 import {
   ArrowDownAZ,
   ArrowDownUp,
@@ -34,8 +34,8 @@ import { applyBatchEdit, type BatchPatch } from '../../features/hosts/assetBatch
 import { hostIconPickerOptions } from '../../features/hosts/builtinIcons'
 import { HOST_PROTOCOLS, hostProtocolDefinition } from '../../features/hosts/hostProtocols'
 import { createHostGateway } from '../../services/hosts'
-import { toast } from 'vue-sonner'
-import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
+import { toast } from '../../services/toast'
+import { resolveAssetDrop, useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
 import { ScrollArea } from '../common/control-primitives'
 import { hiddenHostTagCount, hostConnectionSummary, hostTags, visibleHostTags } from '@/features/hosts/hostSummary'
 import { useI18n } from '@/locales'
@@ -87,7 +87,7 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const { copyHostId } = useHostClipboard()
-const searchFieldRef = ref<HTMLLabelElement | null>(null)
+const searchFieldRef = ref<HTMLDivElement | null>(null)
 
 watch(
   () => props.searchVisible,
@@ -251,7 +251,13 @@ const draggingHost = computed(() => {
   return props.hosts.find((host) => host.id === item.id) ?? null
 })
 
-const groupMoveTargets = computed<AssetMenuAction[]>(() => {
+function isGroupDropBlocked(group: GroupedHosts): boolean {
+  const item = assetDrag.state.item
+  if (!item || !assetDrag.state.active) return false
+  return resolveAssetDrop(item, { kind: 'group', id: group.id }, 'inside', parentOfAsset) === null
+}
+
+function buildMoveTargets(): AssetMenuAction[] {
   const rows: AssetMenuAction[] = [{ id: 'move-group:', label: t('shell.asset.moveToRoot'), icon: Folder }]
   const walk = (groups: GroupedHosts[], depth: number): void => {
     for (const group of groups) {
@@ -268,7 +274,15 @@ const groupMoveTargets = computed<AssetMenuAction[]>(() => {
   }
   walk(props.groupedHosts, 0)
   return rows
-})
+}
+
+function moveTargetsFor(currentGroupId: string): AssetMenuAction[] {
+  const normalized = currentGroupId && findGroupPath(props.groupedHosts, currentGroupId).length ? currentGroupId : ''
+  return buildMoveTargets().map((row) => {
+    const id = row.id.slice('move-group:'.length)
+    return id === normalized ? { ...row, checked: true, disabled: true } : row
+  })
+}
 
 function goHome(): void {
   currentGroupId.value = null
@@ -319,7 +333,10 @@ function groupActions(group: GroupedHosts): AssetMenuAction[] {
       id: 'move-group',
       label: t('shell.asset.moveToGroup'),
       icon: FolderClosed,
-      children: groupMoveTargets.value.filter((row) => !forbidden.has(row.id.slice('move-group:'.length))),
+
+      children: moveTargetsFor(parentOfAsset({ kind: 'group', id: group.id })).filter(
+        (row) => !forbidden.has(row.id.slice('move-group:'.length)),
+      ),
     },
     {
       id: 'edit',
@@ -362,7 +379,7 @@ function hostActionsFor(host: HostRecord): AssetMenuAction[] {
       id: 'move-group',
       label: t('shell.asset.moveToGroup'),
       icon: FolderClosed,
-      children: groupMoveTargets.value,
+      children: moveTargetsFor(parentOfAsset({ kind: 'host', id: host.id })),
     },
     { id: 'copy-ip', label: t('shell.asset.copyIp'), icon: Copy, separatorBefore: true },
     { id: 'copy-id', label: t('shell.asset.copyId'), icon: Copy },
@@ -427,7 +444,7 @@ function toggleBatchPanel(field: 'group' | 'icon' | 'protocol'): void {
 }
 
 const batchGroupTargets = computed(() =>
-  groupMoveTargets.value.map((item) => ({
+  buildMoveTargets().map((item) => ({
     id: item.id.slice('move-group:'.length),
     label: item.label,
   })),
@@ -556,22 +573,15 @@ onBeforeUnmount(() => {
         </template>
       </nav>
 
-      <label ref="searchFieldRef" v-if="props.searchVisible" class="relative flex w-56 flex-none items-center">
-        <Search
-          :size="14"
-          class="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-qt-muted"
-          aria-hidden="true"
-        />
-        <span class="sr-only">{{ t('shell.asset.searchLabel') }}</span>
-        <QtermInput
+      <div ref="searchFieldRef" v-if="props.searchVisible" class="w-56 flex-none">
+        <QtermSearchField
+          v-bind="{ ariaLabel: t('shell.asset.searchLabel') }"
           :model-value="props.searchQuery"
-          class="pl-8"
-          type="search"
           :placeholder="t('shell.asset.searchPlaceholder')"
-          autofocus
-          @update:model-value="(value) => emit('updateSearchQuery', String(value))"
+          :clear-label="t('shell.asset.clearSearch')"
+          @update:model-value="(value: string) => emit('updateSearchQuery', value)"
         />
-      </label>
+      </div>
 
       <div
         class="asset-library-tools flex flex-none items-center gap-1"
@@ -791,6 +801,7 @@ onBeforeUnmount(() => {
                 :data-asset-kind="'group'"
                 :data-asset-id="group.id"
                 :data-asset-label="group.name"
+                :data-asset-drop-blocked="isGroupDropBlocked(group) ? '' : undefined"
                 class="flex w-full min-w-0 items-center gap-3 rounded-lg border-d bg-[var(--qt-asset-library-card-bg,var(--qt-panel))] p-3 text-left hover:bg-[var(--qt-asset-library-card-hover,var(--qt-hover))] focus-visible:ring-2 focus-visible:ring-qt-focus"
                 :class="{
                   'is-selected bg-[var(--qt-asset-library-card-hover,var(--qt-hover))]':

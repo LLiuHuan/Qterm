@@ -41,7 +41,7 @@ import {
   Languages,
   Sparkles,
 } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { registerTerminalTailReader, forgetTerminalTailReader } from './terminalTail'
 import { registerTerminalInput, forgetTerminalInput, publishTerminalOutput } from './terminalInput'
 import ShortcutKeycaps from '../settings/ShortcutKeycaps.vue'

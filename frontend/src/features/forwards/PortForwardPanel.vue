@@ -11,6 +11,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/common/overlay-controls'
 import { useI18n } from '@/locales'
+import { toast } from '../../services/toast'
 import type { HostRecord } from '@/services/hosts'
 import {
   PORT_FORWARD_STATUS_EVENT,
@@ -183,6 +184,8 @@ async function handleRemove(row: PortForwardConfig): Promise<void> {
   busy.value = { ...busy.value, [row.id]: true }
   try {
     await actions.remove(row)
+
+    toast.success(t('settings.portForwards.toast.removed'))
   } finally {
     const next = { ...busy.value }
     delete next[row.id]

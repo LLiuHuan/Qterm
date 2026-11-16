@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { QtermButton } from '../common'
+import TerminalMetricsCharts, { type MetricChartSample } from './TerminalMetricsCharts.vue'
 import {
   Activity,
   HardDrive,
@@ -24,6 +25,7 @@ import {
   onBeforeUnmount,
   onMounted,
   ref,
+  shallowRef,
   watch,
   type CSSProperties,
 } from 'vue'
@@ -47,6 +49,8 @@ import type { HostRecord } from '@/services/hosts.ts'
 import type { SessionTab, SessionStatus, StreamStatusEvent } from '../../types/qterm'
 import type { ResourceSnapshot, SessionGateway } from '../../services/sessions'
 import { createMonitorGateway } from '../../services/monitor'
+import { acquireResourceFeed, resetResourceFeed, type ResourceFeedLease } from '../../features/monitor/resourceFeed'
+import { networkMetrics } from '../../features/monitor/networkMetrics'
 import { formatGpuMemory, gpuMemorySummary, type GpuMemorySummary } from '../../features/monitor/gpuMemory'
 import { Separator } from '../common/control-primitives'
 import BatchCommandBar from '../../features/sessions/BatchCommandBar.vue'
@@ -152,6 +156,7 @@ const props = defineProps<{
   typeCredential?: (sessionId: string, credentialId: string) => Promise<void>
   terminalShowLatency: boolean
   terminalShowMetrics?: boolean
+  terminalMetricsChart?: boolean
 
   gutterMode?: import('../../features/settings/settingsStore').TerminalGutterMode
 
@@ -577,7 +582,16 @@ function cancelRename(): void {
   renameDraft.value = ''
 }
 
-const metrics = ref(new Map<string, ResourceSnapshot>())
+const resourceFeeds = shallowRef(new Map<string, ResourceFeedLease>())
+let metricsGateway: SessionGateway | undefined
+let connectedResourceSessions = new Set<string>()
+const metrics = computed(() => {
+  const next = new Map<string, ResourceSnapshot>()
+  for (const [id, feed] of resourceFeeds.value) if (feed.snapshot.value) next.set(id, feed.snapshot.value)
+  return next
+})
+
+const metricHistory = ref(new Map<string, MetricChartSample[]>())
 let metricsTimer: number | undefined
 let metricsVersion = 0
 
@@ -592,8 +606,27 @@ function metricSnapshot(session: SessionTab): ResourceSnapshot | null {
 function gpuSnapshot(session: SessionTab): GpuMemorySummary | null {
   return gpuMemory.value.get(session.id) ?? null
 }
-function metricText(value: number): string {
-  return `${Math.round(value)}%`
+function metricText(value: number | undefined): string {
+  return value !== undefined && Number.isFinite(value) && value >= 0 ? `${Math.round(value)}%` : '—'
+}
+
+function metricClass(value: number | undefined, warning = 80, danger = 95): string {
+  if (value === undefined || !Number.isFinite(value) || value < 0) return 'text-qt-muted!'
+  if (value >= danger) return 'text-qt-danger!'
+  if (value >= warning) return 'text-qt-warning!'
+
+  return 'text-qt-success!'
+}
+function loadMetricClass(session: SessionTab): string {
+  const snapshot = metricSnapshot(session)
+  const cores = snapshot?.cpuCores
+  const load = snapshot?.loadAverage1
+
+  return metricClass(
+    cores !== undefined && Number.isFinite(cores) && cores > 0 && load != null ? load / cores : undefined,
+    1,
+    1.5,
+  )
 }
 
 async function probeGpuMemory(session: SessionTab): Promise<GpuMemorySummary | null | undefined> {
@@ -610,18 +643,10 @@ async function refreshMetrics(): Promise<void> {
 
   const probedAt = Date.now()
   const due = sessions.filter((session) => probedAt - (gpuProbes.get(session.id) ?? 0) >= gpuProbeIntervalMs)
-
-  const [results, gpuResults] = await Promise.all([
-    Promise.allSettled(
-      sessions.map(async (session) => [session.id, await props.sessionGateway?.readResources?.(session.id)] as const),
-    ),
-    Promise.allSettled(due.map(async (session) => [session.id, await probeGpuMemory(session)] as const)),
-  ])
+  const gpuResults = await Promise.allSettled(
+    due.map(async (session) => [session.id, await probeGpuMemory(session)] as const),
+  )
   if (version !== metricsVersion) return
-  const next = new Map(metrics.value)
-  for (const result of results)
-    if (result.status === 'fulfilled' && result.value[1]) next.set(result.value[0], result.value[1])
-  metrics.value = next
 
   const liveIds = new Set(sessions.map((session) => session.id))
   for (const id of gpuProbes.keys()) if (!liveIds.has(id)) gpuProbes.delete(id)
@@ -641,25 +666,75 @@ async function refreshMetrics(): Promise<void> {
     else nextGpu.set(id, summary)
   }
   gpuMemory.value = nextGpu
+
+  const nextHistory = new Map(metricHistory.value)
+  for (const [id, samples] of nextHistory) {
+    if (!samples.length) continue
+    nextHistory.set(id, [...samples.slice(0, -1), { ...samples[samples.length - 1]!, gpu: nextGpu.get(id) ?? null }])
+  }
+  metricHistory.value = nextHistory
   if (props.terminalShowMetrics === true && metricsVersion === version) {
     metricsTimer = window.setTimeout(() => void refreshMetrics(), 5000)
   }
 }
+const seenResources = new Map<string, { snapshot: ResourceSnapshot; points: unknown }>()
+watch(
+  () => [...resourceFeeds.value].map(([id, feed]) => [id, feed.snapshot.value, feed.history.points.value] as const),
+  (entries) => {
+    const ids = new Set(entries.map(([id]) => id))
+    const next = new Map([...metricHistory.value].filter(([id]) => ids.has(id)))
+    for (const id of seenResources.keys()) if (!ids.has(id)) seenResources.delete(id)
+    for (const [id, resource, points] of entries) {
+      const previous = seenResources.get(id)
+      if (!resource?.metricsSupported || (previous?.snapshot === resource && previous.points === points)) continue
+      seenResources.set(id, { snapshot: resource, points })
+      next.set(id, [...(next.get(id) ?? []), { resource, gpu: gpuMemory.value.get(id) ?? null }].slice(-30))
+    }
+    metricHistory.value = next
+  },
+  { immediate: true },
+)
 function restartMetrics(): void {
   metricsVersion += 1
   if (metricsTimer) window.clearTimeout(metricsTimer)
   metricsTimer = undefined
+  const sessions = props.terminalSessions.filter((session) => session.kind === 'ssh' && session.state === 'connected')
+  const liveIds = new Set(sessions.map((session) => session.id))
 
-  if (props.terminalShowMetrics !== true) {
+  if (metricsGateway && metricsGateway === props.sessionGateway) {
+    for (const id of connectedResourceSessions) if (!liveIds.has(id)) resetResourceFeed(metricsGateway, id)
+  }
+  connectedResourceSessions = liveIds
+  const enabled = props.terminalShowMetrics === true && !!props.sessionGateway?.readResources
+  if (metricsGateway !== props.sessionGateway) {
+    metricHistory.value = new Map()
+    seenResources.clear()
     gpuMemory.value = new Map()
     gpuProbes.clear()
   }
-  if (props.terminalShowMetrics !== true || !props.sessionGateway?.readResources) return
-  void refreshMetrics()
+  const next = new Map<string, ResourceFeedLease>()
+  for (const [id, feed] of resourceFeeds.value) {
+    if (enabled && liveIds.has(id) && metricsGateway === props.sessionGateway) next.set(id, feed)
+    else feed.release(!liveIds.has(id))
+  }
+  if (enabled && props.sessionGateway) {
+    for (const session of sessions)
+      if (!next.has(session.id)) next.set(session.id, acquireResourceFeed(props.sessionGateway, session.id))
+  }
+  resourceFeeds.value = next
+  metricsGateway = props.sessionGateway
+  if (!enabled) {
+    gpuMemory.value = new Map()
+    gpuProbes.clear()
+    metricHistory.value = new Map()
+    seenResources.clear()
+  }
+  if (next.size) void refreshMetrics()
 }
 watch(
   () => [
     props.terminalShowMetrics,
+    props.sessionGateway,
     ...props.terminalSessions.map((session) => `${session.id}:${session.kind}:${session.state}`),
   ],
   restartMetrics,
@@ -668,6 +743,7 @@ watch(
 onBeforeUnmount(() => {
   metricsVersion += 1
   if (metricsTimer) window.clearTimeout(metricsTimer)
+  for (const feed of resourceFeeds.value.values()) feed.release()
 })
 
 const {
@@ -1520,18 +1596,33 @@ function finishSplitResize(): void {
           />
           <div
             v-if="props.terminalShowMetrics && session.kind === 'ssh' && session.state === 'connected'"
-            class="terminal-metrics text-xs"
+            class="terminal-metrics text-xs flex-nowrap! overflow-x-auto! overflow-y-hidden! [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             :aria-label="t('shell.workspace.metrics')"
           >
-            <template v-if="metricSnapshot(session)?.metricsSupported">
+            <TerminalMetricsCharts
+              v-if="
+                props.terminalMetricsChart &&
+                metricSnapshot(session)?.metricsSupported &&
+                (metricHistory.get(session.id)?.length ?? 0) > 0
+              "
+              :samples="metricHistory.get(session.id) ?? []"
+              :cpu-values="resourceFeeds.get(session.id)?.history.points.value.map((point) => point.cpu) ?? []"
+            />
+            <template v-else-if="!props.terminalMetricsChart && metricSnapshot(session)?.metricsSupported">
               <span class="terminal-metric-item metric-cpu inline-flex items-center gap-[8px] flex-none">
                 <CPUIcon :size="13" aria-hidden="true" />
-                CPU <b>{{ metricText(metricSnapshot(session)?.cpuUsagePercent ?? 0) }}</b>
+                CPU
+                <b :class="metricClass(metricSnapshot(session)?.cpuUsagePercent)">{{
+                  metricText(metricSnapshot(session)?.cpuUsagePercent)
+                }}</b>
               </span>
               <span class="terminal-metric-item metric-memory inline-flex items-center gap-[8px] flex-none">
                 <Separator orientation="vertical" />
                 <MemoryIcon :size="13" aria-hidden="true" />
-                Mem <b>{{ metricText(metricSnapshot(session)?.memoryUsagePercent ?? 0) }}</b>
+                Mem
+                <b :class="metricClass(metricSnapshot(session)?.memoryUsagePercent, 80, 90)">{{
+                  metricText(metricSnapshot(session)?.memoryUsagePercent)
+                }}</b>
                 <span class="terminal-metrics-detail text-qt-muted">
                   {{ metricSnapshot(session)?.memoryUsedText }} / {{ metricSnapshot(session)?.memoryTotalText }}
                 </span>
@@ -1539,18 +1630,19 @@ function finishSplitResize(): void {
               <span class="terminal-metric-item metric-load inline-flex items-center gap-[8px] flex-none">
                 <Separator orientation="vertical" />
                 <Activity :size="13" stroke-width="1.8" aria-hidden="true" />
-                Load <b>{{ metricSnapshot(session)?.loadAverage1?.toFixed(2) ?? '—' }}</b>
+                Load
+                <b :class="loadMetricClass(session)">{{ metricSnapshot(session)?.loadAverage1?.toFixed(2) ?? '—' }}</b>
               </span>
               <span class="terminal-metric-item metric-disk inline-flex items-center gap-[8px] flex-none">
                 <Separator orientation="vertical" />
                 <HardDrive :size="13" stroke-width="1.8" aria-hidden="true" />
                 Disk
-                <b>
-                  {{
-                    metricSnapshot(session)
-                      ?.disks.find((item) => item.mount === '/')
-                      ?.usedPercent?.toFixed(0) ?? '—'
-                  }}%
+                <b
+                  :class="
+                    metricClass(metricSnapshot(session)?.disks.find((item) => item.mount === '/')?.usedPercent, 80, 90)
+                  "
+                >
+                  {{ metricText(metricSnapshot(session)?.disks.find((item) => item.mount === '/')?.usedPercent) }}
                 </b>
                 <span class="terminal-metrics-detail text-qt-muted">
                   {{ metricSnapshot(session)?.disks.find((item) => item.mount === '/')?.usedText }} /
@@ -1563,12 +1655,16 @@ function finishSplitResize(): void {
               >
                 <Separator orientation="vertical" />
                 <GPUIcon :size="13" aria-hidden="true" />
-                GPU <b>{{ Math.round(gpuSnapshot(session)?.usedMb ?? 0) }}</b>
+                GPU
+                <b :class="metricClass(gpuSnapshot(session)?.usedPercent)">{{
+                  Math.round(gpuSnapshot(session)?.usedMb ?? 0)
+                }}</b>
                 <span class="terminal-metrics-detail text-qt-muted">
                   <template v-if="(gpuSnapshot(session)?.totalMb ?? 0) > 0">
-                    / {{ formatGpuMemory(gpuSnapshot(session)?.totalMb ?? 0) }} ({{
-                      metricText(gpuSnapshot(session)?.usedPercent ?? 0)
-                    }})
+                    / {{ formatGpuMemory(gpuSnapshot(session)?.totalMb ?? 0) }}
+                    <span :class="metricClass(gpuSnapshot(session)?.usedPercent)"
+                      >({{ metricText(gpuSnapshot(session)?.usedPercent) }})</span
+                    >
                   </template>
                 </span>
               </span>
@@ -1579,9 +1675,14 @@ function finishSplitResize(): void {
                 <Separator orientation="vertical" />
                 <Network :size="13" stroke-width="1.8" aria-hidden="true" />
                 Net
-                <b>
-                  {{ metricSnapshot(session)?.networks[0]?.receiveText }}↓ /
-                  {{ metricSnapshot(session)?.networks[0]?.transmitText }}↑
+                <b class="text-qt-muted!">
+                  <span class="network-rx text-qt-success!"
+                    >{{ networkMetrics(metricSnapshot(session)).receiveText }}↓</span
+                  >
+                  /
+                  <span class="network-tx text-qt-info!"
+                    >{{ networkMetrics(metricSnapshot(session)).transmitText }}↑</span
+                  >
                 </b>
               </span>
             </template>

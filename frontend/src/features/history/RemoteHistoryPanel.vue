@@ -10,7 +10,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/common/overlay-controls'
 import { useI18n } from '@/locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { errorMessage } from '@/services/errors'
 import { writeClipboardText } from '@/services/clipboard'
 import {

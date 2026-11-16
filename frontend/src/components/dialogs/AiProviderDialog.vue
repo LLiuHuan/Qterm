@@ -5,7 +5,7 @@ import { QtermButton, QtermFormMessage, QtermInput, QtermSecretInput, RefreshIco
 import { QtermCombobox } from '../../components/common/form-controls'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { useI18n } from '../../locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import {
   aiErrorMessage,
   previewProviderConnection,

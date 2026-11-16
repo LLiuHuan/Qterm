@@ -111,6 +111,7 @@ const props = withDefaults(
     copyFeedback?: boolean
     showLatency?: boolean
     showMetrics?: boolean
+    metricsChart?: boolean
     gutterMode?: TerminalGutterMode
     translateEnabled?: boolean
     translateTarget?: string
@@ -221,6 +222,7 @@ const props = withDefaults(
     copyFeedback: true,
     showLatency: true,
     showMetrics: false,
+    metricsChart: false,
     gutterMode: 'off',
     translateEnabled: true,
     translateTarget: 'zh-CN',
@@ -338,6 +340,7 @@ const emit = defineEmits<{
   'update:copyFeedback': [value: boolean]
   'update:showLatency': [value: boolean]
   'update:showMetrics': [value: boolean]
+  'update:metricsChart': [value: boolean]
   'update:gutterMode': [value: TerminalGutterMode]
   'update:translateEnabled': [value: boolean]
   'update:translateTarget': [value: string]
@@ -823,6 +826,7 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :copy-feedback="props.copyFeedback"
                 :show-latency="props.showLatency"
                 :show-metrics="props.showMetrics"
+                :metrics-chart="props.metricsChart"
                 :gutter-mode="props.gutterMode"
                 :translate-enabled="props.translateEnabled"
                 :translate-target="props.translateTarget"
@@ -860,6 +864,7 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 @update:copy-feedback="emit('update:copyFeedback', $event)"
                 @update:show-latency="emit('update:showLatency', $event)"
                 @update:show-metrics="emit('update:showMetrics', $event)"
+                @update:metrics-chart="emit('update:metricsChart', $event)"
                 @update:gutter-mode="emit('update:gutterMode', $event as TerminalGutterMode)"
                 @update:translate-enabled="emit('update:translateEnabled', $event)"
                 @update:translate-target="emit('update:translateTarget', $event)"

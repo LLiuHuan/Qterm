@@ -151,11 +151,11 @@ export interface DockerGateway {
 
   removeNetwork(sessionId: string, networkId: string): Promise<void>
 
-  pruneImages(sessionId: string, all: boolean): Promise<void>
+  pruneImages(sessionId: string, all: boolean): Promise<number>
 
-  pruneNetworks(sessionId: string): Promise<void>
+  pruneNetworks(sessionId: string): Promise<number>
 
-  pruneVolumes?(sessionId: string): Promise<void>
+  pruneVolumes?(sessionId: string): Promise<number>
 }
 
 function missingBinding(name: string): AppError {
@@ -307,19 +307,19 @@ class WailsDockerGateway implements DockerGateway {
     await DockerRemoveNetwork(sessionId, networkId)
   }
 
-  async pruneImages(sessionId: string, all: boolean): Promise<void> {
+  async pruneImages(sessionId: string, all: boolean): Promise<number> {
     const { DockerPruneImages } = await import('../../bindings/changeme/internal/app/service')
-    await DockerPruneImages(sessionId, all)
+    return DockerPruneImages(sessionId, all)
   }
 
-  async pruneNetworks(sessionId: string): Promise<void> {
+  async pruneNetworks(sessionId: string): Promise<number> {
     const { DockerPruneNetworks } = await import('../../bindings/changeme/internal/app/service')
-    await DockerPruneNetworks(sessionId)
+    return DockerPruneNetworks(sessionId)
   }
 
-  async pruneVolumes(sessionId: string): Promise<void> {
+  async pruneVolumes(sessionId: string): Promise<number> {
     const { DockerPruneVolumes } = await import('../../bindings/changeme/internal/app/service')
-    await DockerPruneVolumes(sessionId)
+    return DockerPruneVolumes(sessionId)
   }
 }
 
@@ -420,15 +420,15 @@ class MemoryDockerGateway implements DockerGateway {
     throw missingBinding('DockerRemoveNetwork')
   }
 
-  async pruneImages(): Promise<void> {
+  async pruneImages(): Promise<number> {
     throw missingBinding('DockerPruneImages')
   }
 
-  async pruneNetworks(): Promise<void> {
+  async pruneNetworks(): Promise<number> {
     throw missingBinding('DockerPruneNetworks')
   }
 
-  async pruneVolumes(): Promise<void> {
+  async pruneVolumes(): Promise<number> {
     throw missingBinding('DockerPruneVolumes')
   }
 }

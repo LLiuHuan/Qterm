@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { QtermButton } from '../common'
 import { ChevronDown, FolderPlus, Link2, Pencil, Plus, Trash2 } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../common/control-primitives'
 import AssetContextMenu from '../common/overlay-controls/AssetContextMenu.vue'
 import AssetHostRow from './AssetHostRow.vue'
 import type { GroupedHosts } from '../../types/qterm'
 import type { HostRecord } from '@/services/hosts.ts'
+import { useAssetTreeExpansion } from '../../features/hosts/assetTreeExpansion'
 import { useI18n } from '@/locales'
 
 const props = defineProps<{
@@ -38,7 +39,13 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 
-const open = ref(true)
+const expansion = useAssetTreeExpansion()
+const open = computed({
+  get: () => expansion.isOpen(props.group.id),
+  set: (value: boolean) => expansion.setOpen(props.group.id, value),
+})
+onMounted(() => expansion.register(props.group.id))
+onUnmounted(() => expansion.unregister(props.group.id))
 const total = computed(() => hostCount(props.group))
 const actions = computed(() => [
   {
@@ -106,7 +113,7 @@ function hostCount(group: GroupedHosts): number {
             :aria-label="t('shell.asset.groupAria', { name: props.group.name })"
             @click="emit('selectGroup', props.group.id)"
             ><ChevronDown :size="14" class="group-chevron flex-none size-[18px]" :class="{ 'is-closed': !open }" /><span
-              class="min-w-0 flex-1 truncate text-sm"
+              class="asset-group-name min-w-0 flex-1 truncate text-sm"
               >{{ props.group.name }}</span
             ><span class="text-qt-muted font-normal">{{ hostCount(props.group) }}</span></QtermButton
           ></CollapsibleTrigger

@@ -13,7 +13,7 @@ import RdpLogDialog from './RdpLogDialog.vue'
 import { SessionOverlay, QtermButton } from '../../components/common'
 import { rdpDisplayPreferences } from '../settings/rdpDisplayPreferences'
 import { useI18n } from '@/locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 
 const props = defineProps<{
   input?: RdpOpenInput

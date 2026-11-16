@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { Loader2, Pencil, Plus, Trash2 } from '@lucide/vue'
 import {
   IconButton,

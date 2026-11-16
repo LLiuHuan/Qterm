@@ -14,6 +14,8 @@ export interface AssetDropTarget {
 
 const DROP_ROW_SELECTOR = '.host-row, .asset-group-title, [data-asset-card]'
 
+export const ASSET_DRAG_RETURN_MS = 520
+
 export function resolveAssetDrop(
   item: AssetDragItem,
   target: AssetDragItem | null,
@@ -72,6 +74,29 @@ export function useAssetDrag(
   let expandTimer: ReturnType<typeof setTimeout> | undefined
   let expandRow: HTMLElement | null = null
   let clickTimer: ReturnType<typeof setTimeout> | undefined
+  let returnTimer: ReturnType<typeof setTimeout> | undefined
+  let returningRow: HTMLElement | null = null
+
+  function markReturningRow(row: HTMLElement) {
+    clearTimeout(returnTimer)
+    returningRow?.removeAttribute('data-asset-drag-returning')
+    returningRow = row
+    row.setAttribute('data-asset-drag-returning', '')
+    returnTimer = setTimeout(() => {
+      row.removeAttribute('data-asset-drag-returning')
+      row.removeAttribute('data-asset-drag-source')
+      if (returningRow === row) returningRow = null
+    }, ASSET_DRAG_RETURN_MS)
+  }
+
+  function clearReturningRow() {
+    clearTimeout(returnTimer)
+    returnTimer = undefined
+    if (!returningRow) return
+    returningRow.removeAttribute('data-asset-drag-returning')
+    returningRow.removeAttribute('data-asset-drag-source')
+    returningRow = null
+  }
 
   function rowAt(element: Element | null): HTMLElement | null {
     return element?.closest<HTMLElement>(DROP_ROW_SELECTOR) ?? null
@@ -211,8 +236,15 @@ export function useAssetDrag(
 
   function finish(returnRect?: DOMRect) {
     const wasActive = state.active
-    pending?.row.removeAttribute('data-asset-drag-source')
+    const sourceRow = pending?.row ?? null
     pending = null
+
+    clearReturningRow()
+    if (returnRect) {
+      if (sourceRow) markReturningRow(sourceRow)
+    } else {
+      sourceRow?.removeAttribute('data-asset-drag-source')
+    }
     clearTarget()
     cancelExpand()
     cancelAnimationFrame(frame)
@@ -272,6 +304,8 @@ export function useAssetDrag(
   }
   function start(event: PointerEvent) {
     if (event.button !== 0 || event.isPrimary === false || pending) return
+
+    clearReturningRow()
     const element = event.target instanceof Element ? event.target : null
     if (element?.closest('[data-sortable-ignore], input, textarea')) return
     const row = rowAt(element)
@@ -308,6 +342,7 @@ export function useAssetDrag(
   }
   onBeforeUnmount(() => {
     finish()
+    clearReturningRow()
     clearTimeout(clickTimer)
     document.removeEventListener('click', suppressClick, true)
   })

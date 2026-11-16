@@ -32,6 +32,7 @@ import DockerImageRow from './DockerImageRow.vue'
 import DockerNetworkRow from './DockerNetworkRow.vue'
 import DockerVolumeRow from './DockerVolumeRow.vue'
 import { useSnippetGroupPagination } from '../snippets/useSnippetGroupPagination'
+import { toast } from '../../services/toast'
 import {
   dockerImageName,
   dockerRemoveTarget,
@@ -769,6 +770,8 @@ async function confirmDeleteGroup(): Promise<void> {
   try {
     await props.gateway.composeAction(props.sessionId, anchor.id, 'down')
     groupDeleteTarget.value = null
+
+    toast.success(t('shell.docker.projectRemoved'))
     await loadContainers()
   } catch (cause) {
     if (isNotEnabled(cause)) {
@@ -795,6 +798,7 @@ async function confirmDelete(): Promise<void> {
   try {
     await props.gateway.containerAction(props.sessionId, container.id, 'remove', container.state === 'running')
     deleteTarget.value = null
+    toast.success(t('shell.docker.containerRemoved'))
     await loadContainers()
   } catch (cause) {
     if (isNotEnabled(cause)) {
@@ -823,6 +827,7 @@ async function confirmRemoveImage(): Promise<void> {
   try {
     await props.gateway.removeImage(props.sessionId, dockerRemoveTarget(image))
     imageTarget.value = null
+    toast.success(t('shell.docker.imageRemoved'))
 
     await loadImages()
   } catch (cause) {
@@ -853,6 +858,7 @@ async function confirmRemoveVolume(): Promise<void> {
   try {
     await props.gateway.removeVolume(props.sessionId, volume.name)
     volumeTarget.value = null
+    toast.success(t('shell.docker.volumeRemoved'))
     await loadVolumes()
   } catch (cause) {
     if (isNotEnabled(cause)) {
@@ -879,8 +885,10 @@ async function confirmPrune(): Promise<void> {
   pruning.value = true
   pruneError.value = ''
   try {
-    await props.gateway.pruneImages(props.sessionId, mode === 'unused')
+    const removed = await props.gateway.pruneImages(props.sessionId, mode === 'unused')
     pruneMode.value = ''
+
+    toast.success(removed > 0 ? t('shell.docker.pruneDone', { count: removed }) : t('shell.docker.pruneEmpty'))
     await loadImages()
   } catch (cause) {
     if (isNotEnabled(cause)) {
@@ -909,6 +917,7 @@ async function confirmRemoveNetwork(): Promise<void> {
   try {
     await props.gateway.removeNetwork(props.sessionId, network.id)
     networkTarget.value = null
+    toast.success(t('shell.docker.networkRemoved'))
 
     await loadNetworks()
   } catch (cause) {
@@ -935,8 +944,11 @@ async function confirmPruneVolumes(): Promise<void> {
   pruningVolumes.value = true
   pruneVolumesError.value = ''
   try {
-    await props.gateway.pruneVolumes?.(props.sessionId)
+    const removed = (await props.gateway.pruneVolumes?.(props.sessionId)) ?? 0
     pruneVolumesOpen.value = false
+    toast.success(
+      removed > 0 ? t('shell.docker.volumePruneDone', { count: removed }) : t('shell.docker.volumePruneEmpty'),
+    )
     await loadVolumes()
   } catch (cause) {
     if (isNotEnabled(cause)) {
@@ -961,8 +973,11 @@ async function confirmPruneNetworks(): Promise<void> {
   pruningNetworks.value = true
   pruneNetworksError.value = ''
   try {
-    await props.gateway.pruneNetworks(props.sessionId)
+    const removed = await props.gateway.pruneNetworks(props.sessionId)
     pruneNetworksOpen.value = false
+    toast.success(
+      removed > 0 ? t('shell.docker.networkPruneDone', { count: removed }) : t('shell.docker.networkPruneEmpty'),
+    )
     await loadNetworks()
   } catch (cause) {
     if (isNotEnabled(cause)) {

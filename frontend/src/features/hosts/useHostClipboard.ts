@@ -1,7 +1,7 @@
 import type { HostRecord } from '@/services/hosts'
 import { writeClipboardText } from '@/services/clipboard'
 import { useI18n } from '@/locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 
 export function useHostClipboard() {
   const { t } = useI18n()

@@ -17,7 +17,7 @@ import { QtermButton, QtermCheckbox, QtermFormMessage, QtermInput, QtermSecretIn
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { ScrollArea } from '../../components/common/control-primitives'
 import { useI18n } from '@/locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import {
   createHostImportGateway,
   hostImportErrorMessage,

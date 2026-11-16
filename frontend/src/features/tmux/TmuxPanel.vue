@@ -17,7 +17,7 @@ import { decodeAppError, errorMessage } from '../../services/errors'
 import { sendTerminalInput } from '../../services/terminal'
 import type { TmuxGateway, TmuxSession } from '../../services/tmux'
 import { beginTmuxEnter, cancelTmuxEnter, getTmuxRuntimeState, markTmuxExited } from '../../services/tmuxRuntime'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 
 const props = defineProps<{
   gateway: TmuxGateway

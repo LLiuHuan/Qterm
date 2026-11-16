@@ -111,6 +111,12 @@ func NewService(options Options) *Service {
 		goarch:         goarch,
 	}
 	service.status = Status{State: StateIdle, CurrentVersion: service.currentVersion}
+
+	if options.Executable == nil {
+		if path, err := executable(); err == nil && path != "" {
+			cleanupStaleUpdateFiles(path)
+		}
+	}
 	return service
 }
 

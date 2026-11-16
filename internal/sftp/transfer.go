@@ -630,7 +630,20 @@ func (m *SFTPTransferManager) run(
 	}
 	if next, transitionErr := task.snapshot.Transition(state, m.now()); transitionErr == nil {
 		task.snapshot = next
+		if state == model.SFTPTransferFailed {
+
+			if withReason, reasonErr := next.WithError(transferFailureReason(err), m.now()); reasonErr == nil {
+				task.snapshot = withReason
+			}
+		}
 	}
+}
+
+func transferFailureReason(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func (m *SFTPTransferManager) finishCanceled(task *managedSFTPTransfer) {

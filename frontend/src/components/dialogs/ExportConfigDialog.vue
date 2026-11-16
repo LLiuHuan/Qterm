@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { QtermButton, QtermFormMessage, QtermInput } from '../common'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../common/dialog'
 import { Label } from '../common/control-primitives'

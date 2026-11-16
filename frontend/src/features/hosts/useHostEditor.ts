@@ -1,5 +1,5 @@
 import { onScopeDispose, ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import type { useCredentialState } from '../../composables/useCredentialState'
 import { credentialErrorMessage, type CredentialRecord } from '../../services/credentials'
 import {

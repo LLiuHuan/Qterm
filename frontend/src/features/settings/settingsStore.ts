@@ -123,6 +123,8 @@ export interface QtermSettings {
   terminalShowLatency?: boolean
   terminalShowMetrics?: boolean
 
+  terminalMetricsChart?: boolean
+
   terminalGutterMode?: TerminalGutterMode
 
   translateEnabled?: boolean
@@ -281,6 +283,7 @@ export const DEFAULT_SETTINGS: QtermSettings = {
   terminalCopyFeedback: true,
   terminalShowLatency: true,
   terminalShowMetrics: false,
+  terminalMetricsChart: false,
   terminalGutterMode: 'off',
   portForwards: [],
   portForwardGroups: [],
@@ -613,6 +616,7 @@ export function normalizeSettings(value: unknown): QtermSettings {
     'terminalCopyFeedback',
     'terminalShowLatency',
     'terminalShowMetrics',
+    'terminalMetricsChart',
     'terminalGutterMode',
     'translateEnabled',
     'translateTarget',
@@ -661,6 +665,10 @@ export function normalizeSettings(value: unknown): QtermSettings {
           typeof candidate.terminalShowMetrics === 'boolean'
             ? candidate.terminalShowMetrics
             : DEFAULT_SETTINGS.terminalShowMetrics,
+        terminalMetricsChart:
+          typeof candidate.terminalMetricsChart === 'boolean'
+            ? candidate.terminalMetricsChart
+            : DEFAULT_SETTINGS.terminalMetricsChart,
         terminalGutterMode,
         translateEnabled:
           typeof candidate.translateEnabled === 'boolean'

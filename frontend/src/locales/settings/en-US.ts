@@ -222,6 +222,8 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.portForwards.dialog.deleteHint':
     'If it is running, forwarding stops first and then the configuration is deleted.',
   'settings.portForwards.group.renameTitle': 'Rename group',
+  'settings.portForwards.toast.removed': 'Port forward deleted',
+  'settings.portForwards.toast.groupDissolved': 'Group dissolved',
   'settings.portForwards.group.name': 'Group name',
   'settings.portForwards.group.namePlaceholder': 'For example: Databases',
   'settings.portForwards.group.nameRequired': 'Group name is required',
@@ -264,6 +266,8 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.snippets.action.delete': 'Delete snippet',
   'settings.snippets.toast.copied': 'Command content copied.',
   'settings.snippets.toast.copyFailed': 'Could not copy. Copy it manually.',
+  'settings.snippets.toast.removed': 'Snippet deleted',
+  'settings.snippets.toast.groupRemoved': 'Group deleted',
   'settings.snippets.dialog.editTitle': 'Edit snippet',
   'settings.snippets.dialog.createTitle': 'New snippet',
   'settings.snippets.dialog.description':
@@ -439,6 +443,7 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.knownHosts.copy': 'Copy fingerprint',
   'settings.knownHosts.copied': 'Fingerprint copied',
   'settings.knownHosts.copyFailed': 'Failed to copy fingerprint',
+  'settings.knownHosts.removed': 'Fingerprint record deleted',
   'settings.knownHosts.noFingerprint': 'No fingerprint (parse failed)',
   'settings.import.description':
     'Read hosts from `~/.ssh/config` and pick the ones to import. Duplicates are skipped by default; credentials and private keys are never imported.',
@@ -789,6 +794,13 @@ export const settingsCoreEn: Record<string, string> = {
   'appearance.core.hostColorStyle.background': 'Background',
   'appearance.core.hostColorStyle.backgroundHelp':
     'Tints the whole host row with a light wash of the color, plus a matching outline on hover or selection.',
+  'appearance.core.toastEngine': 'Notification style',
+  'appearance.core.toastEngine.classic': 'Classic',
+  'appearance.core.toastEngine.classicHelp':
+    'Several toasts stack at the top center and dismiss themselves; good for reading multiple results at once.',
+  'appearance.core.toastEngine.morph': 'Morph',
+  'appearance.core.toastEngine.morphHelp':
+    'Keeps a single toast that morphs in place as it changes (ding); about 45 KB loads on demand.',
   'appearance.core.assetLibraryLayout': 'Asset library layout',
   'appearance.core.assetLibraryLayout.sidebar': 'Sidebar menu',
   'appearance.core.assetLibraryLayout.sidebarHelp':
@@ -968,6 +980,9 @@ export const settingsCoreEn: Record<string, string> = {
   'terminal.core.networkLatency': 'Show network latency',
   'terminal.core.networkLatencyHelp': 'Show the current latency in the upper-right corner of connected SSH terminals.',
   'terminal.core.metrics': 'Show metrics at the bottom of the terminal',
+  'terminal.core.metricsChart': 'Use mini curves for metrics',
+  'terminal.core.metricsChartHelp':
+    'Show usage as mini curves while keeping capacity and network rates as text. Hover for usage values.',
   'terminal.core.metricsHelp':
     'Show CPU, memory, system load, root usage, and network rate at the bottom of supported SSH terminals.',
   'terminal.core.translateSection': 'Translation',

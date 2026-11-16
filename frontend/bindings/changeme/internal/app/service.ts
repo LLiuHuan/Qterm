@@ -415,15 +415,15 @@ export function DockerPanelEnabled(sessionID: string): $CancellablePromise<boole
   return $Call.ByID(4087747145, sessionID)
 }
 
-export function DockerPruneImages(sessionID: string, all: boolean): $CancellablePromise<void> {
+export function DockerPruneImages(sessionID: string, all: boolean): $CancellablePromise<number> {
   return $Call.ByID(3354105416, sessionID, all)
 }
 
-export function DockerPruneNetworks(sessionID: string): $CancellablePromise<void> {
+export function DockerPruneNetworks(sessionID: string): $CancellablePromise<number> {
   return $Call.ByID(3209510357, sessionID)
 }
 
-export function DockerPruneVolumes(sessionID: string): $CancellablePromise<void> {
+export function DockerPruneVolumes(sessionID: string): $CancellablePromise<number> {
   return $Call.ByID(1873055537, sessionID)
 }
 

@@ -95,40 +95,6 @@ if [ -n "$archive_dir" ] && [ "$(basename "$archive_root")" = "qterm-update" ]; 
 `
 }
 
-func windowsReplacerScript() string {
-	return `param(
-  [Parameter(Mandatory = $true)][int]$ProcessId,
-  [Parameter(Mandatory = $true)][string]$Target,
-  [Parameter(Mandatory = $true)][string]$Archive
-)
-$ErrorActionPreference = 'Stop'
-Wait-Process -Id $ProcessId -ErrorAction SilentlyContinue
-$work = Join-Path ([System.IO.Path]::GetTempPath()) ('qterm-update-' + [guid]::NewGuid().ToString('N'))
-# 暂存产物目录由助手回收；脚本自身在独立目录，不会边执行边删自己。
-$archiveRoot = Split-Path -Parent $Archive
-$archiveParent = Split-Path -Parent $archiveRoot
-# 只回收 …/qterm-update/<tag>：避免自定义路径时误删上一层目录。
-$stagingSafe = $archiveRoot -and $archiveParent -and ((Split-Path -Leaf $archiveParent) -eq 'qterm-update')
-try {
-  New-Item -ItemType Directory -Path $work | Out-Null
-  Expand-Archive -Path $Archive -DestinationPath $work -Force
-  $binary = Get-ChildItem -Path $work -Recurse -Filter 'qterm.exe' | Select-Object -First 1
-  if (-not $binary) { throw 'qterm.exe not found in archive' }
-  Copy-Item -LiteralPath $binary.FullName -Destination $Target -Force
-  Start-Process -FilePath $Target
-} catch {
-  # 更新失败也要让用户能继续用旧版本。
-  Start-Process -FilePath $Target
-  exit 1
-} finally {
-  Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
-  if ($stagingSafe) {
-    Remove-Item -LiteralPath $archiveRoot -Recurse -Force -ErrorAction SilentlyContinue
-  }
-}
-`
-}
-
 func (s *Service) helperScriptDir() string {
 	return filepath.Join(s.tempRoot, "qterm-update-helper")
 }

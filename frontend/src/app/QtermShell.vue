@@ -5,6 +5,7 @@ import RemoteEditConflictDialog from '../features/remoteedit/RemoteEditConflictD
 import SftpTransferConflicts from '../components/dialogs/SftpTransferConflicts.vue'
 import TransferProgressPanel from '../components/common/feedback/TransferProgressPanel.vue'
 import { QtermToaster } from '../components/common'
+import DingToaster from '../components/common/feedback/DingToaster.vue'
 import { requestRemoteDirectory } from '../services/transfer-conflicts'
 import {
   setSessionWindowTitle,
@@ -27,7 +28,7 @@ import {
   hideSettingsWindow,
   type DialogWindowKind,
 } from '../services/sessionWindows'
-import { toast } from 'vue-sonner'
+import { toast, useToastEngine } from '../services/toast'
 import {
   BULK_CONNECT_LIMIT,
   collectGroupHosts,
@@ -196,6 +197,9 @@ const {
   searchQuery,
   sortMode,
   toggleSort,
+
+  moveAsset,
+  moveGroup,
   rootEntries,
   hostDialogOpen,
   editingHostId,
@@ -280,6 +284,7 @@ const {
   terminalCopyFeedback,
   terminalShowLatency,
   terminalShowMetrics,
+  terminalMetricsChart,
   translateEnabled,
   translateTarget,
   translateProvider,
@@ -549,6 +554,7 @@ const { backgroundEnabled, pageBackgroundStyle } = useWindowTheme({
   terminalDarkTheme,
   terminalThemeBackgroundScope,
 })
+const toastEngine = useToastEngine()
 const layoutSizeStyle = computed<Record<string, string>>(() => ({
   '--qt-sidebar-width': `${sidebarWidth.value}px`,
   '--qt-tool-panel-width': `${toolPanelWidth.value}px`,
@@ -1584,37 +1590,6 @@ async function duplicateHost(host: HostRecord): Promise<void> {
   }
 }
 
-async function moveAsset(
-  assetId: string,
-  groupId: string,
-  targetId: string,
-  position: 'before' | 'after' | 'inside',
-): Promise<void> {
-  try {
-    sortMode.value = 'custom'
-    await hostGateway.reorderHost(assetId, groupId, targetId, position)
-    await loadHosts()
-  } catch (error) {
-    await loadHosts()
-    toast.error(hostErrorMessage(error, t('shell.app.moveHostFailed')))
-  }
-}
-async function moveGroup(
-  id: string,
-  parentId: string,
-  targetId: string,
-  position: 'before' | 'after' | 'inside',
-): Promise<void> {
-  try {
-    sortMode.value = 'custom'
-    await hostGateway.reorderGroup(id, parentId, targetId, position)
-    await loadHosts()
-  } catch (error) {
-    await loadHosts()
-    toast.error(hostErrorMessage(error, t('shell.app.moveGroupFailed')))
-  }
-}
-
 function createHostInGroup(groupId: string): void {
   const group = groups.value.find((item) => item.id === groupId)
   openCreateDialog()
@@ -2483,6 +2458,7 @@ onBeforeUnmount(() => {
           :type-credential="typeCredentialIntoSession"
           :terminal-show-latency="terminalShowLatency"
           :terminal-show-metrics="terminalShowMetrics"
+          :terminal-metrics-chart="terminalMetricsChart"
           :translate-enabled="translateEnabled"
           :translate-target="translateTarget"
           :translate-provider="translateProvider"
@@ -2809,6 +2785,7 @@ onBeforeUnmount(() => {
       :copy-feedback="terminalCopyFeedback"
       :show-latency="terminalShowLatency"
       :show-metrics="terminalShowMetrics"
+      :metrics-chart="terminalMetricsChart"
       :translate-enabled="translateEnabled"
       :translate-target="translateTarget"
       :translate-provider="translateProvider"
@@ -2913,6 +2890,7 @@ onBeforeUnmount(() => {
       @update:copy-feedback="setTerminalSetting('terminalCopyFeedback', $event)"
       @update:show-latency="setTerminalSetting('terminalShowLatency', $event)"
       @update:show-metrics="setTerminalSetting('terminalShowMetrics', $event)"
+      @update:metrics-chart="setTerminalSetting('terminalMetricsChart', $event)"
       @update:gutter-mode="setGutterMode"
       @update:translate-enabled="setTranslateSetting('translateEnabled', $event)"
       @update:translate-target="setTranslateSetting('translateTarget', $event)"
@@ -3063,7 +3041,9 @@ onBeforeUnmount(() => {
     />
     <TransferConflictDialog />
     <SftpTransferConflicts :gateway="sftpGateway" :primary-window="isMainWindow" />
+
     <QtermToaster
+      v-if="toastEngine === 'sonner'"
       position="top-center"
       :rich-colors="true"
       :close-button="false"
@@ -3071,6 +3051,7 @@ onBeforeUnmount(() => {
       :visible-toasts="3"
       :duration="3600"
     />
+    <DingToaster v-else :dark="isDark" />
     <TransferProgressPanel
       :items="progressItems"
       @action="handleTransferAction"

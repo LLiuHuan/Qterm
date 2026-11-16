@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { requestTransferConflict } from '../../services/transfer-conflicts'
 import { sftpErrorMessage, type SftpGateway, type SFTPTransferRecord } from '../../services/sftp'
 import {

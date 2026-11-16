@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../services/toast'
 import {
   createCredentialGateway,
   credentialErrorMessage,

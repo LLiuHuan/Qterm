@@ -230,6 +230,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const terminalCopyFeedback = computed(() => settings.terminalCopyFeedback ?? true)
   const terminalShowLatency = computed(() => settings.terminalShowLatency ?? true)
   const terminalShowMetrics = computed(() => settings.terminalShowMetrics ?? false)
+  const terminalMetricsChart = computed(() => settings.terminalMetricsChart ?? false)
 
   const translateEnabled = computed(() => settings.translateEnabled ?? true)
   const translateTarget = computed(() => settings.translateTarget ?? 'zh-CN')
@@ -344,6 +345,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
       | 'terminalCopyFeedback'
       | 'terminalShowLatency'
       | 'terminalShowMetrics'
+      | 'terminalMetricsChart'
       | 'terminalBatchCommand'
       | 'terminalConfirmClose'
       | 'terminalConfirmMultiLinePaste'
@@ -680,6 +682,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     rootEntries,
     loadHosts,
     toggleSort,
+    moveAsset,
+    moveGroup,
   } = assetState
 
   async function resourcesImported(): Promise<void> {
@@ -1205,6 +1209,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     searchQuery,
     sortMode,
     toggleSort,
+    moveAsset,
+    moveGroup,
     hostDialogOpen,
     editingHostId,
     groupDialogOpen,
@@ -1294,6 +1300,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     terminalCopyFeedback,
     terminalShowLatency,
     terminalShowMetrics,
+    terminalMetricsChart,
     translateEnabled,
     translateTarget,
     translateProvider,

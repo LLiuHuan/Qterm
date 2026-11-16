@@ -6,7 +6,7 @@ import { Check, Copy } from '@lucide/vue'
 import { IconButton } from '../../components/common'
 import { writeClipboardText } from '../../services/clipboard'
 import { useI18n } from '../../locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { textContent } from '@comark/vue/utils'
 import {
   CodeBlock,

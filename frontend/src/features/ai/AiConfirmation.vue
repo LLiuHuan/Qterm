@@ -5,7 +5,7 @@ import { CodeBlock, CodeBlockContent } from '../../components/common/ai'
 import { IconButton, QtermButton } from '../../components/common'
 import { useI18n } from '../../locales'
 import { writeClipboardText } from '../../services/clipboard'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { Copy } from '@lucide/vue'
 
 const props = defineProps<{

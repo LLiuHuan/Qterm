@@ -1,4 +1,4 @@
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { translate } from '../../locales'
 import { writeClipboardText } from '../../services/clipboard'
 import { openExternalUrl } from '../../services/externalLink'

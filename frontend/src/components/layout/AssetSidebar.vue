@@ -4,7 +4,6 @@ import {
   ArrowDownAZ,
   ArrowDownUp,
   ArrowUpZA,
-  CircleDot,
   CircleHelp,
   FolderPlus,
   Plus,
@@ -15,7 +14,9 @@ import {
 } from '@lucide/vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
-import { IconButton } from '../common'
+import { useAssetTreeExpansion } from '../../features/hosts/assetTreeExpansion'
+import { IconButton, MorphingIcon, RefreshIconButton } from '../common'
+import { listCollapseIcon, listExtendIcon } from '../common/icon/listMorphIcons'
 import AssetDragGhost from './AssetDragGhost.vue'
 import AssetHostRow from './AssetHostRow.vue'
 import AssetTreeGroup from './AssetTreeGroup.vue'
@@ -70,6 +71,8 @@ const emit = defineEmits<{
   connectGroup: [group: GroupedHosts]
 }>()
 const { t } = useI18n()
+
+const { hasGroups, hasExpanded, collapseAll, expandAll } = useAssetTreeExpansion()
 
 function containsHost(group: GroupedHosts): boolean {
   return group.items.length > 0 || (group.children?.some(containsHost) ?? false)
@@ -178,8 +181,18 @@ function forwardDuplicate(host: HostRecord): void {
           aria-hidden="true"
         />
       </IconButton>
-      <IconButton :label="t('shell.asset.filterDisabled')" disabled>
-        <CircleDot :size="16" aria-hidden="true" />
+
+      <IconButton
+        :label="hasExpanded ? t('shell.asset.collapseAllGroups') : t('shell.asset.expandAllGroups')"
+        :disabled="!hasGroups"
+        @click="hasExpanded ? collapseAll() : expandAll()"
+      >
+        <MorphingIcon
+          :icon="hasExpanded ? listCollapseIcon : listExtendIcon"
+          :size="16"
+          reduced-motion="user"
+          aria-hidden="true"
+        />
       </IconButton>
       <div class="flex-1"></div>
       <RefreshIconButton :label="t('shell.asset.refresh')" size="icon" icon-class="size-4" @click="emit('refresh')" />
@@ -319,6 +332,7 @@ function forwardDuplicate(host: HostRecord): void {
 
     <AssetDragGhost
       v-if="assetDrag.state.active || assetDrag.state.returnTo"
+      variant="row"
       :kind="assetDrag.state.item?.kind ?? 'host'"
       :host="draggingHost"
       :label="assetDrag.state.label"

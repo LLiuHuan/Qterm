@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { ClipboardCopy, Download, ExternalLink, RefreshCw, RotateCcw, Trash2 } from '@lucide/vue'
 import { System } from '@wailsio/runtime'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { IconButton, QtermButton, QtermSwitch } from '../../components/common'
+import { ScrollArea } from '../../components/common/control-primitives'
 import { useI18n } from '@/locales'
 import { QTERM_DEV_BUILD, QTERM_VERSION } from '../../services/appInfo'
 import { writeClipboardText } from '../../services/clipboard'
@@ -242,9 +243,17 @@ async function downloadLog(): Promise<void> {
 
       <details v-if="updateRelease?.notes" class="mt-3">
         <summary class="cursor-pointer text-xs text-qt-muted">{{ t('about.update.releaseNotes') }}</summary>
-        <div class="mt-2 max-h-40 overflow-auto text-xs text-qt-muted" data-update-notes>
-          <AiMessageText :text="updateRelease.notes" />
-        </div>
+
+        <ScrollArea
+          class="mt-2 max-h-40 w-full min-w-0 overflow-hidden text-xs text-qt-muted [&>[data-reka-scroll-area-viewport]]:max-h-40"
+          type="hover"
+          :scroll-hide-delay="600"
+          data-update-notes
+        >
+          <div class="pr-2 pb-0.5">
+            <AiMessageText :text="updateRelease.notes" />
+          </div>
+        </ScrollArea>
       </details>
       <div class="mt-4 flex flex-wrap justify-end gap-2">
         <QtermButton v-if="updateRelease?.pageUrl" variant="outline" type="button" @click="openReleasePage">

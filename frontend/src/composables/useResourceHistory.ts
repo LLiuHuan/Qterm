@@ -1,5 +1,7 @@
 import { ref, type Ref } from 'vue'
 import type { ResourceSnapshot } from '../services/sessions'
+import { networkMetrics } from '../features/monitor/networkMetrics'
+import { resourceNetworks } from '../features/monitor/resourceSelection'
 
 export const MAX_RESOURCE_HISTORY_POINTS = 60
 
@@ -23,17 +25,22 @@ export interface ResourceHistory {
 
 export function createResourceHistory(now: () => number = Date.now): ResourceHistory {
   const points = ref<ResourceHistoryPoint[]>([])
+  let networkName: string | undefined
   return {
     points,
     push(snapshot: ResourceSnapshot) {
       if ((snapshot.sampleWindowMs ?? 0) <= 0) return
-      const networks = snapshot.networks ?? []
+      const selectedName = resourceNetworks(snapshot.networks)[0]?.name
+
+      if (networkName !== selectedName) points.value = []
+      networkName = selectedName
+      const network = networkMetrics(snapshot)
       const next: ResourceHistoryPoint = {
         timestamp: now(),
         cpu: snapshot.cpuUsagePercent,
         memory: snapshot.memoryUsagePercent,
-        rx: networks.reduce((sum, item) => sum + item.receiveRateBytes, 0),
-        tx: networks.reduce((sum, item) => sum + item.transmitRateBytes, 0),
+        rx: network.receiveRate,
+        tx: network.transmitRate,
       }
       const appended = [...points.value, next]
       points.value =
@@ -43,6 +50,7 @@ export function createResourceHistory(now: () => number = Date.now): ResourceHis
     },
     reset() {
       points.value = []
+      networkName = undefined
     },
   }
 }

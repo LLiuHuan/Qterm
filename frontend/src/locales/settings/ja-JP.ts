@@ -220,6 +220,8 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.portForwards.dialog.deleteConfirm': '「{name}」を削除しますか？',
   'settings.portForwards.dialog.deleteHint': '実行中の場合は、転送を停止してから設定を削除します。',
   'settings.portForwards.group.renameTitle': 'グループ名を変更',
+  'settings.portForwards.toast.removed': 'ポート転送を削除しました',
+  'settings.portForwards.toast.groupDissolved': 'グループを解散しました',
   'settings.portForwards.group.name': 'グループ名',
   'settings.portForwards.group.namePlaceholder': '例：データベース',
   'settings.portForwards.group.nameRequired': 'グループ名を入力してください。',
@@ -246,6 +248,8 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.snippets.error.delete': '削除に失敗しました。再試行してください。',
   'settings.snippets.toast.copied': 'コマンドの内容をコピーしました。',
   'settings.snippets.toast.copyFailed': 'コピーに失敗しました。手動でコピーしてください。',
+  'settings.snippets.toast.removed': 'スニペットを削除しました',
+  'settings.snippets.toast.groupRemoved': 'グループを削除しました',
   'settings.snippets.search.placeholder': '名前または内容でクイックコマンドを検索…',
   'settings.snippets.search.aria': '名前または内容でクイックコマンドを検索',
   'settings.snippets.search.clear': '検索を消去',
@@ -439,6 +443,7 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.knownHosts.copy': '指紋をコピー',
   'settings.knownHosts.copied': '指紋をコピーしました',
   'settings.knownHosts.copyFailed': '指紋のコピーに失敗しました',
+  'settings.knownHosts.removed': 'フィンガープリントを削除しました',
   'settings.knownHosts.noFingerprint': '指紋なし（解析失敗）',
   'settings.import.description':
     '`~/.ssh/config` からホストを読み取り、取り込む項目を選択します。重複は既定でスキップされ、資格情報や秘密鍵は取り込みません。',
@@ -792,6 +797,13 @@ export const settingsCoreJa: Record<string, string> = {
   'appearance.core.hostColorStyle.background': '背景色',
   'appearance.core.hostColorStyle.backgroundHelp':
     'ホスト行全体にごく淡い同色の背景を敷き、ホバーまたは選択時に同色の枠線を加えます。',
+  'appearance.core.toastEngine': '通知スタイル',
+  'appearance.core.toastEngine.classic': 'クラシック',
+  'appearance.core.toastEngine.classicHelp':
+    '複数の通知が上部中央に積み重なり、時間が来ると自動で消えます。いくつもの結果を同時に確認したいときに。',
+  'appearance.core.toastEngine.morph': 'モーフ',
+  'appearance.core.toastEngine.morphHelp':
+    '通知を常に 1 件だけ表示し、状態が変わるとその場で形を変えます（ding）。約 45KB は必要時に読み込みます。',
   'appearance.core.assetLibraryLayout': 'アセットライブラリのレイアウト',
   'appearance.core.assetLibraryLayout.sidebar': 'サイドバーメニュー',
   'appearance.core.assetLibraryLayout.sidebarHelp':
@@ -974,6 +986,9 @@ export const settingsCoreJa: Record<string, string> = {
   'terminal.core.networkLatency': 'ネットワーク遅延を表示',
   'terminal.core.networkLatencyHelp': '接続中の SSH ターミナルの右上に現在の遅延を表示します。',
   'terminal.core.metrics': 'メトリクス監視を表示',
+  'terminal.core.metricsChart': '指標にミニグラフを使用',
+  'terminal.core.metricsChartHelp':
+    '使用率をミニグラフで表示し、容量と通信速度の数値は残します。ホバーで使用率を確認できます。',
   'terminal.core.metricsHelp':
     'オンにすると、メトリクス監視に対応した SSH ターミナルの下部に CPU、メモリ、システム負荷、ルートディレクトリの使用率、ネットワーク速度が表示されます。',
   'terminal.core.translateSection': '翻訳',

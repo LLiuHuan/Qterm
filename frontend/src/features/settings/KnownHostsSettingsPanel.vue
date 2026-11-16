@@ -5,7 +5,7 @@ import { IconButton, QtermButton, QtermEmptyState, QtermSearchField, RefreshIcon
 import { ScrollArea } from '../../components/common/control-primitives'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { useI18n } from '../../locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { knownHostsErrorMessage, type KnownHostEntry, type KnownHostsGateway } from '../../services/knownHosts'
 
 const props = defineProps<{ gateway: KnownHostsGateway }>()
@@ -71,6 +71,8 @@ async function confirmDelete(): Promise<void> {
   try {
     await props.gateway.remove(target.line)
     pendingDelete.value = null
+
+    toast.success(t('settings.knownHosts.removed'))
     await load()
   } catch (cause) {
     error.value = knownHostsErrorMessage(cause, t('settings.knownHosts.removeFailed'))

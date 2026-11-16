@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import {
   IconButton,
   QtermButton,
@@ -602,6 +602,7 @@ async function confirmRemove(): Promise<void> {
   try {
     await deleteSessionHistory(item.id)
     pendingDelete.value = null
+    toast.success(t('history.delete.done'))
     await load()
   } catch (cause) {
     toast.error(errorMessage(cause, t('history.delete.failure')))
@@ -710,6 +711,7 @@ async function confirmRemoveRecording(): Promise<void> {
   try {
     await deleteRecording(item.id)
     pendingRecordingDelete.value = null
+    toast.success(t('history.recording.deleteDone'))
     await reloadLoadedRecordings()
     if (replayOpen.value && replayRecordingId.value === item.id) closeReplayDialog(false)
   } catch (cause) {

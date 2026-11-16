@@ -63,6 +63,8 @@ export function useSftpPanelTransfers(options: UseSftpPanelTransfersOptions) {
       progress: transferProgress(transfer),
       label: transferStateLabel(transfer.state),
       stage: transfer.stage,
+
+      detail: transfer.state === 'failed' ? transfer.error : undefined,
       speed: transfer.state === 'running' ? transferSpeedText(transfer.rateBytesPerSecond) : undefined,
       eta:
         transfer.state === 'running'

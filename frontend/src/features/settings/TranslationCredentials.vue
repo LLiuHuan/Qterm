@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Check, Save, Trash2 } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { QtermButton, QtermInput, QtermSecretInput, QtermSettingsRow } from '../../components/common'
 import {
   createTranslateCredentialGateway,

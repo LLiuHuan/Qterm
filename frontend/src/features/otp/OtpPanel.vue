@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { writeClipboardText } from '@/services/clipboard'
 import { Copy, KeyRound, Pencil, Plus, QrCode, ScanLine, Trash2 } from '@lucide/vue'
 import {
@@ -327,6 +327,8 @@ async function remove(entry: OtpEntry): Promise<void> {
       'update:entries',
       props.entries.filter((item) => item.id !== entry.id),
     )
+
+    toast.success(t('shell.otp.removed'))
   } catch {
     actionError.value = t('shell.otp.removeFailed')
   }

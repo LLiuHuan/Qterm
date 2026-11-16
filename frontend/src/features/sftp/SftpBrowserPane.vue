@@ -48,7 +48,7 @@ import {
 import { writeClipboardText } from '../../services/clipboard'
 import { requestAILaunch } from '../../services/aiAgentLaunch'
 import { translateErrorKey } from '../../services/errors'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import SftpFileIcon from './SftpFileIcon.vue'
 import SftpFavoritesMenu from './SftpFavoritesMenu.vue'
 import {

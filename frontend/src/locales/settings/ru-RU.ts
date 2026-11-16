@@ -223,6 +223,8 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.portForwards.dialog.deleteHint':
     'Если проброс запущен, сначала будет остановлен, а затем удалена конфигурация.',
   'settings.portForwards.group.renameTitle': 'Переименование группы',
+  'settings.portForwards.toast.removed': 'Проброс порта удалён',
+  'settings.portForwards.toast.groupDissolved': 'Группа расформирована',
   'settings.portForwards.group.name': 'Название группы',
   'settings.portForwards.group.namePlaceholder': 'Например: базы данных',
   'settings.portForwards.group.nameRequired': 'Введите название группы.',
@@ -249,6 +251,8 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.snippets.error.delete': 'Не удалось удалить. Повторите попытку.',
   'settings.snippets.toast.copied': 'Содержимое команды скопировано.',
   'settings.snippets.toast.copyFailed': 'Не удалось скопировать. Скопируйте вручную.',
+  'settings.snippets.toast.removed': 'Сниппет удалён',
+  'settings.snippets.toast.groupRemoved': 'Группа удалена',
   'settings.snippets.search.placeholder': 'Поиск быстрых команд по названию или содержимому…',
   'settings.snippets.search.aria': 'Поиск быстрых команд по названию или содержимому',
   'settings.snippets.search.clear': 'Очистить поиск',
@@ -442,6 +446,7 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.knownHosts.copy': 'Скопировать отпечаток',
   'settings.knownHosts.copied': 'Отпечаток скопирован',
   'settings.knownHosts.copyFailed': 'Не удалось скопировать отпечаток',
+  'settings.knownHosts.removed': 'Отпечаток удалён',
   'settings.knownHosts.noFingerprint': 'Нет отпечатка (ошибка разбора)',
   'settings.import.description':
     'Читает хосты из `~/.ssh/config` и позволяет выбрать нужные. Дубликаты по умолчанию пропускаются; учётные данные и закрытые ключи не импортируются.',
@@ -794,6 +799,13 @@ export const settingsCoreRu: Record<string, string> = {
   'appearance.core.hostColorStyle.background': 'Цвет фона',
   'appearance.core.hostColorStyle.backgroundHelp':
     'Заливает всю строку очень светлым оттенком цвета и добавляет такого же цвета обводку при наведении или выборе.',
+  'appearance.core.toastEngine': 'Стиль уведомлений',
+  'appearance.core.toastEngine.classic': 'Классический',
+  'appearance.core.toastEngine.classicHelp':
+    'Несколько уведомлений складываются в стопку по центру сверху и исчезают сами; удобно, когда результатов несколько.',
+  'appearance.core.toastEngine.morph': 'Морфинг',
+  'appearance.core.toastEngine.morphHelp':
+    'Остаётся одно уведомление, которое меняется на месте (ding); около 45 КБ загружается по требованию.',
   'appearance.core.assetLibraryLayout': 'Раскладка библиотеки ресурсов',
   'appearance.core.assetLibraryLayout.sidebar': 'Меню боковой панели',
   'appearance.core.assetLibraryLayout.sidebarHelp':
@@ -979,6 +991,9 @@ export const settingsCoreRu: Record<string, string> = {
   'terminal.core.networkLatency': 'Показывать сетевую задержку',
   'terminal.core.networkLatencyHelp': 'Показывать текущую задержку в правом верхнем углу подключённых терминалов SSH.',
   'terminal.core.metrics': 'Показывать метрики внизу терминала',
+  'terminal.core.metricsChart': 'Мини-графики для метрик',
+  'terminal.core.metricsChartHelp':
+    'Загрузка в виде мини-графиков; объём памяти и скорость сети остаются текстом. Наведите указатель для значений.',
   'terminal.core.metricsHelp':
     'Если включено, терминалы SSH с поддержкой метрик показывают внизу загрузку CPU, память, системную нагрузку, использование корневого каталога и скорость сети.',
   'terminal.core.translateSection': 'Перевод',

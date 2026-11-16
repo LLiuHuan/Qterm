@@ -14,7 +14,7 @@ import {
 import { QtermCombobox } from '../../components/common/form-controls'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { useI18n } from '../../locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { aiErrorMessage, clearProviderKey, providerKeyConfigured } from '../../services/ai'
 import { readApprovalMode, writeApprovalMode, type AIApprovalMode } from '../../services/aiApproval'
 import {

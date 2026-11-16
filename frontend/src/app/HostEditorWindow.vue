@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, toRefs, watch } from 'vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../services/toast'
 import { QtermToaster } from '../components/common'
 import GroupEditorDialog from '../components/dialogs/GroupEditorDialog.vue'
 import HostEditorDialog from '../components/dialogs/HostEditorDialog.vue'

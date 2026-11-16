@@ -345,43 +345,55 @@ func (s *Service) DockerRemoveNetwork(ctx context.Context, sessionID, networkID 
 	return publicError(docker.NewService(runner).RemoveNetwork(callCtx, networkID))
 }
 
-func (s *Service) DockerPruneNetworks(ctx context.Context, sessionID string) error {
+func (s *Service) DockerPruneNetworks(ctx context.Context, sessionID string) (int, error) {
 	if err := s.requireDockerPanel(ctx, sessionID); err != nil {
-		return err
+		return 0, err
 	}
 	runner, err := s.dockerRunner(ctx, sessionID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	callCtx, cancel := context.WithTimeout(ctx, dockerPruneTimeout)
 	defer cancel()
-	return publicError(docker.NewService(runner).PruneNetworks(callCtx))
+	count, err := docker.NewService(runner).PruneNetworks(callCtx)
+	if err != nil {
+		return 0, publicError(err)
+	}
+	return count, nil
 }
 
-func (s *Service) DockerPruneVolumes(ctx context.Context, sessionID string) error {
+func (s *Service) DockerPruneVolumes(ctx context.Context, sessionID string) (int, error) {
 	if err := s.requireDockerPanel(ctx, sessionID); err != nil {
-		return err
+		return 0, err
 	}
 	runner, err := s.dockerRunner(ctx, sessionID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	callCtx, cancel := context.WithTimeout(ctx, dockerPruneTimeout)
 	defer cancel()
-	return publicError(docker.NewService(runner).PruneVolumes(callCtx))
+	count, err := docker.NewService(runner).PruneVolumes(callCtx)
+	if err != nil {
+		return 0, publicError(err)
+	}
+	return count, nil
 }
 
-func (s *Service) DockerPruneImages(ctx context.Context, sessionID string, all bool) error {
+func (s *Service) DockerPruneImages(ctx context.Context, sessionID string, all bool) (int, error) {
 	if err := s.requireDockerPanel(ctx, sessionID); err != nil {
-		return err
+		return 0, err
 	}
 	runner, err := s.dockerRunner(ctx, sessionID)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	callCtx, cancel := context.WithTimeout(ctx, dockerPruneTimeout)
 	defer cancel()
-	return publicError(docker.NewService(runner).PruneImages(callCtx, all))
+	count, err := docker.NewService(runner).PruneImages(callCtx, all)
+	if err != nil {
+		return 0, publicError(err)
+	}
+	return count, nil
 }
 
 func (s *Service) DockerOpenContainerTerminal(

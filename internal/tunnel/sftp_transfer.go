@@ -117,7 +117,12 @@ func (f *FileSystem) uploadFileParallelWithResume(
 	desiredConnections int,
 ) error {
 	plan, ok := planSFTPParallelTransfer(expectedSize)
-	if !ok || !f.parallelReady() {
+	if !ok {
+
+		return f.uploadFile(ctx, localPath, remotePath, expectedSize, overwrite, progress)
+	}
+	if !f.parallelReady() {
+
 		return errors.New("resume is only supported for parallel uploads")
 	}
 	if !manifest.EnsurePlan(plan.chunkSize) {

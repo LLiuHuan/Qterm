@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Copy, FileKey, FileText, RotateCcw, Upload, WandSparkles } from '@lucide/vue'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import { QtermButton, QtermFormMessage, QtermInput, QtermSecretInput, QtermTextarea } from '../common'
 import {
   Label,

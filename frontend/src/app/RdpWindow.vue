@@ -10,7 +10,7 @@ import { useSettingsState } from '../features/settings/useSettingsState'
 import { closeCurrentWindow, setSessionWindowTitle } from '../services/sessionWindows'
 import { registerRdpWindowSession } from '../services/remotedesktop'
 import { useI18n } from '../locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../services/toast'
 
 const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
 const windowTitle = (params.get('rdpTitle') ?? '').trim()

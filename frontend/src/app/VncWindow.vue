@@ -9,7 +9,7 @@ import { requestVncTabOpen } from '../features/vnc/vncTabHandover'
 import { useSettingsState } from '../features/settings/useSettingsState'
 import { closeCurrentWindow, setSessionWindowTitle } from '../services/sessionWindows'
 import { useI18n } from '../locales'
-import { toast } from 'vue-sonner'
+import { toast } from '../services/toast'
 
 const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
 const windowTitle = (params.get('vncTitle') ?? '').trim()

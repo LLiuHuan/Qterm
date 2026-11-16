@@ -43,6 +43,7 @@ import {
   type TerminalThemeId,
 } from '../sessions/terminalThemes'
 import { useI18n } from '@/locales'
+import { setToastEngine, useToastEngine } from '../../services/toast'
 
 const { t, locale } = useI18n()
 
@@ -444,6 +445,20 @@ function updateHostColorStyle(value: string): void {
   emit('update:hostColorStyle', value)
 }
 
+const toastEngine = useToastEngine()
+const toastEngineOptions = computed(() => [
+  { value: 'sonner', label: t('appearance.core.toastEngine.classic') },
+  { value: 'ding', label: t('appearance.core.toastEngine.morph') },
+])
+
+const toastEngineHelp = computed(() =>
+  t(toastEngine.value === 'ding' ? 'appearance.core.toastEngine.morphHelp' : 'appearance.core.toastEngine.classicHelp'),
+)
+function updateToastEngine(value: string): void {
+  if (value !== 'sonner' && value !== 'ding') return
+  setToastEngine(value)
+}
+
 const backgroundSizeOptions = computed(() => [
   { value: 'cover', label: t('appearance.core.backgroundSize.cover') },
   { value: 'contain', label: t('appearance.core.backgroundSize.contain') },
@@ -608,6 +623,16 @@ function updateOpacity(kind: 'light' | 'dark', value: string | number): void {
           :model-value="props.hostColorStyle ?? 'block'"
           :options="hostColorStyleOptions"
           @update:model-value="updateHostColorStyle"
+        />
+      </QtermSettingsRow>
+
+      <QtermSettingsRow :label="t('appearance.core.toastEngine')" :description="toastEngineHelp">
+        <SegmentedTabs
+          id="settings-toast-engine"
+          :label="t('appearance.core.toastEngine')"
+          :model-value="toastEngine"
+          :options="toastEngineOptions"
+          @update:model-value="updateToastEngine"
         />
       </QtermSettingsRow>
     </div>

@@ -20,6 +20,8 @@ export interface TransferProgressItem {
   label: string
 
   stage?: string
+
+  detail?: string
   completed?: boolean
   action?: TransferQueueAction
 
@@ -65,6 +67,7 @@ export function useTransferState(gateway: SftpGateway) {
           progress: pct,
           label: transferStateLabel(r.state),
           stage: r.stage,
+          detail: r.state === 'failed' ? r.error : undefined,
           action: transferQueueAction(r, gateway),
           secondaryAction: transferSecondaryAction(r),
 

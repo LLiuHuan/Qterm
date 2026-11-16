@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '../../components/common/overlay-controls'
 import { readClipboardText, writeClipboardText } from '../../services/clipboard'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 import type { KeywordHighlightRule } from './settingsStore'
 import {
   KEYWORD_HIGHLIGHT_PRESETS,

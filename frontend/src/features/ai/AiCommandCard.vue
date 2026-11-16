@@ -5,7 +5,7 @@ import { IconButton, QtermButton } from '../../components/common'
 import { CodeBlock, CodeBlockContent, CodeBlockToken, useHighlightedCode } from '../../components/common/ai'
 import { useI18n } from '../../locales'
 import { writeClipboardText } from '../../services/clipboard'
-import { toast } from 'vue-sonner'
+import { toast } from '../../services/toast'
 
 type CommandRisk = 'readonly' | 'confirm' | 'danger'
 
