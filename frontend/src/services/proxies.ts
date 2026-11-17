@@ -1,3 +1,4 @@
+import { emitAssetChange } from './assetEvents'
 import { errorMessage } from './errors'
 import { createRuntimeGateway } from './runtime'
 
@@ -103,13 +104,59 @@ function notReadyError(): { code: string; messageKey: string } {
   return { code: 'unavailable', messageKey: 'proxy.not_ready' }
 }
 
+export function withProxyEvents(gateway: ProxyGateway): ProxyGateway {
+  return new Proxy(gateway, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver)
+      if (typeof value !== 'function') return value
+      const bound = value.bind(target)
+      switch (property) {
+        case 'create':
+          return async (...args: unknown[]) => {
+            const record = (await bound(...args)) as ProxyRecord
+            await emitAssetChange({ kind: 'proxy', action: 'create', record })
+            return record
+          }
+        case 'update':
+          return async (...args: unknown[]) => {
+            const record = (await bound(...args)) as ProxyRecord
+            await emitAssetChange({ kind: 'proxy', action: 'update', record })
+            return record
+          }
+        case 'remove':
+          return async (id: unknown) => {
+            const count = (await bound(id)) as number
+            await emitAssetChange({ kind: 'proxy', action: 'delete', id: String(id) })
+            if (count > 0) await emitAssetChange({ kind: 'host', action: 'invalidate' })
+            return count
+          }
+        default:
+          return bound
+      }
+    },
+  })
+}
+
 export function createProxyGateway(): ProxyGateway {
-  return createRuntimeGateway<ProxyGateway>(
-    () => new WailsProxyGateway(),
-    () => new UnavailableProxyGateway(),
+  return withProxyEvents(
+    createRuntimeGateway<ProxyGateway>(
+      () => new WailsProxyGateway(),
+      () => new UnavailableProxyGateway(),
+    ),
   )
 }
 
 export function proxyErrorMessage(error: unknown, fallback: string): string {
   return errorMessage(error, fallback)
+}
+
+export function upsertProxy(list: readonly ProxyRecord[], record: ProxyRecord): ProxyRecord[] {
+  const index = list.findIndex((item) => item.id === record.id)
+  if (index < 0) return [...list, record]
+  return list.map((item) => (item.id === record.id ? record : item))
+}
+
+export function removeProxy(list: readonly ProxyRecord[], id: string): ProxyRecord[] {
+  const next = list.filter((item) => item.id !== id)
+  return next.length === list.length ? (list as ProxyRecord[]) : next
 }

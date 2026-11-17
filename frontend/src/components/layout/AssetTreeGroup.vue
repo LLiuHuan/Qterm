@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { QtermButton } from '../common'
-import { ChevronDown, FolderPlus, Link2, Pencil, Plus, Trash2 } from '@lucide/vue'
+import { MorphingIcon, QtermButton } from '../common'
+import { FolderPlus, Link2, Pencil, Plus, Trash2 } from '@lucide/vue'
+import { chevronCollapsedIcon, chevronExpandedIcon } from '../common/icon/chevronMorphIcons'
 import { computed, onMounted, onUnmounted } from 'vue'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../common/control-primitives'
+import CollapseTransition from '../common/collapse/CollapseTransition.vue'
 import AssetContextMenu from '../common/overlay-controls/AssetContextMenu.vue'
 import AssetHostRow from './AssetHostRow.vue'
 import type { GroupedHosts } from '../../types/qterm'
@@ -112,55 +114,62 @@ function hostCount(group: GroupedHosts): number {
             :class="{ 'is-selected': props.selectedGroupId === props.group.id }"
             :aria-label="t('shell.asset.groupAria', { name: props.group.name })"
             @click="emit('selectGroup', props.group.id)"
-            ><ChevronDown :size="14" class="group-chevron flex-none size-[18px]" :class="{ 'is-closed': !open }" /><span
-              class="asset-group-name min-w-0 flex-1 truncate text-sm"
-              >{{ props.group.name }}</span
+            ><MorphingIcon
+              :icon="open ? chevronExpandedIcon : chevronCollapsedIcon"
+              :size="14"
+              class="group-chevron flex-none size-[18px]"
+              reduced-motion="user"
+              aria-hidden="true"
+            /><span class="asset-group-name min-w-0 flex-1 truncate text-sm">{{ props.group.name }}</span
             ><span class="text-qt-muted font-normal">{{ hostCount(props.group) }}</span></QtermButton
           ></CollapsibleTrigger
         >
       </AssetContextMenu>
     </div>
-    <CollapsibleContent v-if="props.group.entries?.length && open" class="asset-group-children relative pl-[18px]">
-      <div class="asset-host-list" :data-asset-parent="props.group.id">
-        <template v-for="entry in props.group.entries" :key="`${entry.kind}-${entry.value.id}`">
-          <AssetHostRow
-            v-if="entry.kind === 'host'"
-            :host="entry.value"
-            :selected="props.selectedHostId === entry.value.id"
-            :show-address="props.showAddress"
-            @select="emit('selectHost', $event)"
-            @open="emit('openHost', $event)"
-            @edit="emit('editHost', $event)"
-            @delete="emit('deleteHost', $event)"
-            @copy="forwardCopy"
-            @duplicate="forwardDuplicate"
-            @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
-          />
-          <AssetTreeGroup
-            v-else
-            :group="entry.value"
-            :selected-host-id="props.selectedHostId"
-            :selected-group-id="props.selectedGroupId"
-            :show-address="props.showAddress"
-            :bulk-connect-busy="props.bulkConnectBusy"
-            @select-host="emit('selectHost', $event)"
-            @open-host="emit('openHost', $event)"
-            @edit-host="emit('editHost', $event)"
-            @delete-host="emit('deleteHost', $event)"
-            @select-group="emit('selectGroup', $event)"
-            @create-host-in-group="emit('createHostInGroup', $event)"
-            @create-subgroup="emit('createSubgroup', $event)"
-            @edit-group="emit('editGroup', $event)"
-            @delete-group="emit('deleteGroup', $event)"
-            @copy-host="forwardCopy"
-            @duplicate-host="forwardDuplicate"
-            @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
-            @move-asset="(...args) => emit('moveAsset', ...args)"
-            @move-group="(...args) => emit('moveGroup', ...args)"
-            @connect-group="emit('connectGroup', $event)"
-          />
-        </template>
-      </div>
+
+    <CollapsibleContent v-if="props.group.entries?.length" force-mount class="asset-group-children relative pl-[18px]">
+      <CollapseTransition :show="open">
+        <div class="asset-host-list" :data-asset-parent="props.group.id">
+          <template v-for="entry in props.group.entries" :key="`${entry.kind}-${entry.value.id}`">
+            <AssetHostRow
+              v-if="entry.kind === 'host'"
+              :host="entry.value"
+              :selected="props.selectedHostId === entry.value.id"
+              :show-address="props.showAddress"
+              @select="emit('selectHost', $event)"
+              @open="emit('openHost', $event)"
+              @edit="emit('editHost', $event)"
+              @delete="emit('deleteHost', $event)"
+              @copy="forwardCopy"
+              @duplicate="forwardDuplicate"
+              @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
+            />
+            <AssetTreeGroup
+              v-else
+              :group="entry.value"
+              :selected-host-id="props.selectedHostId"
+              :selected-group-id="props.selectedGroupId"
+              :show-address="props.showAddress"
+              :bulk-connect-busy="props.bulkConnectBusy"
+              @select-host="emit('selectHost', $event)"
+              @open-host="emit('openHost', $event)"
+              @edit-host="emit('editHost', $event)"
+              @delete-host="emit('deleteHost', $event)"
+              @select-group="emit('selectGroup', $event)"
+              @create-host-in-group="emit('createHostInGroup', $event)"
+              @create-subgroup="emit('createSubgroup', $event)"
+              @edit-group="emit('editGroup', $event)"
+              @delete-group="emit('deleteGroup', $event)"
+              @copy-host="forwardCopy"
+              @duplicate-host="forwardDuplicate"
+              @tool-panel="(host, tool) => emit('toolPanel', host, tool)"
+              @move-asset="(...args) => emit('moveAsset', ...args)"
+              @move-group="(...args) => emit('moveGroup', ...args)"
+              @connect-group="emit('connectGroup', $event)"
+            />
+          </template>
+        </div>
+      </CollapseTransition>
     </CollapsibleContent>
   </Collapsible>
 </template>

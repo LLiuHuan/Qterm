@@ -688,12 +688,11 @@ body [data-sonner-toaster] {
 }
 
 [data-slot='tooltip-content'].has-page-background [data-tooltip-arrow] {
-  background: color-mix(in srgb, var(--card) 88%, transparent);
   fill: color-mix(in srgb, var(--card) 88%, transparent);
+  stroke: var(--qt-theme-border, var(--qt-border, var(--border)));
 }
 
 [data-slot='tooltip-content'].has-page-background.is-dark [data-tooltip-arrow] {
-  background: color-mix(in srgb, var(--card) 92%, transparent);
   fill: color-mix(in srgb, var(--card) 92%, transparent);
 }
 
@@ -725,9 +724,8 @@ body [data-sonner-toaster] {
     .terminal-theme-background-derived
   )
   [data-tooltip-arrow] {
-  background: var(--qt-theme-3, var(--card));
   fill: var(--qt-theme-3, var(--card));
-  border-color: var(--qt-theme-border);
+  stroke: var(--qt-theme-border, var(--qt-border, var(--border)));
 }
 
 [data-slot='tooltip-content'].has-page-background:is(
@@ -744,6 +742,6 @@ body [data-sonner-toaster] {
     .terminal-theme-background-derived
   )
   [data-tooltip-arrow] {
-  background: color-mix(in srgb, var(--qt-theme-outer) 88%, transparent);
   fill: color-mix(in srgb, var(--qt-theme-outer) 88%, transparent);
+  stroke: var(--qt-theme-border, var(--qt-border, var(--border)));
 }

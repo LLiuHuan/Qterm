@@ -2,7 +2,13 @@
 import { computed, ref, watch } from 'vue'
 import { Ban, Check, CheckCircle2, ChevronDown, CircleAlert, Copy, LoaderCircle, Play, Square } from '@lucide/vue'
 import { IconButton, QtermButton } from '../../components/common'
-import { CodeBlock, CodeBlockContent, CodeBlockToken, useHighlightedCode } from '../../components/common/ai'
+import {
+  CodeBlock,
+  CodeBlockContent,
+  CodeBlockLine,
+  CodeBlockToken,
+  useHighlightedCode,
+} from '../../components/common/ai'
 import { useI18n } from '../../locales'
 import { writeClipboardText } from '../../services/clipboard'
 import { toast } from '../../services/toast'
@@ -73,6 +79,8 @@ const cardBorderClass = computed(() => {
 
 const exitCodeClass = computed(() => (props.exitCode === 0 ? 'text-qt-success' : 'text-qt-danger'))
 
+const isSingleLine = computed(() => !props.command.includes('\n'))
+
 function updateOutputOpen(event: Event): void {
   outputOpen.value = (event.currentTarget as HTMLDetailsElement).open
 }
@@ -106,30 +114,21 @@ watch(
       <span v-if="props.target" class="min-w-0 truncate">
         {{ t('shell.aiChat.commandCard.target') }}: {{ props.target }}
       </span>
-      <span
-        class="ms-auto max-w-[48%] truncate rounded-full border px-2 py-0.5 text-xs font-medium"
-        :class="riskClass"
-        :aria-label="`${t('shell.aiChat.commandCard.localAssessment')}: ${riskLabel}`"
-      >
-        {{ riskLabel }}
-      </span>
     </header>
 
-    <div class="flex min-w-0 items-start gap-1 border-b border-qt-border/40">
-      <CodeBlock size="sm" class="min-w-0 flex-1 rounded-none border-0 bg-transparent">
-        <CodeBlockContent class="max-h-32 overflow-auto px-3 py-2 text-xs leading-5" :wrap="false">
+    <div class="min-w-0 border-b border-qt-border/40">
+      <CodeBlock size="sm" class="min-w-0 rounded-none border-0 bg-transparent">
+        <CodeBlockContent v-if="isSingleLine" class="px-3 py-2 text-xs leading-5" :wrap="false">
           <span v-for="(line, index) in highlightedLines" :key="index" class="block min-h-5"
             ><CodeBlockToken v-for="(token, tokenIndex) in line" :key="tokenIndex" :token="token"
           /></span>
         </CodeBlockContent>
+        <CodeBlockContent v-else line-numbers class="max-h-32 overflow-auto px-3 py-2 text-xs leading-5" :wrap="false">
+          <CodeBlockLine v-for="(line, index) in highlightedLines" :key="index">
+            <CodeBlockToken v-for="(token, tokenIndex) in line" :key="tokenIndex" :token="token" />
+          </CodeBlockLine>
+        </CodeBlockContent>
       </CodeBlock>
-      <IconButton
-        :label="t(copied ? 'shell.aiChat.copied' : 'shell.aiChat.copyCommand')"
-        size="icon-sm"
-        class="me-2 mt-1 size-7! min-h-7! shrink-0"
-        @click="copyCommand"
-        ><Check v-if="copied" class="size-3.5" aria-hidden="true" /><Copy v-else class="size-3.5" aria-hidden="true"
-      /></IconButton>
     </div>
 
     <p
@@ -143,17 +142,27 @@ watch(
         t(props.resultState === 'unknown' ? 'shell.aiChat.commandOutcomeUnknown' : 'shell.aiChat.commandNotSent')
       }}</span>
     </p>
-    <div class="space-y-1.5 px-3 py-2 text-xs leading-5 text-qt-muted">
-      <div class="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-2 gap-y-1">
-        <span class="font-medium text-qt-text/75">{{ t('shell.aiChat.commandCard.policyLabel') }}</span>
-        <span class="min-w-0 break-words">{{ props.policy }}</span>
-        <span class="font-medium text-qt-text/75">{{ t('shell.aiChat.commandCard.localAssessment') }}</span>
-        <span class="min-w-0 break-words">{{ riskLabel }}</span>
-      </div>
-      <p v-if="props.warning" class="m-0 flex items-start gap-1.5 text-qt-danger">
+
+    <div class="flex min-w-0 items-center gap-2 border-b border-qt-border/40 px-3 py-1.5">
+      <span
+        class="shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium"
+        :class="riskClass"
+        :aria-label="`${t('shell.aiChat.commandCard.localAssessment')}: ${riskLabel}`"
+      >
+        {{ riskLabel }}
+      </span>
+      <span class="min-w-0 truncate text-xs text-qt-muted">{{ props.policy }}</span>
+      <p v-if="props.warning" class="m-0 flex min-w-0 items-start gap-1.5 text-xs text-qt-danger">
         <CircleAlert class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         <span class="min-w-0 break-words">{{ props.warning }}</span>
       </p>
+      <IconButton
+        :label="t(copied ? 'shell.aiChat.copied' : 'shell.aiChat.copyCommand')"
+        size="icon-sm"
+        class="ms-auto size-6! min-h-6! shrink-0"
+        @click="copyCommand"
+        ><Check v-if="copied" class="size-3.5" aria-hidden="true" /><Copy v-else class="size-3.5" aria-hidden="true"
+      /></IconButton>
     </div>
 
     <div

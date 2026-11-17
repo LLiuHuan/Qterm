@@ -16,6 +16,12 @@ const DROP_ROW_SELECTOR = '.host-row, .asset-group-title, [data-asset-card]'
 
 export const ASSET_DRAG_RETURN_MS = 520
 
+interface CardSlot {
+  x: number
+  card: HTMLElement
+  position: DropPosition
+}
+
 export function resolveAssetDrop(
   item: AssetDragItem,
   target: AssetDragItem | null,
@@ -24,8 +30,8 @@ export function resolveAssetDrop(
 ): AssetDropTarget | null {
   if (target?.kind === item.kind && target.id === item.id) return null
 
-  if (target?.kind === 'host') return null
   const groupId = target ? (target.kind === 'group' && position === 'inside' ? target.id : parentOf(target)) : ''
+  if (target?.kind === 'host' && position === 'inside') return null
   if (groupId === parentOf(item) && position === 'inside') return null
   if (item.kind === 'group') {
     if (item.id === 'default') return null
@@ -44,11 +50,19 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
 }
 
+export interface AssetDragOptions {
+  cardGrid?: boolean
+}
+
 export function useAssetDrag(
   container: Ref<HTMLElement | null>,
   parentOf: (item: AssetDragItem) => string,
   onDrop: (item: AssetDragItem, drop: AssetDropTarget) => void,
+  options: AssetDragOptions = {},
 ) {
+  const CARD_SELECTOR = '[data-asset-card]'
+
+  const CARD_SLOT_BAND = 16
   const state = reactive({
     active: false,
     label: '',
@@ -64,7 +78,8 @@ export function useAssetDrag(
 
     returnTo: null as null | { left: number; top: number; width: number; height: number },
     valid: false,
-    line: null as null | { top: number; left: number; width: number },
+
+    line: null as null | { top: number; left: number; width: number; vertical?: boolean },
   })
   let pending: { item: AssetDragItem; row: HTMLElement; pointerId: number; x: number; y: number } | null = null
   let target: AssetDropTarget | null = null
@@ -119,6 +134,62 @@ export function useAssetDrag(
     expandTimer = undefined
     expandRow = null
   }
+
+  function cardSlotAt(
+    list: HTMLElement,
+    x: number,
+    y: number,
+  ): { card: HTMLElement; rect: DOMRect; slot: CardSlot | null } | null {
+    const entries = Array.from(list.querySelectorAll<HTMLElement>(CARD_SELECTOR))
+      .map((card) => ({ card, rect: card.getBoundingClientRect() }))
+      .filter((entry) => entry.rect.width > 0 && entry.rect.height > 0)
+    if (!entries.length) return null
+
+    const rows: Array<typeof entries> = []
+    for (const entry of entries) {
+      const row = rows.find((candidate) => Math.abs(candidate[0].rect.top - entry.rect.top) < 1)
+      if (row) row.push(entry)
+      else rows.push([entry])
+    }
+
+    let bestRow: typeof entries | null = null
+    let bestDistance = Number.POSITIVE_INFINITY
+    for (const row of rows) {
+      const top = Math.min(...row.map((entry) => entry.rect.top))
+      const bottom = Math.max(...row.map((entry) => entry.rect.bottom))
+      const distance = y < top ? top - y : y > bottom ? y - bottom : 0
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestRow = row
+      }
+    }
+    if (!bestRow || bestDistance > CARD_SLOT_BAND) return null
+    const line = [...bestRow].sort((left, right) => left.rect.left - right.rect.left)
+
+    const slots: CardSlot[] = []
+    const first = line[0]
+    const last = line[line.length - 1]
+    const gap = line.length > 1 ? Math.max(line[1].rect.left - line[0].rect.right, 0) : CARD_SLOT_BAND * 2
+    slots.push({ x: first.rect.left - gap / 2, card: first.card, position: 'before' })
+    for (let index = 0; index < line.length - 1; index += 1) {
+      const current = line[index]
+      const next = line[index + 1]
+      slots.push({ x: (current.rect.right + next.rect.left) / 2, card: next.card, position: 'before' })
+    }
+    slots.push({ x: last.rect.right + gap / 2, card: last.card, position: 'after' })
+    let nearest: CardSlot | null = null
+    for (const slot of slots) {
+      if (Math.abs(x - slot.x) > CARD_SLOT_BAND) continue
+      if (!nearest || Math.abs(x - slot.x) < Math.abs(x - nearest.x)) nearest = slot
+    }
+    if (nearest) {
+      const anchor = line.find((entry) => entry.card === nearest?.card) ?? first
+      return { card: anchor.card, rect: anchor.rect, slot: nearest }
+    }
+
+    const hit = line.find((entry) => x >= entry.rect.left && x <= entry.rect.right)
+    return hit ? { card: hit.card, rect: hit.rect, slot: null } : null
+  }
   function refreshTarget() {
     clearTarget()
     const list = activeContainer ?? container.value
@@ -135,11 +206,18 @@ export function useAssetDrag(
       cancelExpand()
       return
     }
-    const row = rowAt(element)
+
+    const cardHit = options.cardGrid === true ? cardSlotAt(list, state.x, state.y) : null
+    const row = options.cardGrid === true ? (cardHit?.card ?? null) : rowAt(element)
     const visibleRows = Array.from(list.querySelectorAll<HTMLElement>(DROP_ROW_SELECTOR)).filter(
       (entry) => entry.getClientRects().length > 0,
     )
     const lastBottom = Math.max(contentBounds.top, ...visibleRows.map((entry) => entry.getBoundingClientRect().bottom))
+
+    if (!row && options.cardGrid === true) {
+      cancelExpand()
+      return
+    }
 
     if (!row && state.y < lastBottom) {
       cancelExpand()
@@ -168,15 +246,32 @@ export function useAssetDrag(
 
     const targetItem = itemAt(row)
     const rect = row.getBoundingClientRect()
-    const fraction = (state.y - rect.top) / rect.height
+    const isCard = row.hasAttribute('data-asset-card')
 
-    const position: DropPosition = row.hasAttribute('data-asset-card')
-      ? 'inside'
-      : targetItem?.kind === 'group' && fraction > 0.25 && fraction < 0.75
-        ? 'inside'
-        : fraction < 0.5
-          ? 'before'
-          : 'after'
+    const cardLayout = isCard || options.cardGrid === true
+
+    const cardSlot = cardLayout ? (cardHit?.slot ?? null) : null
+    const position = ((): DropPosition | null => {
+      if (!cardLayout) {
+        const fraction = (state.y - rect.top) / rect.height
+        return targetItem?.kind === 'group' && fraction > 0.25 && fraction < 0.75
+          ? 'inside'
+          : fraction < 0.5
+            ? 'before'
+            : 'after'
+      }
+      if (cardSlot) return cardSlot.position
+      return targetItem?.kind === 'group' ? 'inside' : null
+    })()
+    if (!position) {
+      cancelExpand()
+      return
+    }
+
+    if (cardLayout && position !== 'inside' && targetItem && targetItem.kind !== pending.item.kind) {
+      cancelExpand()
+      return
+    }
     target = resolveAssetDrop(pending.item, targetItem, position, parentOf)
     state.valid = target !== null
     if (!target) {
@@ -191,12 +286,22 @@ export function useAssetDrag(
         expandRow = row
         expandTimer = setTimeout(() => row.dispatchEvent(new Event('asset-drag-expand')), 600)
       }
-    } else {
-      cancelExpand()
-      const y = position === 'before' ? rect.top : rect.bottom
-      const left = Math.max(0, rect.left - contentBounds.left)
-      state.line = { top: y - contentBounds.top + list.scrollTop, left, width: contentBounds.width - left }
+      return
     }
+    cancelExpand()
+    if (cardLayout) {
+      const x = cardSlot?.x ?? (position === 'before' ? rect.left : rect.right)
+      state.line = {
+        top: rect.top - contentBounds.top + list.scrollTop - 2,
+        left: Math.max(0, x - contentBounds.left),
+        width: rect.height + 4,
+        vertical: true,
+      }
+      return
+    }
+    const y = position === 'before' ? rect.top : rect.bottom
+    const left = Math.max(0, rect.left - contentBounds.left)
+    state.line = { top: y - contentBounds.top + list.scrollTop, left, width: contentBounds.width - left }
   }
   function scrollStep() {
     if (!state.active) return

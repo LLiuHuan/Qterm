@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { IconButton, QtermButton, QtermSearchField, RefreshIconButton } from '../common'
+import { IconButton, MorphingIcon, QtermButton, QtermSearchField, RefreshIconButton } from '../common'
 import {
-  ArrowDownAZ,
-  ArrowDownUp,
   ArrowLeft,
   ArrowRightLeft,
-  ArrowUpZA,
   Check,
   ChevronRight,
   CircleHelp,
@@ -26,6 +23,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AssetContextMenu, { type AssetMenuAction } from '../common/overlay-controls/AssetContextMenu.vue'
 import AssetDragGhost from './AssetDragGhost.vue'
 import HostIcon from '../common/icon/HostIcon.vue'
+import { sortMorphIcon } from '../common/icon/sortMorphIcons'
 import { tagColorStyle } from '../../lib/colorTag'
 import type { GroupedHosts } from '../../types/qterm'
 import type { HostRecord } from '@/services/hosts.ts'
@@ -144,9 +142,7 @@ const visibleHosts = computed<HostRecord[]>(() => {
     : [...flattened].sort((left, right) => compareAsset(left, right, props.sortMode))
 })
 
-const sortIcon = computed(() =>
-  props.sortMode === 'name-asc' ? ArrowDownAZ : props.sortMode === 'name-desc' ? ArrowUpZA : ArrowDownUp,
-)
+const sortIcon = computed(() => sortMorphIcon(props.sortMode))
 
 const searchActive = computed(() => props.searchQuery.trim() !== '')
 
@@ -240,10 +236,16 @@ function parentOfAsset(item: AssetDragItem): string {
 }
 
 const gridRef = ref<HTMLElement | null>(null)
-const assetDrag = useAssetDrag(gridRef, parentOfAsset, (item, drop) => {
-  if (item.kind === 'host') emit('moveAsset', item.id, drop.groupId, drop.targetId, drop.position)
-  else emit('moveGroup', item.id, drop.groupId, drop.targetId, drop.position)
-})
+
+const assetDrag = useAssetDrag(
+  gridRef,
+  parentOfAsset,
+  (item, drop) => {
+    if (item.kind === 'host') emit('moveAsset', item.id, drop.groupId, drop.targetId, drop.position)
+    else emit('moveGroup', item.id, drop.groupId, drop.targetId, drop.position)
+  },
+  { cardGrid: true },
+)
 
 const draggingHost = computed(() => {
   const item = assetDrag.state.item
@@ -602,13 +604,13 @@ onBeforeUnmount(() => {
         >
           <Search :size="16" aria-hidden="true" />
         </IconButton>
+
         <IconButton
           :label="t('shell.asset.toggleSort')"
-          :active="props.sortMode !== 'custom'"
           :pressed="props.sortMode !== 'custom'"
           @click="emit('toggleSort')"
         >
-          <component :is="sortIcon" :size="16" aria-hidden="true" />
+          <MorphingIcon :icon="sortIcon" :size="16" reduced-motion="user" aria-hidden="true" />
         </IconButton>
         <RefreshIconButton
           :label="t('shell.asset.refresh')"
@@ -786,6 +788,16 @@ onBeforeUnmount(() => {
         :class="{ 'asset-drag-active': assetDrag.state.active }"
         @pointerdown.capture="assetDrag.start"
       >
+        <div
+          v-if="assetDrag.state.active && assetDrag.state.line?.vertical"
+          class="asset-drop-line asset-drop-line--vertical"
+          :style="{
+            top: `${assetDrag.state.line.top}px`,
+            left: `${assetDrag.state.line.left}px`,
+            width: `${assetDrag.state.line.width}px`,
+          }"
+        ></div>
+
         <section v-if="visibleGroups.length" class="min-w-0">
           <h2 class="m-0 text-sm">{{ t('shell.assetLibrary.groups') }}</h2>
           <div class="mt-2 grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-2">

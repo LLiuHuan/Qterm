@@ -164,9 +164,17 @@ type ApprovalRequest struct {
 	RiskReason      string
 }
 
+type AgentReasoning struct {
+	Round int `json:"round"`
+
+	Text string `json:"text"`
+}
+
 type AgentStep struct {
-	ID     string    `json:"id"`
-	Index  int       `json:"index"`
+	ID    string `json:"id"`
+	Index int    `json:"index"`
+
+	Round  int       `json:"round,omitempty"`
 	CallID string    `json:"callId,omitempty"`
 	Kind   StepKind  `json:"kind"`
 	State  StepState `json:"state"`
@@ -212,7 +220,7 @@ type AgentRun struct {
 	ModelCalls  int `json:"modelCalls,omitempty"`
 	CommandRuns int `json:"commandRuns,omitempty"`
 
-	Reasonings []string `json:"reasonings,omitempty"`
+	Reasonings []AgentReasoning `json:"reasonings,omitempty"`
 
 	Notes []string `json:"notes,omitempty"`
 

@@ -455,8 +455,10 @@ func (m *Manager) BeginStep(runID string, spec StepSpec) (AgentStep, error) {
 
 	args := append(json.RawMessage(nil), spec.Args...)
 	step := AgentStep{
-		ID:              stepID,
-		Index:           len(state.run.Steps) + 1,
+		ID:    stepID,
+		Index: len(state.run.Steps) + 1,
+
+		Round:           state.run.ModelCalls,
 		CallID:          callID,
 		Kind:            spec.Kind,
 		State:           StepRunning,
@@ -954,7 +956,10 @@ func (m *Manager) archiveReasoningLocked(state *agentRunState) {
 	if reasoning == "" {
 		return
 	}
-	state.run.Reasonings = append(state.run.Reasonings, reasoning)
+	state.run.Reasonings = append(state.run.Reasonings, AgentReasoning{
+		Round: state.run.ModelCalls,
+		Text:  reasoning,
+	})
 	if len(state.run.Reasonings) > 20 {
 		state.run.Reasonings = state.run.Reasonings[len(state.run.Reasonings)-20:]
 	}

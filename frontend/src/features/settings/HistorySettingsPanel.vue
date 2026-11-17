@@ -44,10 +44,13 @@ import ReplayTerminal from '../../components/workspace/ReplayTerminal.vue'
 import AsciinemaReplay from '../../components/workspace/AsciinemaReplay.vue'
 import { errorMessage } from '@/services/errors.ts'
 import {
+  applyHistoryArchive,
   archiveSessionHistories,
   clearUnarchivedSessionHistory,
   deleteSessionHistory,
   listSessionHistory,
+  patchHistoryNote,
+  removeHistoryRecords,
   updateSessionHistoryNote,
   type SessionHistoryRecord,
 } from '@/services/history.ts'
@@ -511,7 +514,8 @@ async function archiveSelectedHistory(): Promise<void> {
   try {
     const result = await archiveSessionHistories(ids, archived)
     selectedHistory.value = []
-    await load()
+
+    items.value = applyHistoryArchive(items.value, ids, archived)
     const parts = [
       t(archived ? 'history.batch.archive.success' : 'history.batch.unarchive.success', { count: result.updated }),
     ]
@@ -583,7 +587,7 @@ async function confirmNote(): Promise<void> {
     pendingNote.value = null
     noteDraft.value = ''
     toast.success(t('history.note.saved'))
-    await load()
+    items.value = patchHistoryNote(items.value, item.id, noteDraft.value)
   } catch (cause) {
     toast.error(errorMessage(cause, t('history.note.saveFailure')))
   } finally {
@@ -603,7 +607,7 @@ async function confirmRemove(): Promise<void> {
     await deleteSessionHistory(item.id)
     pendingDelete.value = null
     toast.success(t('history.delete.done'))
-    await load()
+    items.value = removeHistoryRecords(items.value, [item.id])
   } catch (cause) {
     toast.error(errorMessage(cause, t('history.delete.failure')))
   } finally {
@@ -624,7 +628,10 @@ async function confirmClearUnarchived(): Promise<void> {
   try {
     const result = await clearUnarchivedSessionHistory()
     clearUnarchivedOpen.value = false
-    await Promise.all([load(), loadRecordings(), loadRecordingIndex()])
+
+    items.value = items.value.filter((item) => item.archived === true)
+    selectedHistory.value = []
+    await Promise.all([loadRecordings(), loadRecordingIndex()])
 
     const parts = [t('history.clear.done', { count: result.sessions, recordings: result.recordings })]
     if (result.skipped > 0) parts.push(t('history.clear.skipped', { count: result.skipped }))
@@ -642,13 +649,14 @@ async function toggleArchive(item: SessionHistoryRecord): Promise<void> {
   if (busy.value) return
   busy.value = true
   try {
-    const result = await archiveSessionHistories([item.id], item.archived !== true)
+    const target = item.archived !== true
+    const result = await archiveSessionHistories([item.id], target)
     if (result.missing > 0) {
-      await load()
+      items.value = removeHistoryRecords(items.value, [item.id])
       return
     }
     toast.success(item.archived === true ? t('history.archive.restored') : t('history.archive.archived'))
-    await load()
+    items.value = applyHistoryArchive(items.value, [item.id], target)
   } catch (cause) {
     toast.error(
       errorMessage(cause, item.archived === true ? t('history.archive.restoreFailure') : t('history.archive.failure')),

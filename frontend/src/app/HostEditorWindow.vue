@@ -12,7 +12,8 @@ import { useHostEditor } from '../features/hosts/useHostEditor'
 import { useSettingsState } from '../features/settings/useSettingsState'
 import { useI18n } from '../locales'
 import { createHostGateway, hostErrorMessage, type GroupRecord, type HostRecord } from '../services/hosts'
-import { createProxyGateway, type ProxyRecord } from '../services/proxies'
+import { connectAssetChanged } from '../services/assetEvents'
+import { createProxyGateway, removeProxy, upsertProxy, type ProxyRecord } from '../services/proxies'
 import { createSessionGateway } from '../services/sessions'
 import { hasWailsRuntime } from '../services/runtime'
 import {
@@ -76,6 +77,15 @@ async function loadProxies(): Promise<void> {
     proxies.value = []
   }
 }
+
+const disposeAssetChange = connectAssetChanged((change) => {
+  if (change.kind !== 'proxy') return
+  if ((change.action === 'create' || change.action === 'update') && change.record) {
+    proxies.value = upsertProxy(proxies.value, change.record as ProxyRecord)
+    return
+  }
+  if (change.action === 'delete' && change.id) proxies.value = removeProxy(proxies.value, change.id)
+})
 
 async function closeEditorWindow(): Promise<void> {
   if (hasWailsRuntime()) {
@@ -192,7 +202,7 @@ async function handleCredentialCreated(credentialId: string): Promise<void> {
 }
 
 async function handleProxyCreated(proxyId: string): Promise<void> {
-  await loadProxies()
+  await nextTick()
   draft.value.proxyId = proxyId
   draft.value.proxyMode = 'none'
   draft.value.proxyHost = ''
@@ -259,6 +269,7 @@ onMounted(async () => {
 onUnmounted(() => {
   stopTargetListener?.()
   stopTargetListener = undefined
+  disposeAssetChange()
 })
 </script>
 

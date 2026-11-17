@@ -2,6 +2,12 @@ import { computed, onScopeDispose, ref } from 'vue'
 import { toast } from '../../services/toast'
 import { hostErrorMessage, type GroupRecord, type HostGateway, type HostRecord } from '@/services/hosts.ts'
 import { buildAssetTree, type AssetSortMode } from './assetTree'
+import {
+  removeGroup as removeGroupFromList,
+  removeHost as removeHostFromList,
+  upsertGroup as upsertGroupInList,
+  upsertHost as upsertHostInList,
+} from './hostListMerge'
 import { useI18n } from '@/locales'
 
 export function useAssetState(hostGateway: HostGateway) {
@@ -48,10 +54,35 @@ export function useAssetState(hostGateway: HostGateway) {
 
     loadVersion += 1
     loadingHosts.value = false
-    const index = hosts.value.findIndex((item) => item.id === host.id)
-    if (index >= 0) hosts.value.splice(index, 1, host)
-    else hosts.value.push(host)
+
+    hosts.value = upsertHostInList(hosts.value, host, sortMode.value)
     selectHost(host.id)
+  }
+
+  function removeHostLocally(id: string): void {
+    if (disposed) return
+    loadVersion += 1
+    loadingHosts.value = false
+    hosts.value = removeHostFromList(hosts.value, id)
+    if (selectedHostId.value === id) selectedHostId.value = null
+  }
+
+  function upsertGroup(record: GroupRecord): void {
+    if (disposed) return
+    loadVersion += 1
+    loadingHosts.value = false
+    groups.value = upsertGroupInList(groups.value, record, sortMode.value)
+    const renamed = hosts.value.some((host) => host.groupId === record.id && host.group !== record.name)
+    if (renamed)
+      hosts.value = hosts.value.map((host) => (host.groupId === record.id ? { ...host, group: record.name } : host))
+  }
+
+  function removeGroupLocally(id: string): void {
+    if (disposed) return
+    loadVersion += 1
+    loadingHosts.value = false
+    groups.value = removeGroupFromList(groups.value, id)
+    if (selectedGroupId.value === id) selectedGroupId.value = null
   }
 
   function selectHost(id: string): void {
@@ -123,6 +154,9 @@ export function useAssetState(hostGateway: HostGateway) {
     rootEntries,
     loadHosts,
     upsertHost,
+    removeHostLocally,
+    upsertGroup,
+    removeGroupLocally,
     selectHost,
     selectGroup,
     clearAssetSelection,

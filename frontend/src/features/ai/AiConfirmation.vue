@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { CircleAlert, Play, Ban } from '@lucide/vue'
-import { CodeBlock, CodeBlockContent } from '../../components/common/ai'
+import { computed, ref, watch } from 'vue'
+import { Ban, Check, CircleAlert, Copy, Play } from '@lucide/vue'
+import {
+  CodeBlock,
+  CodeBlockContent,
+  CodeBlockLine,
+  CodeBlockToken,
+  useHighlightedCode,
+} from '../../components/common/ai'
 import { IconButton, QtermButton } from '../../components/common'
 import { useI18n } from '../../locales'
 import { writeClipboardText } from '../../services/clipboard'
 import { toast } from '../../services/toast'
-import { Copy } from '@lucide/vue'
 
 const props = defineProps<{
   command: string
@@ -24,14 +29,27 @@ const riskLabel = computed(() => {
   return t('shell.aiChat.commandCard.riskConfirm')
 })
 
+const highlightedLines = useHighlightedCode(() => props.command, 'bash')
+const copied = ref(false)
+
+const isSingleLine = computed(() => !props.command.includes('\n'))
+
 async function copyCommand(): Promise<void> {
   try {
     await writeClipboardText(props.command)
+    copied.value = true
     toast.success(t('shell.aiChat.copied'))
   } catch {
     toast.error(t('shell.aiChat.copyFailed'))
   }
 }
+
+watch(
+  () => props.command,
+  () => {
+    copied.value = false
+  },
+)
 </script>
 
 <template>
@@ -43,24 +61,40 @@ async function copyCommand(): Promise<void> {
       <CircleAlert class="size-3.5 shrink-0" aria-hidden="true" />
       {{ t('shell.aiChat.confirmation.title') }}
     </p>
-    <div class="flex min-w-0 items-start gap-1">
-      <CodeBlock size="sm" class="min-w-0 flex-1 rounded-none border-0 bg-transparent">
-        <CodeBlockContent class="max-h-32 overflow-auto px-2 py-1.5 text-xs leading-5" :wrap="false">{{
-          props.command
-        }}</CodeBlockContent>
+    <div class="min-w-0 overflow-hidden">
+      <CodeBlock size="sm" class="min-w-0 rounded-none border-0 bg-transparent">
+        <CodeBlockContent v-if="isSingleLine" class="px-2 py-1.5 text-xs leading-5" :wrap="false">
+          <span v-for="(line, index) in highlightedLines" :key="index" class="block min-h-5"
+            ><CodeBlockToken v-for="(token, tokenIndex) in line" :key="tokenIndex" :token="token"
+          /></span>
+        </CodeBlockContent>
+        <CodeBlockContent
+          v-else
+          line-numbers
+          class="max-h-32 overflow-auto px-2 py-1.5 text-xs leading-5"
+          :wrap="false"
+        >
+          <CodeBlockLine v-for="(line, index) in highlightedLines" :key="index">
+            <CodeBlockToken v-for="(token, tokenIndex) in line" :key="tokenIndex" :token="token" />
+          </CodeBlockLine>
+        </CodeBlockContent>
       </CodeBlock>
+    </div>
+
+    <div class="flex min-w-0 items-center gap-2">
+      <span class="shrink-0 text-xs text-qt-muted">
+        {{ t('shell.aiChat.confirmation.risk') }}：<span class="text-qt-text">{{ riskLabel }}</span>
+      </span>
       <IconButton
-        :label="t('shell.aiChat.copyCommand')"
+        :label="t(copied ? 'shell.aiChat.copied' : 'shell.aiChat.copyCommand')"
         size="icon-sm"
-        class="me-1 mt-1 border-0 bg-transparent shadow-none hover:bg-transparent"
+        class="ms-auto size-6! min-h-6! shrink-0 border-0 bg-transparent shadow-none hover:bg-transparent"
         @click="copyCommand"
       >
-        <Copy class="size-3.5" aria-hidden="true" />
+        <Check v-if="copied" class="size-3.5" aria-hidden="true" />
+        <Copy v-else class="size-3.5" aria-hidden="true" />
       </IconButton>
     </div>
-    <p class="m-0 text-xs text-qt-muted">
-      {{ t('shell.aiChat.confirmation.risk') }}：<span class="text-qt-text">{{ riskLabel }}</span>
-    </p>
     <p v-if="props.warning" class="m-0 text-xs text-qt-danger">{{ props.warning }}</p>
     <div class="flex items-center justify-end gap-2">
       <QtermButton

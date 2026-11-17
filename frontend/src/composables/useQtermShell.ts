@@ -1,7 +1,7 @@
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useCredentialState } from './useCredentialState'
 import { useSessionState, type SessionOpenOrigin } from './useSessionState'
-import { createHostGateway, type HostRecord } from '../services/hosts'
+import { createHostGateway, type GroupRecord, type HostRecord } from '../services/hosts'
 import { openRdpWindow } from '../services/remotedesktop'
 import { hostProtocolDefinition } from '../features/hosts/hostProtocols'
 import { isAdHocHostId } from '../services/adhocSession'
@@ -10,10 +10,16 @@ import { createSftpGateway } from '../services/sftp'
 import { createDockerGateway } from '../services/docker'
 import { errorMessage } from '../services/errors'
 import { getRecordingSettings, startFullRecording, type RecordingSettings } from '../services/recordings'
-import { createCredentialPromptRuleGateway, type CredentialPromptRuleRecord } from '../services/credentialPromptRules'
-import { createProxyGateway, proxyErrorMessage, type ProxyRecord } from '../services/proxies'
+import {
+  createCredentialPromptRuleGateway,
+  removeCredentialPromptRule,
+  upsertCredentialPromptRule,
+  type CredentialPromptRuleRecord,
+} from '../services/credentialPromptRules'
+import { createProxyGateway, proxyErrorMessage, removeProxy, upsertProxy, type ProxyRecord } from '../services/proxies'
 import type { CredentialPromptRule, PromptCredential } from '../features/sessions/credentialAutofill'
 import { useAssetState } from '../features/hosts/useAssetState'
+import { connectAssetChanged, type AssetChange } from '../services/assetEvents'
 import { useAssetDeletion } from '../features/hosts/useAssetDeletion'
 import { useGroupEditor } from '../features/hosts/useGroupEditor'
 import { useHostEditor } from '../features/hosts/useHostEditor'
@@ -89,16 +95,16 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const proxiesLoading = ref(false)
   const proxiesError = ref('')
 
-  async function loadProxies(): Promise<void> {
-    proxiesLoading.value = true
+  async function loadProxies(options: { silent?: boolean } = {}): Promise<void> {
+    if (!options.silent) proxiesLoading.value = true
     proxiesError.value = ''
     try {
       proxies.value = await proxyGateway.list()
     } catch (error) {
-      proxies.value = []
+      if (!options.silent) proxies.value = []
       proxiesError.value = proxyErrorMessage(error, t('settings.proxies.error.load'))
     } finally {
-      proxiesLoading.value = false
+      if (!options.silent) proxiesLoading.value = false
     }
   }
 
@@ -110,17 +116,25 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     } catch {}
   }
 
+  const credentialPromptRuleRecords = ref<CredentialPromptRuleRecord[]>([])
+
   const credentialPromptRules = ref<CredentialPromptRule[]>([])
   const credentialPromptRulesError = ref('')
+
+  function projectCredentialPromptRules(): void {
+    credentialPromptRules.value = credentialPromptRuleRecords.value
+      .filter((rule) => rule.enabled)
+      .map((rule) => ({ id: rule.id, kind: rule.kind, pattern: rule.pattern, enabled: rule.enabled }))
+  }
 
   async function loadCredentialPromptRules(): Promise<void> {
     try {
       const rules: CredentialPromptRuleRecord[] = await credentialPromptRuleGateway.list()
-      credentialPromptRules.value = rules
-        .filter((rule) => rule.enabled)
-        .map((rule) => ({ id: rule.id, kind: rule.kind, pattern: rule.pattern, enabled: rule.enabled }))
+      credentialPromptRuleRecords.value = rules
+      projectCredentialPromptRules()
       credentialPromptRulesError.value = ''
     } catch (error) {
+      credentialPromptRuleRecords.value = []
       credentialPromptRules.value = []
       credentialPromptRulesError.value = errorMessage(error, t('settings.credentialPrompt.error.load'))
     }
@@ -849,10 +863,10 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     hostGateway,
     sessionGateway,
     credentials: credentialState,
+
     onSaved: async (host) => {
       assetState.upsertHost(host)
       renameHostSessions(host.id, host.name)
-      await assetState.loadHosts()
     },
   })
   const {
@@ -876,7 +890,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     testHostConnection,
   } = hostEditor
 
-  const groupEditor = useGroupEditor({ hostGateway, onSaved: assetState.loadHosts })
+  const groupEditor = useGroupEditor({ hostGateway, onSaved: async (group) => assetState.upsertGroup(group) })
   const {
     groupDialogOpen,
     editingGroupId,
@@ -921,7 +935,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   }
 
   async function handleProxyCreated(proxyId: string): Promise<void> {
-    await loadProxies()
+    await nextTick()
     draft.value.proxyId = proxyId
     draft.value.proxyMode = 'none'
     draft.value.proxyHost = ''
@@ -934,7 +948,10 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const deletion = useAssetDeletion({
     hostGateway,
     closeHostSessions: sessionState.closeHostSessions,
-    onDeleted: assetState.loadHosts,
+    onDeleted: async (target) => {
+      if (target.kind === 'host') assetState.removeHostLocally(target.id)
+      else assetState.removeGroupLocally(target.id)
+    },
   })
   const {
     pendingDelete,
@@ -1089,11 +1106,63 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     else if (groupDialogOpen.value) closeGroupDialog()
   }
 
+  function handleAssetChange(change: AssetChange): void {
+    if (change.kind === 'host') {
+      if (change.action === 'create' || change.action === 'update') {
+        if (change.record) assetState.upsertHost(change.record as HostRecord)
+        return
+      }
+      if (change.action === 'delete' && change.id) {
+        assetState.removeHostLocally(change.id)
+        return
+      }
+    }
+    if (change.kind === 'group') {
+      if (change.action === 'create' || change.action === 'update') {
+        if (change.record) assetState.upsertGroup(change.record as GroupRecord)
+        return
+      }
+      if (change.action === 'delete' && change.id) {
+        assetState.removeGroupLocally(change.id)
+        return
+      }
+    }
+    if (change.kind === 'credentialPromptRule') {
+      if ((change.action === 'create' || change.action === 'update') && change.record) {
+        credentialPromptRuleRecords.value = upsertCredentialPromptRule(
+          credentialPromptRuleRecords.value,
+          change.record as CredentialPromptRuleRecord,
+        )
+        projectCredentialPromptRules()
+        return
+      }
+      if (change.action === 'delete' && change.id) {
+        credentialPromptRuleRecords.value = removeCredentialPromptRule(credentialPromptRuleRecords.value, change.id)
+        projectCredentialPromptRules()
+        return
+      }
+    }
+    if (change.kind === 'proxy') {
+      if ((change.action === 'create' || change.action === 'update') && change.record) {
+        proxies.value = upsertProxy(proxies.value, change.record as ProxyRecord)
+        return
+      }
+      if (change.action === 'delete' && change.id) {
+        proxies.value = removeProxy(proxies.value, change.id)
+        return
+      }
+    }
+
+    if (change.kind === 'host' || change.kind === 'group') void assetState.loadHosts({ silent: true })
+  }
+
+  let disposeAssetChange: (() => void) | undefined
   let openHostTimer: number | undefined
 
   let cancelRuntimeRetry: (() => void) | undefined
 
   onMounted(() => {
+    disposeAssetChange = connectAssetChanged(handleAssetChange)
     void loadCredentialPromptRules()
     void loadRecordingSettings()
     refreshIsMacPlatform()
@@ -1177,6 +1246,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   })
 
   onUnmounted(() => {
+    disposeAssetChange?.()
+    disposeAssetChange = undefined
     if (openHostTimer) window.clearInterval(openHostTimer)
     cancelRuntimeRetry?.()
     cancelRuntimeRetry = undefined
@@ -1231,6 +1302,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     credentialOptions,
     credentialGateway,
     credentialPromptRuleGateway,
+    credentialPromptRuleRecords,
     credentialPromptRules,
     credentialPromptRulesError,
     loadCredentialPromptRules,

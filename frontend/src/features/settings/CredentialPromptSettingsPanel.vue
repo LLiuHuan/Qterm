@@ -17,16 +17,17 @@ import { Label, ScrollArea } from '../../components/common/control-primitives'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import DeleteConfirmDialog from '../../components/dialogs/DeleteConfirmDialog.vue'
 import { errorMessage } from '@/services/errors.ts'
-import type {
-  CredentialPromptRuleDraft,
-  CredentialPromptRuleGateway,
-  CredentialPromptRuleRecord,
+import {
+  removeCredentialPromptRule,
+  upsertCredentialPromptRule,
+  type CredentialPromptRuleDraft,
+  type CredentialPromptRuleGateway,
+  type CredentialPromptRuleRecord,
 } from '@/services/credentialPromptRules.ts'
 import { isValidPromptPattern, SUDO_PASSWORD_PROMPT_PATTERN } from '../sessions/credentialAutofill'
 import { useI18n } from '@/locales'
 
 const props = defineProps<{ gateway: CredentialPromptRuleGateway }>()
-const emit = defineEmits<{ changed: [] }>()
 const { t } = useI18n()
 
 const rules = ref<CredentialPromptRuleRecord[]>([])
@@ -142,17 +143,15 @@ async function saveDraft(): Promise<void> {
     enabled: editingID.value ? draft.value.enabled : true,
   }
   try {
-    if (editingID.value) {
-      await props.gateway.update(editingID.value, input)
-      toast.success(t('settings.credentialPrompt.toast.updated'))
-    } else {
-      await props.gateway.create(input)
-      toast.success(t('settings.credentialPrompt.toast.created'))
-    }
+    const saved = editingID.value
+      ? await props.gateway.update(editingID.value, input)
+      : await props.gateway.create(input)
+    rules.value = upsertCredentialPromptRule(rules.value, saved)
+    toast.success(
+      t(editingID.value ? 'settings.credentialPrompt.toast.updated' : 'settings.credentialPrompt.toast.created'),
+    )
     editorOpen.value = false
     resetDraft()
-    await loadRules()
-    emit('changed')
   } catch (saveError) {
     error.value = errorMessage(saveError, t('settings.credentialPrompt.error.save'))
   } finally {
@@ -167,8 +166,7 @@ async function toggleEnabled(rule: CredentialPromptRuleRecord, enabled: boolean)
       pattern: rule.pattern,
       enabled,
     })
-    rules.value = rules.value.map((item) => (item.id === rule.id ? updated : item))
-    emit('changed')
+    rules.value = upsertCredentialPromptRule(rules.value, updated)
   } catch (toggleError) {
     error.value = errorMessage(toggleError, t('settings.credentialPrompt.error.save'))
   }
@@ -198,8 +196,7 @@ async function removeRule(): Promise<void> {
     }
     deleteTarget.value = null
     toast.success(t('settings.credentialPrompt.toast.removed'))
-    await loadRules()
-    emit('changed')
+    rules.value = removeCredentialPromptRule(rules.value, target.id)
   } catch (removeError) {
     deleteError.value = errorMessage(removeError, t('settings.credentialPrompt.error.remove'))
   } finally {

@@ -222,13 +222,11 @@ const {
   credentialPromptRuleGateway,
   credentialPromptRules,
   credentialPromptOptions,
-  loadCredentialPromptRules,
   typeCredentialIntoSession,
   proxyGateway,
   proxies,
   proxiesLoading,
   proxiesError,
-  loadProxies,
   credentialOptions,
   credentialVaultStatus,
   credentialOptionsLoading,
@@ -389,7 +387,6 @@ const {
   exportRecovery,
   importRecovery,
   resetVault,
-  refreshCredentials,
   resourcesImported,
   isDark,
   isMac,
@@ -2954,11 +2951,8 @@ onBeforeUnmount(() => {
       @import-recovery="importRecovery"
       @reset-vault="resetVault"
       @lock="lockCredentialVault"
-      @refresh-credentials="refreshCredentials"
-      @refresh-proxies="loadProxies"
       @update:forwards="setPortForwards"
       @update:forward-groups="setPortForwardGroups"
-      @refresh-credential-prompt-rules="loadCredentialPromptRules"
       @resources-imported="resourcesImported"
     />
     <SnippetsSettingsPanel ref="standaloneSnippetPanel" standalone />

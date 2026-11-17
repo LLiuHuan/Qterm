@@ -595,6 +595,35 @@ function agentAutomaticSteps(message: ChatMessage): AgentStep[] {
   )
 }
 
+function agentReasoningRounds(message: ChatMessage): Array<{ round: number; text: string }> {
+  return (message.agentRun?.reasonings ?? []).map((reasoning) => ({
+    round: reasoning.round,
+    text: reasoning.text,
+  }))
+}
+
+function agentLiveRound(run: AgentRun): number {
+  return run.modelCalls ?? 0
+}
+
+function agentStepsOfRound(steps: AgentStep[], round: number): AgentStep[] {
+  return steps.filter((step) => (step.round ?? 0) === round)
+}
+
+function agentLiveSteps(message: ChatMessage): AgentStep[] {
+  const run = message.agentRun
+  if (!run || !run.reasoningDraft || !isRunLive(run)) return []
+  return agentStepsOfRound(agentAutomaticSteps(message), agentLiveRound(run))
+}
+
+function agentLooseSteps(message: ChatMessage, steps: AgentStep[]): AgentStep[] {
+  const run = message.agentRun
+  if (!run) return steps
+  const claimed = new Set(agentReasoningRounds(message).map((reasoning) => reasoning.round))
+  if (run.reasoningDraft && isRunLive(run)) claimed.add(agentLiveRound(run))
+  return steps.filter((step) => !claimed.has(step.round ?? 0))
+}
+
 const showAgentNotes = computed(() => displayLevel.value === 'detailed')
 
 function answerAgentStep(step: AgentStep, choice: string): void {
@@ -2306,29 +2335,41 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
                       </span>
                     </template>
                     <div class="flex flex-col gap-1 px-1 pb-1">
-                      <Reasoning
-                        v-for="(reasoning, reasoningIndex) in message.agentRun.reasonings ?? []"
-                        :key="`agent-reasoning-${reasoningIndex}`"
-                        :default-open="false"
-                      >
-                        <ReasoningTrigger
-                          class="max-w-full"
-                          :label="`${t('shell.aiChat.agent.thinkingLabel')} · ${reasoningIndex + 1}`"
+                      <template v-for="round in agentReasoningRounds(message)" :key="`agent-reasoning-${round.round}`">
+                        <Reasoning :default-open="false">
+                          <ReasoningTrigger
+                            class="max-w-full"
+                            :label="`${t('shell.aiChat.agent.thinkingLabel')} · ${round.round}`"
+                            :preview="round.text"
+                          />
+                          <ReasoningContent>
+                            <p class="m-0 whitespace-pre-wrap break-words">{{ round.text }}</p>
+                          </ReasoningContent>
+                        </Reasoning>
+                        <AiToolCard
+                          v-for="step in agentStepsOfRound(agentAutomaticSteps(message), round.round)"
+                          :key="`agent-auto-${step.id}`"
+                          :step="step"
                         />
-                        <ReasoningContent>
-                          <p class="m-0 whitespace-pre-wrap break-words">{{ reasoning }}</p>
-                        </ReasoningContent>
-                      </Reasoning>
+                      </template>
 
                       <Reasoning
                         v-if="message.agentRun.reasoningDraft && isRunLive(message.agentRun)"
                         :default-open="false"
                       >
-                        <ReasoningTrigger :label="t('shell.aiChat.agent.thinkingLabel')" />
+                        <ReasoningTrigger
+                          :label="t('shell.aiChat.agent.thinkingLabel')"
+                          :preview="message.agentRun.reasoningDraft"
+                        />
                         <ReasoningContent>
                           <p class="m-0 whitespace-pre-wrap break-words">{{ message.agentRun.reasoningDraft }}</p>
                         </ReasoningContent>
                       </Reasoning>
+                      <AiToolCard
+                        v-for="step in agentLiveSteps(message)"
+                        :key="`agent-live-auto-${step.id}`"
+                        :step="step"
+                      />
                       <Reasoning
                         v-for="(note, noteIndex) in showAgentNotes ? (message.agentRun.notes ?? []) : []"
                         :key="`agent-note-${noteIndex}`"
@@ -2342,57 +2383,58 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
                           <p class="m-0 whitespace-pre-wrap break-words">{{ note }}</p>
                         </ReasoningContent>
                       </Reasoning>
+
                       <AiToolCard
-                        v-for="step in agentAutomaticSteps(message)"
+                        v-for="step in agentLooseSteps(message, agentAutomaticSteps(message))"
                         :key="`agent-auto-${step.id}`"
                         :step="step"
                       />
+
+                      <template v-for="step in message.agentRun?.steps ?? []" :key="`agent-step-${step.id}`">
+                        <AiUserQuestion
+                          v-if="shouldRenderAgentApproval(step) && isAskUserStep(step)"
+                          class="mt-1"
+                          :step="step"
+                          :disabled="
+                            viewingLegacyHistory ||
+                            !connectionAvailable ||
+                            agentDeciding ||
+                            activeAgentRunId !== message.agentRun?.id
+                          "
+                          @select="(choice) => answerAgentStep(step, choice)"
+                          @cancel="decideAgentStep(step, false)"
+                        />
+                        <AiConfirmation
+                          v-else-if="shouldRenderAgentApproval(step) && isCommandStep(step)"
+                          class="mt-1"
+                          :command="step.command || step.title || ''"
+                          :risk="agentRisk(step)"
+                          :disabled="
+                            viewingLegacyHistory ||
+                            !connectionAvailable ||
+                            agentDeciding ||
+                            activeAgentRunId !== message.agentRun?.id
+                          "
+                          @confirm="decideAgentStep(step, true)"
+                          @cancel="decideAgentStep(step, false)"
+                        />
+                        <AiToolConfirmation
+                          v-else-if="shouldRenderAgentApproval(step)"
+                          class="mt-1"
+                          :step="step"
+                          :rememberable="isRememberableTool(step)"
+                          :disabled="
+                            viewingLegacyHistory ||
+                            !connectionAvailable ||
+                            agentDeciding ||
+                            activeAgentRunId !== message.agentRun?.id
+                          "
+                          @confirm="decideAgentStep(step, true, $event)"
+                          @cancel="decideAgentStep(step, false)"
+                        />
+                      </template>
                     </div>
                   </Task>
-
-                  <template v-for="step in message.agentRun?.steps ?? []" :key="`agent-step-${step.id}`">
-                    <AiUserQuestion
-                      v-if="shouldRenderAgentApproval(step) && isAskUserStep(step)"
-                      class="mt-2"
-                      :step="step"
-                      :disabled="
-                        viewingLegacyHistory ||
-                        !connectionAvailable ||
-                        agentDeciding ||
-                        activeAgentRunId !== message.agentRun?.id
-                      "
-                      @select="(choice) => answerAgentStep(step, choice)"
-                      @cancel="decideAgentStep(step, false)"
-                    />
-                    <AiConfirmation
-                      v-else-if="shouldRenderAgentApproval(step) && isCommandStep(step)"
-                      class="mt-2"
-                      :command="step.command || step.title || ''"
-                      :risk="agentRisk(step)"
-                      :disabled="
-                        viewingLegacyHistory ||
-                        !connectionAvailable ||
-                        agentDeciding ||
-                        activeAgentRunId !== message.agentRun?.id
-                      "
-                      @confirm="decideAgentStep(step, true)"
-                      @cancel="decideAgentStep(step, false)"
-                    />
-                    <AiToolConfirmation
-                      v-else-if="shouldRenderAgentApproval(step)"
-                      class="mt-2"
-                      :step="step"
-                      :rememberable="isRememberableTool(step)"
-                      :disabled="
-                        viewingLegacyHistory ||
-                        !connectionAvailable ||
-                        agentDeciding ||
-                        activeAgentRunId !== message.agentRun?.id
-                      "
-                      @confirm="decideAgentStep(step, true, $event)"
-                      @cancel="decideAgentStep(step, false)"
-                    />
-                  </template>
 
                   <template v-for="action in commandActions(message, index)" :key="action.segmentIndex">
                     <AiCommandCard

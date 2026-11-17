@@ -413,9 +413,6 @@ const emit = defineEmits<{
   importRecovery: [input: ImportCredentialVaultKeyInput]
   resetVault: [input: ResetCredentialVaultInput]
   lock: []
-  refreshCredentials: []
-  refreshProxies: []
-  refreshCredentialPromptRules: []
   resourcesImported: []
 }>()
 
@@ -648,7 +645,6 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :status="props.status"
                 :loading="props.credentialsLoading"
                 :error="props.credentialsError"
-                @changed="emit('refreshCredentials')"
                 @open-security="selectCategory('application')"
               />
               <AiSettingsPanel v-else-if="props.category === 'ai'" />
@@ -661,7 +657,6 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :hosts="props.hosts ?? []"
                 :loading="props.proxiesLoading ?? false"
                 :error="props.proxiesError ?? ''"
-                @changed="emit('refreshProxies')"
               />
               <PortForwardSettingsPanel
                 v-else-if="props.category === 'portForwards'"
@@ -678,7 +673,6 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
               <CredentialPromptSettingsPanel
                 v-else-if="props.category === 'credentialPrompt' && props.credentialPromptRuleGateway"
                 :gateway="props.credentialPromptRuleGateway"
-                @changed="emit('refreshCredentialPromptRules')"
               />
               <ApplicationSettingsPanel
                 v-else-if="props.category === 'application'"

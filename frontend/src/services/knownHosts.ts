@@ -51,6 +51,15 @@ export function createKnownHostsGateway(): KnownHostsGateway {
   }
 }
 
+export function removeKnownHostEntry(entries: readonly KnownHostEntry[], line: number): KnownHostEntry[] {
+  const removed = entries.some((entry) => entry.source === 'managed' && entry.line === line)
+
+  if (!removed) return entries as KnownHostEntry[]
+  return entries
+    .filter((entry) => !(entry.source === 'managed' && entry.line === line))
+    .map((entry) => (entry.source === 'managed' && entry.line > line ? { ...entry, line: entry.line - 1 } : entry))
+}
+
 export function knownHostsErrorMessage(cause: unknown, fallback: string): string {
   return errorMessage(cause, fallback)
 }

@@ -315,3 +315,45 @@ body.asset-dragging * {
   background: var(--qt-panel, #ffffff);
   box-shadow: 0 1px 2px rgb(0 0 0 / 20%);
 }
+
+.asset-drop-line {
+  position: absolute;
+  z-index: 5;
+  height: var(--asset-drop-line-height, 12px);
+  background:
+    linear-gradient(
+        55deg,
+        transparent calc(50% - 1px),
+        var(--qt-accent) calc(50% - 1px) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      )
+      0 0 / 5px 7px no-repeat,
+    linear-gradient(
+        125deg,
+        transparent calc(50% - 1px),
+        var(--qt-accent) calc(50% - 1px) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      )
+      0 5px / 5px 7px no-repeat,
+    linear-gradient(
+        125deg,
+        transparent calc(50% - 1px),
+        var(--qt-accent) calc(50% - 1px) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      )
+      100% 0 / 5px 7px no-repeat,
+    linear-gradient(
+        55deg,
+        transparent calc(50% - 1px),
+        var(--qt-accent) calc(50% - 1px) calc(50% + 1px),
+        transparent calc(50% + 1px)
+      )
+      100% 5px / 5px 7px no-repeat,
+    linear-gradient(var(--qt-accent) 0 0) 4px 5px / calc(100% - 8px) 2px no-repeat;
+  pointer-events: none;
+}
+
+.asset-drop-line--vertical {
+  transform-origin: 0 0;
+  transform: translateX(6px) rotate(90deg);
+}

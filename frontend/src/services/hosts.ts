@@ -1,4 +1,5 @@
 import { errorMessage } from './errors'
+import { emitAssetChange } from './assetEvents'
 
 export type HostSftpDirectoryFollowMode = 'inherit' | 'enabled' | 'disabled'
 
@@ -504,6 +505,10 @@ class MemoryHostGateway implements HostGateway {
   }
 }
 
+function emitHostChange(action: 'create' | 'update', record: HostRecord): Promise<void> {
+  return emitAssetChange({ kind: 'host', action, record })
+}
+
 function toRecord(host: HostRecord): HostRecord {
   return {
     ...host,
@@ -697,26 +702,42 @@ class DeferredHostGateway implements HostGateway {
   listGroups(): Promise<GroupRecord[]> {
     return this.target.listGroups()
   }
-  create(input: HostDraft): Promise<HostRecord> {
-    return this.target.create(input)
+
+  async create(input: HostDraft): Promise<HostRecord> {
+    const record = await this.target.create(input)
+    await emitHostChange('create', record)
+    return record
   }
-  update(id: string, input: HostDraft): Promise<HostRecord> {
-    return this.target.update(id, input)
+  async update(id: string, input: HostDraft): Promise<HostRecord> {
+    const record = await this.target.update(id, input)
+    await emitHostChange('update', record)
+    return record
   }
-  duplicate(id: string, name: string): Promise<HostRecord> {
-    return this.target.duplicate(id, name)
+  async duplicate(id: string, name: string): Promise<HostRecord> {
+    const record = await this.target.duplicate(id, name)
+
+    await emitHostChange('create', record)
+    return record
   }
-  remove(id: string): Promise<void> {
-    return this.target.remove(id)
+  async remove(id: string): Promise<void> {
+    await this.target.remove(id)
+    await emitAssetChange({ kind: 'host', action: 'delete', id })
   }
-  createGroup(name: string, parentId?: string): Promise<GroupRecord> {
-    return this.target.createGroup(name, parentId)
+  async createGroup(name: string, parentId?: string): Promise<GroupRecord> {
+    const group = await this.target.createGroup(name, parentId)
+    await emitAssetChange({ kind: 'group', action: 'create', record: group })
+    return group
   }
-  updateGroup(id: string, name: string): Promise<GroupRecord> {
-    return this.target.updateGroup(id, name)
+  async updateGroup(id: string, name: string): Promise<GroupRecord> {
+    const group = await this.target.updateGroup(id, name)
+
+    await emitAssetChange({ kind: 'group', action: 'update', record: group })
+    return group
   }
-  removeGroup(id: string): Promise<void> {
-    return this.target.removeGroup(id)
+  async removeGroup(id: string): Promise<void> {
+    await this.target.removeGroup(id)
+
+    await emitAssetChange({ kind: 'group', action: 'delete', id })
   }
   moveHost(id: string, groupId: string): Promise<void> {
     return this.target.moveHost(id, groupId)

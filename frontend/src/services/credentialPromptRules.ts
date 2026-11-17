@@ -1,4 +1,5 @@
 import type { CredentialPromptKind } from '../features/sessions/credentialAutofill'
+import { emitAssetChange } from './assetEvents'
 import { createRuntimeGateway } from './runtime'
 
 export interface CredentialPromptRuleRecord {
@@ -141,9 +142,62 @@ class WailsCredentialPromptRuleGateway implements CredentialPromptRuleGateway {
   }
 }
 
+export function withCredentialPromptRuleEvents(gateway: CredentialPromptRuleGateway): CredentialPromptRuleGateway {
+  return new Proxy(gateway, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver)
+      if (typeof value !== 'function') return value
+      const bound = value.bind(target)
+      switch (property) {
+        case 'create':
+          return async (...args: unknown[]) => {
+            const record = (await bound(...args)) as CredentialPromptRuleRecord
+            await emitAssetChange({ kind: 'credentialPromptRule', action: 'create', record })
+            return record
+          }
+        case 'update':
+          return async (...args: unknown[]) => {
+            const record = (await bound(...args)) as CredentialPromptRuleRecord
+            await emitAssetChange({ kind: 'credentialPromptRule', action: 'update', record })
+            return record
+          }
+        case 'remove':
+          return async (id: unknown) => {
+            await bound(id)
+            await emitAssetChange({ kind: 'credentialPromptRule', action: 'delete', id: String(id) })
+          }
+        default:
+          return bound
+      }
+    },
+  })
+}
+
+export function upsertCredentialPromptRule(
+  list: readonly CredentialPromptRuleRecord[],
+  record: CredentialPromptRuleRecord,
+): CredentialPromptRuleRecord[] {
+  const existing = list.findIndex((rule) => rule.id === record.id)
+  if (existing >= 0) return list.map((rule) => (rule.id === record.id ? record : rule))
+
+  const position = list.findIndex((rule) => rule.sortOrder > record.sortOrder)
+  if (position < 0) return [...list, record]
+  return [...list.slice(0, position), record, ...list.slice(position)]
+}
+
+export function removeCredentialPromptRule(
+  list: readonly CredentialPromptRuleRecord[],
+  id: string,
+): CredentialPromptRuleRecord[] {
+  const next = list.filter((rule) => rule.id !== id)
+  return next.length === list.length ? (list as CredentialPromptRuleRecord[]) : next
+}
+
 export function createCredentialPromptRuleGateway(): CredentialPromptRuleGateway {
-  return createRuntimeGateway<CredentialPromptRuleGateway>(
-    () => new WailsCredentialPromptRuleGateway(),
-    () => new MemoryCredentialPromptRuleGateway(),
+  return withCredentialPromptRuleEvents(
+    createRuntimeGateway<CredentialPromptRuleGateway>(
+      () => new WailsCredentialPromptRuleGateway(),
+      () => new MemoryCredentialPromptRuleGateway(),
+    ),
   )
 }

@@ -6,7 +6,12 @@ import { ScrollArea } from '../../components/common/control-primitives'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import { useI18n } from '../../locales'
 import { toast } from '../../services/toast'
-import { knownHostsErrorMessage, type KnownHostEntry, type KnownHostsGateway } from '../../services/knownHosts'
+import {
+  knownHostsErrorMessage,
+  removeKnownHostEntry,
+  type KnownHostEntry,
+  type KnownHostsGateway,
+} from '../../services/knownHosts'
 
 const props = defineProps<{ gateway: KnownHostsGateway }>()
 
@@ -73,7 +78,8 @@ async function confirmDelete(): Promise<void> {
     pendingDelete.value = null
 
     toast.success(t('settings.knownHosts.removed'))
-    await load()
+
+    entries.value = removeKnownHostEntry(entries.value, target.line)
   } catch (cause) {
     error.value = knownHostsErrorMessage(cause, t('settings.knownHosts.removeFailed'))
   } finally {

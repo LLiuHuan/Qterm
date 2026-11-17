@@ -7,7 +7,8 @@ import { toast } from '../../services/toast'
 interface AssetDeletionOptions {
   hostGateway: Pick<HostGateway, 'remove' | 'removeGroup'>
   closeHostSessions: (hostId: string) => Promise<void>
-  onDeleted: () => Promise<void>
+
+  onDeleted: (target: PendingDelete) => Promise<void>
 }
 
 export function useAssetDeletion({ hostGateway, closeHostSessions, onDeleted }: AssetDeletionOptions) {
@@ -56,7 +57,7 @@ export function useAssetDeletion({ hostGateway, closeHostSessions, onDeleted }: 
           ? t('shell.success.hostDeleted', { name: target.name })
           : t('shell.success.groupDeleted', { name: target.name }),
       )
-      await onDeleted()
+      await onDeleted(target)
     } catch (error) {
       if (!disposed) deleteError.value = hostErrorMessage(error, t('shell.error.deleteAsset'))
     } finally {

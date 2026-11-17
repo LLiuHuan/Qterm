@@ -1,5 +1,7 @@
 import type { Group, Snippet, SnippetInput } from '../../bindings/changeme/internal/model/models'
+import { emitAssetChange } from './assetEvents'
 export type { Snippet, SnippetInput }
+
 export interface SnippetGateway {
   reorder(id: string, groupId: string, targetId: string, position: 'before' | 'after'): Promise<void>
   listGroups(): Promise<Group[]>
@@ -16,14 +18,21 @@ export function createSnippetGateway(): SnippetGateway {
     async reorder(id, groupId, targetId, position) {
       const { ReorderSnippet } = await import('../../bindings/changeme/internal/app/service')
       await ReorderSnippet(id, groupId, targetId, position)
+
+      await emitAssetChange({ kind: 'snippet', action: 'invalidate' })
     },
     async renameGroup(id, name) {
       const { RenameSnippetGroup } = await import('../../bindings/changeme/internal/app/service')
-      return RenameSnippetGroup(id, name)
+      const group = await RenameSnippetGroup(id, name)
+
+      await emitAssetChange({ kind: 'snippetGroup', action: 'invalidate', id })
+      return group
     },
     async removeGroup(id) {
       const { DeleteSnippetGroup } = await import('../../bindings/changeme/internal/app/service')
       await DeleteSnippetGroup(id)
+
+      await emitAssetChange({ kind: 'snippetGroup', action: 'delete', id })
     },
     async listGroups() {
       const { ListSnippetGroups } = await import('../../bindings/changeme/internal/app/service')
@@ -31,7 +40,9 @@ export function createSnippetGateway(): SnippetGateway {
     },
     async createGroup(name) {
       const { CreateSnippetGroup } = await import('../../bindings/changeme/internal/app/service')
-      return CreateSnippetGroup(name)
+      const group = await CreateSnippetGroup(name)
+      await emitAssetChange({ kind: 'snippetGroup', action: 'create', record: group })
+      return group
     },
     async list() {
       const { ListSnippets } = await import('../../bindings/changeme/internal/app/service')
@@ -39,15 +50,20 @@ export function createSnippetGateway(): SnippetGateway {
     },
     async create(input) {
       const { CreateSnippet } = await import('../../bindings/changeme/internal/app/service')
-      return CreateSnippet(input)
+      const snippet = await CreateSnippet(input)
+      await emitAssetChange({ kind: 'snippet', action: 'create', record: snippet })
+      return snippet
     },
     async update(id, input) {
       const { UpdateSnippet } = await import('../../bindings/changeme/internal/app/service')
-      return UpdateSnippet(id, input)
+      const snippet = await UpdateSnippet(id, input)
+      await emitAssetChange({ kind: 'snippet', action: 'update', record: snippet })
+      return snippet
     },
     async remove(id) {
       const { DeleteSnippet } = await import('../../bindings/changeme/internal/app/service')
       await DeleteSnippet(id)
+      await emitAssetChange({ kind: 'snippet', action: 'delete', id })
     },
   }
 }

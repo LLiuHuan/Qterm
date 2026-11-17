@@ -4,6 +4,7 @@ export type {
   AgentAuditEntry,
   AgentEvent,
   AgentMessage,
+  AgentReasoning,
   AgentRun,
   AgentSnapshot,
   AgentStep,

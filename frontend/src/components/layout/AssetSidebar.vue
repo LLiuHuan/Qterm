@@ -1,22 +1,12 @@
 <script setup lang="ts">
 import { QtermButton, QtermInput } from '../common'
-import {
-  ArrowDownAZ,
-  ArrowDownUp,
-  ArrowUpZA,
-  CircleHelp,
-  FolderPlus,
-  Plus,
-  RefreshCw,
-  Search,
-  Server,
-  X,
-} from '@lucide/vue'
+import { CircleHelp, FolderPlus, Plus, RefreshCw, Search, Server, X } from '@lucide/vue'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useAssetDrag, type AssetDragItem } from '../../features/hosts/assetDrag'
 import { useAssetTreeExpansion } from '../../features/hosts/assetTreeExpansion'
 import { IconButton, MorphingIcon, RefreshIconButton } from '../common'
 import { listCollapseIcon, listExtendIcon } from '../common/icon/listMorphIcons'
+import { sortMorphIcon } from '../common/icon/sortMorphIcons'
 import AssetDragGhost from './AssetDragGhost.vue'
 import AssetHostRow from './AssetHostRow.vue'
 import AssetTreeGroup from './AssetTreeGroup.vue'
@@ -169,17 +159,13 @@ function forwardDuplicate(host: HostRecord): void {
       >
         <Search :size="16" aria-hidden="true" />
       </IconButton>
+
       <IconButton
         :label="t('shell.asset.toggleSort')"
-        :active="props.sortMode !== 'custom'"
         :pressed="props.sortMode !== 'custom'"
         @click="emit('toggleSort')"
       >
-        <component
-          :is="props.sortMode === 'name-asc' ? ArrowDownAZ : props.sortMode === 'name-desc' ? ArrowUpZA : ArrowDownUp"
-          :size="16"
-          aria-hidden="true"
-        />
+        <MorphingIcon :icon="sortMorphIcon(props.sortMode)" :size="16" reduced-motion="user" aria-hidden="true" />
       </IconButton>
 
       <IconButton
@@ -280,9 +266,9 @@ function forwardDuplicate(host: HostRecord): void {
           >
             <div
               v-if="assetDrag.state.active && assetDrag.state.line"
-              class="absolute h-[2px] rounded-[1px] bg-qt-accent pointer-events-none z-5"
+              class="asset-drop-line"
               :style="{
-                top: `${assetDrag.state.line.top}px`,
+                top: `calc(${assetDrag.state.line.top}px - var(--asset-drop-line-height, 12px) / 2)`,
                 left: `${assetDrag.state.line.left}px`,
                 width: `${assetDrag.state.line.width}px`,
               }"

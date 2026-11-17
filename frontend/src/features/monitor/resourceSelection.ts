@@ -24,12 +24,11 @@ export function resourceDisks(
   const sorted = [...(disks ?? [])].filter((item) => item && item.mount.trim()).sort(compareDisks)
   if (expanded) return sorted
 
-  const persistent = sorted.filter((item) => {
+  return sorted.filter((item) => {
     if (item.mount === '/') return true
     if (isPseudoMount(item.mount)) return false
     return isPersistentFileSystem(item.fileSystemType) ? true : !isKnownEphemeralFileSystem(item.fileSystemType)
   })
-  return persistent
 }
 
 function compareNetworks(left: NetworkResource, right: NetworkResource): number {
@@ -73,7 +72,7 @@ function isPersistentFileSystem(fileSystemType: string): boolean {
 }
 
 function isKnownEphemeralFileSystem(fileSystemType: string): boolean {
-  return /^(tmpfs|devtmpfs|proc|procfs|sysfs|cgroup2?|squashfs|ramfs|pstore|debugfs|tracefs|securityfs|configfs|fusectl|overlay|juicefs|fuse\.juicefs|nfs|nfs4|cifs|smb3|ceph|lustre)$/i.test(
+  return /^(tmpfs|devtmpfs|proc|procfs|sysfs|cgroup2?|squashfs|ramfs|pstore|debugfs|tracefs|securityfs|configfs|fusectl|overlay|juicefs|s3fs|ossfs2?|nfs|nfs4|cifs|smb3|ceph|lustre|glusterfs|9p|fuse\.[a-z0-9_-]+)$/i.test(
     fileSystemType.trim(),
   )
 }

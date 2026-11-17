@@ -1,3 +1,4 @@
+import { emitAssetChange } from './assetEvents'
 import { errorMessage } from './errors'
 import { createRuntimeGateway } from './runtime'
 
@@ -747,10 +748,59 @@ interface CredentialBindings {
   DeleteCredential(id: string): PromiseLike<void>
 }
 
+function withCredentialEvents(gateway: CredentialGateway): CredentialGateway {
+  return new Proxy(gateway, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver)
+      if (typeof value !== 'function') return value
+      const bound = value.bind(target)
+      switch (property) {
+        case 'create':
+        case 'importLocalPrivateKey':
+          return async (...args: unknown[]) => {
+            const record = (await bound(...args)) as CredentialRecord
+
+            await emitAssetChange({ kind: 'credential', action: 'create', record })
+            return record
+          }
+        case 'rename':
+        case 'replace':
+          return async (...args: unknown[]) => {
+            const record = (await bound(...args)) as CredentialRecord
+            await emitAssetChange({ kind: 'credential', action: 'update', record })
+            return record
+          }
+        case 'remove':
+          return async (id: unknown) => {
+            await bound(id)
+            await emitAssetChange({ kind: 'credential', action: 'delete', id: String(id) })
+          }
+
+        case 'unlockAutomatically':
+        case 'unlockPassword':
+        case 'unlockWithCustomKey':
+        case 'importRecovery':
+        case 'resetVault':
+        case 'importResources':
+        case 'lock':
+          return async (...args: unknown[]) => {
+            const result = await bound(...args)
+            await emitAssetChange({ kind: 'credential', action: 'invalidate' })
+            return result
+          }
+        default:
+          return bound
+      }
+    },
+  })
+}
+
 export function createCredentialGateway(): CredentialGateway {
-  return createRuntimeGateway<CredentialGateway>(
-    () => new WailsCredentialGateway(),
-    () => new MemoryCredentialGateway(),
+  return withCredentialEvents(
+    createRuntimeGateway<CredentialGateway>(
+      () => new WailsCredentialGateway(),
+      () => new MemoryCredentialGateway(),
+    ),
   )
 }
 

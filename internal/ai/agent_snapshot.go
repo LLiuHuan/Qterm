@@ -32,6 +32,8 @@ func (m *Manager) snapshotLocked(state *agentRunState, since int) AgentSnapshot 
 
 	run.AllowedTools = append([]string(nil), state.run.AllowedTools...)
 
+	run.Reasonings = append([]AgentReasoning(nil), state.run.Reasonings...)
+
 	if state.run.Context != nil {
 		breakdown := *state.run.Context
 		run.Context = &breakdown

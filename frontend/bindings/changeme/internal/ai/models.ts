@@ -42,6 +42,12 @@ export interface AgentMessage {
   name?: string
 }
 
+export interface AgentReasoning {
+  round: number
+
+  text: string
+}
+
 export interface AgentRun {
   id: string
   providerId: string
@@ -59,7 +65,7 @@ export interface AgentRun {
   modelCalls?: number
   commandRuns?: number
 
-  reasonings?: string[] | null
+  reasonings?: AgentReasoning[] | null
 
   notes?: string[] | null
 
@@ -91,6 +97,8 @@ export interface AgentSnapshot {
 export interface AgentStep {
   id: string
   index: number
+
+  round?: number
   callId?: string
   kind: StepKind
   state: StepState

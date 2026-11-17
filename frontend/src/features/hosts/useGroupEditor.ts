@@ -5,7 +5,8 @@ import { useI18n } from '@/locales'
 
 interface GroupEditorOptions {
   hostGateway: Pick<HostGateway, 'createGroup' | 'updateGroup'>
-  onSaved: () => Promise<void>
+
+  onSaved: (group: GroupRecord) => Promise<void>
 }
 
 export function useGroupEditor({ hostGateway, onSaved }: GroupEditorOptions) {
@@ -63,7 +64,7 @@ export function useGroupEditor({ hostGateway, onSaved }: GroupEditorOptions) {
       if (disposed) return null
       if (version === editorVersion) closeGroupDialog()
       toast.success(id ? t('shell.success.groupUpdated') : t('shell.success.groupCreated'))
-      await onSaved()
+      await onSaved(saved)
       return saved
     } catch (error) {
       if (!disposed) toast.error(hostErrorMessage(error, t('shell.error.saveGroup')))

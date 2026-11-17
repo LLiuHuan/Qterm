@@ -41,7 +41,7 @@ const props = defineProps<{
   error: string
 }>()
 
-const emit = defineEmits<{ changed: []; openSecurity: []; 'update:otpEntries': [value: OtpEntry[]] }>()
+const emit = defineEmits<{ openSecurity: []; 'update:otpEntries': [value: OtpEntry[]] }>()
 const { t } = useI18n()
 
 const view = ref<'credentials' | 'otp'>(props.initialView ?? 'credentials')
@@ -167,12 +167,10 @@ function closeForm(): void {
 
 function handleCreated(): void {
   formOpen.value = false
-  emit('changed')
 }
 
 function handleUpdated(): void {
   formOpen.value = false
-  emit('changed')
 }
 
 async function scanLocalKeys(): Promise<void> {
@@ -235,8 +233,6 @@ async function submitQuickAdd(): Promise<void> {
     quickAddOpen.value = false
     quickAddPassphrase.value = ''
     toast.success(t('settings.credentials.quickAdd.done'))
-
-    emit('changed')
   } catch (error) {
     toast.error(credentialErrorMessage(error, t('settings.credentials.error.create')))
   } finally {
@@ -249,9 +245,9 @@ async function confirmDelete(): Promise<void> {
   deleting.value = true
   try {
     await props.gateway.remove(pendingDelete.value.id)
+
     items.value = items.value.filter((item) => item.id !== pendingDelete.value?.id)
     pendingDelete.value = null
-    emit('changed')
     toast.success(t('settings.credentials.toast.deleted'))
   } catch (error) {
     toast.error(credentialErrorMessage(error, t('settings.credentials.error.delete')))

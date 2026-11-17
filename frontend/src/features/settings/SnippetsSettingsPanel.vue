@@ -37,6 +37,7 @@ import { snippetColorStyle } from '../snippets/appearance'
 import ColorTagField from '../../components/common/form-controls/ColorTagField.vue'
 import SnippetContentEditor from './SnippetContentEditor.vue'
 import { useSnippetGroupPagination } from '../snippets/useSnippetGroupPagination'
+import { upsertSnippet } from '../snippets/snippetListMerge'
 
 const snippets = ref<Snippet[]>([])
 const searchQuery = ref('')
@@ -267,8 +268,10 @@ async function saveGroup(): Promise<void> {
   groupError.value = ''
   try {
     if (editingGroupId.value) {
-      await snippetGateway.renameGroup(editingGroupId.value, groupName.value.trim())
-      await load()
+      const group = await snippetGateway.renameGroup(editingGroupId.value, groupName.value.trim())
+      commandGroups.value = commandGroups.value.map((item) => (item.id === group.id ? group : item))
+
+      snippets.value = snippets.value.map((item) => (item.groupId === group.id ? { ...item, group: group.name } : item))
     } else {
       const group = await snippetGateway.createGroup(groupName.value.trim())
       commandGroups.value = [...commandGroups.value, group]
@@ -329,9 +332,18 @@ async function save(): Promise<void> {
       color: color.value,
       pinned: pinned.value,
     }
-    if (editing.value) await snippetGateway.update(editing.value.id, payload)
-    else await snippetGateway.create(payload)
-    await load()
+
+    const saved = editing.value
+      ? await snippetGateway.update(editing.value.id, payload)
+      : await snippetGateway.create(payload)
+    snippets.value = upsertSnippet(snippets.value, saved)
+
+    const key = snippetGroupKey(saved.groupId || '')
+    if (!expandedGroups.value.includes(key)) expandedGroups.value.push(key)
+    revealSnippetGroupItem(
+      key,
+      grouped.value.find(([id]) => snippetGroupKey(id) === key)?.[2].findIndex((item) => item.id === saved.id) ?? -1,
+    )
     open.value = false
   } catch (cause) {
     error.value = errorMessage(cause, t('settings.snippets.error.save'))
@@ -373,11 +385,22 @@ async function confirmRemove(): Promise<void> {
   deleteError.value = ''
   try {
     const removingGroup = Boolean(deleteGroupId.value)
-    if (removingGroup) await snippetGateway.removeGroup(deleteGroupId.value)
-    else await snippetGateway.remove(deleteTarget.value.id)
+    const removingGroupId = deleteGroupId.value
+    const removingSnippetId = deleteTarget.value.id
+    if (removingGroup) await snippetGateway.removeGroup(removingGroupId)
+    else await snippetGateway.remove(removingSnippetId)
     deleteTarget.value = null
     toast.success(t(removingGroup ? 'settings.snippets.toast.groupRemoved' : 'settings.snippets.toast.removed'))
-    await load()
+
+    if (removingGroup) {
+      commandGroups.value = commandGroups.value.filter((group) => group.id !== removingGroupId)
+
+      snippets.value = snippets.value.map((item) =>
+        item.groupId === removingGroupId ? { ...item, groupId: '', group: '' } : item,
+      )
+    } else {
+      snippets.value = snippets.value.filter((item) => item.id !== removingSnippetId)
+    }
   } catch (cause) {
     deleteError.value = errorMessage(cause, t('settings.snippets.error.delete'))
   } finally {

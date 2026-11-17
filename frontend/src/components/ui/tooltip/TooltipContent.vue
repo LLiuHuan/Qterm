@@ -41,10 +41,7 @@ const themeStyle = computed(() => dialogTheme?.value.style ?? {})
     >
       <slot />
 
-      <TooltipArrow
-        data-tooltip-arrow
-        class="size-2.5 rotate-45 rounded-xs bg-popover fill-popover z-50 translate-y-[calc(-50%_-_2px)]"
-      />
+      <TooltipArrow data-tooltip-arrow class="w-3 h-1.5 z-50" />
     </TooltipContent>
   </TooltipPortal>
 </template>

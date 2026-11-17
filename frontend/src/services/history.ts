@@ -129,6 +129,41 @@ export async function finishSessionHistory(
   )
 }
 
+export function applyHistoryArchive(
+  records: readonly SessionHistoryRecord[],
+  ids: readonly string[],
+  archived: boolean,
+): SessionHistoryRecord[] {
+  const wanted = new Set(ids)
+  let changed = false
+  const next = records.map((item) => {
+    if (!wanted.has(item.id) || (item.archived === true) === archived) return item
+    changed = true
+    return { ...item, archived }
+  })
+
+  return changed ? next : (records as SessionHistoryRecord[])
+}
+
+export function removeHistoryRecords(
+  records: readonly SessionHistoryRecord[],
+  ids: readonly string[],
+): SessionHistoryRecord[] {
+  const wanted = new Set(ids)
+  const next = records.filter((item) => !wanted.has(item.id))
+  return next.length === records.length ? (records as SessionHistoryRecord[]) : next
+}
+
+export function patchHistoryNote(
+  records: readonly SessionHistoryRecord[],
+  id: string,
+  note: string,
+): SessionHistoryRecord[] {
+  const target = records.find((item) => item.id === id)
+  if (!target || (target.note ?? '') === note) return records as SessionHistoryRecord[]
+  return records.map((item) => (item.id === id ? { ...item, note: note || undefined } : item))
+}
+
 export async function deleteSessionHistory(id: string): Promise<void> {
   if (nativeRuntimeReady()) {
     const { DeleteSessionHistory } = await import('../../bindings/changeme/internal/app/service')

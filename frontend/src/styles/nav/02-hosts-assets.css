@@ -6,9 +6,6 @@
   text-align: left;
 }
 
-.group-chevron.is-closed {
-  transform: rotate(-90deg);
-}
 .asset-group-children::before {
   content: '';
   position: absolute;

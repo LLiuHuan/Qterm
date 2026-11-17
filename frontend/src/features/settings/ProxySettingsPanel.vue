@@ -22,7 +22,6 @@ const props = withDefaults(
   { hosts: () => [], loading: false, error: '' },
 )
 
-const emit = defineEmits<{ changed: [] }>()
 const { t } = useI18n()
 
 const sortedProxies = computed(() => [...props.proxies].sort((left, right) => left.name.localeCompare(right.name)))
@@ -49,12 +48,10 @@ function closeForm(): void {
 
 function handleCreated(): void {
   toast.success(t('settings.proxies.toast.created'))
-  emit('changed')
 }
 
 function handleUpdated(): void {
   toast.success(t('settings.proxies.toast.updated'))
-  emit('changed')
 }
 
 const pendingDelete = ref<ProxyRecord | null>(null)
@@ -77,7 +74,6 @@ async function confirmDelete(): Promise<void> {
     const count = await props.gateway.remove(target.id)
     pendingDelete.value = null
     toast.success(t('settings.proxies.toast.deleted', { count }))
-    emit('changed')
   } catch (error) {
     toast.error(proxyErrorMessage(error, t('settings.proxies.error.delete')))
   } finally {

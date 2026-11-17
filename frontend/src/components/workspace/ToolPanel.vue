@@ -66,6 +66,15 @@ import { acquireResourceFeed, type ResourceFeedLease } from '../../features/moni
 import { formatByteRate, formatPercent } from '../../lib/format'
 import { snippetColorStyle } from '../../features/snippets/appearance'
 import { useSnippetGroupPagination } from '../../features/snippets/useSnippetGroupPagination'
+import {
+  groupKeyOfSnippet,
+  removeSnippet,
+  removeSnippetGroup,
+  renameSnippetGroupInSnippets,
+  upsertSnippet,
+  upsertSnippetGroup,
+} from '../../features/snippets/snippetListMerge'
+import { connectAssetChanged, type AssetChange } from '../../services/assetEvents'
 import QtermLoadMore from '../common/layout/QtermLoadMore.vue'
 
 const props = defineProps<{
@@ -263,6 +272,7 @@ const {
   reset: resetToolSnippetGroupPagination,
   visibleCount: visibleToolSnippetGroupCount,
   visibleItems: visibleToolSnippetGroupItems,
+  reveal: revealToolSnippetGroupItem,
 } = useSnippetGroupPagination(20)
 const customThemes = ref<Array<TerminalTheme & { id: string }>>(loadCustomTerminalThemes())
 const terminalThemes = computed(() => {
@@ -341,21 +351,69 @@ function toolSnippetGroupExpanded(groupID: string): boolean {
   return openSnippetGroups.value.includes(groupID)
 }
 
-async function loadSnippets(): Promise<void> {
+async function loadSnippets(options: { silent?: boolean } = {}): Promise<void> {
   if (props.tool !== 'snippets') return
-  snippetsLoading.value = true
+  const silent = options.silent === true
+  if (!silent) snippetsLoading.value = true
   snippetsError.value = ''
   try {
     const [items, groups] = await Promise.all([snippetGateway.list(), snippetGateway.listGroups()])
     snippets.value = items
     snippetGroups.value = groups.map((group) => ({ id: group.id, name: group.name }))
-    resetToolSnippetGroupPagination()
-    openSnippetGroups.value = snippetQuery.value.trim() ? snippetSections.value.map((group) => group.id) : []
+    if (!silent) {
+      resetToolSnippetGroupPagination()
+      openSnippetGroups.value = snippetQuery.value.trim() ? snippetSections.value.map((group) => group.id) : []
+    }
   } catch (cause) {
     snippetsError.value = errorMessage(cause, t('shell.toolPanel.snippetsFailed'))
   } finally {
-    snippetsLoading.value = false
+    if (!silent) snippetsLoading.value = false
   }
+}
+
+function handleAssetChanged(change: AssetChange): void {
+  if (change.kind === 'snippet') {
+    if (change.action === 'create' && change.record) {
+      const record = change.record as Snippet
+      snippets.value = upsertSnippet(snippets.value, record)
+
+      const key = groupKeyOfSnippet(record)
+      if (key !== '__ungrouped__' && !openSnippetGroups.value.includes(key)) openSnippetGroups.value.push(key)
+      const section = snippetSections.value.find((group) => group.id === key)
+      const index = section?.items.findIndex((item) => item.id === record.id) ?? -1
+      if (index >= 0) revealToolSnippetGroupItem(key, index)
+      return
+    }
+    if (change.action === 'update' && change.record) {
+      snippets.value = upsertSnippet(snippets.value, change.record as Snippet)
+      return
+    }
+    if (change.action === 'delete' && change.id) {
+      snippets.value = removeSnippet(snippets.value, change.id)
+      return
+    }
+  }
+  if (change.kind === 'snippetGroup') {
+    if (change.action === 'create' && change.record) {
+      const group = change.record as { id: string; name: string }
+      snippetGroups.value = upsertSnippetGroup(snippetGroups.value, { id: group.id, name: group.name })
+      return
+    }
+    if (change.action === 'update' && change.record) {
+      const group = change.record as { id: string; name: string }
+      snippetGroups.value = upsertSnippetGroup(snippetGroups.value, { id: group.id, name: group.name })
+      snippets.value = renameSnippetGroupInSnippets(snippets.value, group.id, group.name)
+      return
+    }
+    if (change.action === 'delete' && change.id) {
+      const next = removeSnippetGroup(snippetGroups.value, snippets.value, change.id)
+      snippetGroups.value = next.groups
+      snippets.value = next.snippets
+      return
+    }
+  }
+
+  if (change.action === 'invalidate') void loadSnippets({ silent: true })
 }
 
 const pendingSnippetDelete = ref<Snippet | null>(null)
@@ -473,7 +531,11 @@ watch(
     immediate: true,
   },
 )
-watch(() => props.tool, loadSnippets, { immediate: true })
+watch(
+  () => props.tool,
+  () => void loadSnippets(),
+  { immediate: true },
+)
 watch(snippetQuery, (query) => {
   resetToolSnippetGroupPagination()
   openSnippetGroups.value = query.trim() ? snippetSections.value.map((group) => group.id) : []
@@ -495,15 +557,20 @@ function handleCommandHistoryChanged(event: Event): void {
   if (hostID && hostID !== props.activeHost?.id) return
   void loadCommands()
 }
+let disposeAssetChanged: (() => void) | undefined
 onBeforeUnmount(() => {
   resourceLease.value?.release()
   if (snippetsLoadingTimer !== undefined) window.clearTimeout(snippetsLoadingTimer)
   window.removeEventListener('qterm:command-history-changed', handleCommandHistoryChanged)
   window.removeEventListener('qterm:assets-imported', handleAssetsImported)
+  disposeAssetChanged?.()
+  disposeAssetChanged = undefined
 })
 onMounted(() => {
   window.addEventListener('qterm:command-history-changed', handleCommandHistoryChanged)
   window.addEventListener('qterm:assets-imported', handleAssetsImported)
+
+  disposeAssetChanged = connectAssetChanged(handleAssetChanged)
 })
 
 function handleAssetsImported(): void {
@@ -852,7 +919,7 @@ function handleAssetsImported(): void {
                   :label="t('shell.toolPanel.refreshSnippets')"
                   :spinning="snippetsLoading"
                   icon-class="size-4"
-                  @click="loadSnippets"
+                  @click="loadSnippets()"
                 />
               </div>
             </header>

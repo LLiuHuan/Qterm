@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { toast } from '../services/toast'
 import {
   createCredentialGateway,
@@ -16,6 +16,7 @@ import {
 } from '../services/credentials'
 import { credentialStatusMessage } from '../services/errors'
 import { hideSettingsWindow, isSettingsWindowMode } from '../services/sessionWindows'
+import { connectAssetChanged, type AssetChange } from '../services/assetEvents'
 import { useI18n } from '../locales'
 
 export function useCredentialState() {
@@ -28,6 +29,38 @@ export function useCredentialState() {
   const securityDialogOpen = ref(false)
   const securityWorking = ref(false)
   const securityError = ref('')
+
+  function applyCredentialChange(change: AssetChange): void {
+    if (change.kind !== 'credential') return
+    if (change.action === 'invalidate') {
+      void refreshCredentialsQuietly()
+      return
+    }
+    const record = change.record as CredentialRecord | undefined
+    if (change.action === 'delete') {
+      if (!change.id) return
+      credentialOptions.value = credentialOptions.value.filter((item) => item.id !== change.id)
+      return
+    }
+    if (!record?.id) return
+    const exists = credentialOptions.value.some((item) => item.id === record.id)
+    credentialOptions.value = sortCredentialsByCreatedAtDesc(
+      exists
+        ? credentialOptions.value.map((item) => (item.id === record.id ? record : item))
+        : [...credentialOptions.value, record],
+    )
+  }
+
+  async function refreshCredentialsQuietly(): Promise<void> {
+    try {
+      await readCredentialOptions()
+    } catch (error) {
+      credentialOptionsError.value = credentialErrorMessage(error, t('shell.error.credentialsRead'))
+    }
+  }
+
+  const disposeCredentialChange = connectAssetChanged(applyCredentialChange)
+  onUnmounted(disposeCredentialChange)
 
   async function openSecuritySettings(): Promise<void> {
     securityDialogOpen.value = true
@@ -332,14 +365,18 @@ export function useCredentialState() {
     }
   }
 
+  async function readCredentialOptions(): Promise<void> {
+    const status = await credentialGateway.status()
+    credentialVaultStatus.value = status
+    credentialOptions.value =
+      status.state === 'unlocked' ? sortCredentialsByCreatedAtDesc(await credentialGateway.list()) : []
+  }
+
   async function refreshCredentials(): Promise<void> {
     credentialOptionsLoading.value = true
     credentialOptionsError.value = ''
     try {
-      const status = await credentialGateway.status()
-      credentialVaultStatus.value = status
-      credentialOptions.value =
-        status.state === 'unlocked' ? sortCredentialsByCreatedAtDesc(await credentialGateway.list()) : []
+      await readCredentialOptions()
     } catch (error) {
       credentialOptions.value = []
       credentialOptionsError.value = credentialErrorMessage(error, t('shell.error.credentialsRead'))
