@@ -144,6 +144,7 @@ export const appFr: Record<string, string> = {
   'about.update.state.ready': 'Téléchargée, prête à installer',
   'about.update.state.installing': 'Redémarrage pour installer…',
   'about.update.state.failed': 'La recherche de mise à jour a échoué',
+  'about.update.errorDetail': ' (détail : {detail})',
   'about.update.download': 'Télécharger la mise à jour',
   'about.update.downloading': 'Téléchargement {percent} %',
   'about.update.install': 'Redémarrer et installer',

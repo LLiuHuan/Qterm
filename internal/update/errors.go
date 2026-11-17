@@ -10,6 +10,8 @@ const (
 	keyDownloadFailed   = "update.downloadFailed"
 	keyChecksumMissing  = "update.checksumMissing"
 	keyChecksumMismatch = "update.checksumMismatch"
+	keySignatureMissing = "update.signatureMissing"
+	keySignatureInvalid = "update.signatureInvalid"
 	keyInstallFailed    = "update.installFailed"
 	keyUnsupported      = "update.unsupported"
 	keyCancelled        = "update.cancelled"
@@ -42,6 +44,14 @@ func checksumMissing() error {
 
 func checksumMismatch() error {
 	return errno.New(errno.CodePermissionDenied, keyChecksumMismatch, "")
+}
+
+func signatureMissing() error {
+	return errno.New(errno.CodeStoreFailed, keySignatureMissing, "")
+}
+
+func signatureInvalid(detail string) error {
+	return errno.New(errno.CodePermissionDenied, keySignatureInvalid, detail)
 }
 
 func installFailed(detail string) error {

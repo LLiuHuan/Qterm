@@ -50,10 +50,13 @@ func (s *Service) downloadAsset(ctx context.Context, release *Release) (string, 
 		}
 		return "", downloadFailed("network")
 	}
-	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
+		_ = response.Body.Close()
 		return "", downloadFailed("HTTP " + strconv.Itoa(response.StatusCode))
 	}
+
+	body := newStallGuard(response.Body, downloadStallTimeout)
+	defer func() { _ = body.Close() }()
 
 	file, err := os.OpenFile(partial, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
@@ -70,12 +73,15 @@ func (s *Service) downloadAsset(ctx context.Context, release *Release) (string, 
 	if writer.total <= 0 {
 		writer.total = release.Asset.Size
 	}
-	written, copyErr := io.Copy(writer, response.Body)
+	written, copyErr := io.Copy(writer, body)
 	closeErr := file.Close()
 	if copyErr != nil {
 		_ = os.Remove(partial)
 		if ctx.Err() != nil {
 			return "", ctx.Err()
+		}
+		if body.Stalled() {
+			return "", downloadFailed("stalled")
 		}
 		return "", downloadFailed("copy")
 	}
@@ -102,14 +108,33 @@ func (s *Service) downloadAsset(ctx context.Context, release *Release) (string, 
 
 func (s *Service) fetchChecksums(ctx context.Context) (string, error) {
 	s.mu.Lock()
-	url := s.checksumURL
+	checksumURL := s.checksumURL
+	signatureURL := s.signatureURL
 	s.mu.Unlock()
-	if url == "" {
+	if checksumURL == "" {
 		return "", checksumMissing()
 	}
+	if signatureURL == "" {
+		return "", signatureMissing()
+	}
+	sums, err := s.fetchText(ctx, checksumURL, maxChecksumBytes, checksumMissing)
+	if err != nil {
+		return "", err
+	}
+	signature, err := s.fetchText(ctx, signatureURL, maxSignatureBytes, signatureMissing)
+	if err != nil {
+		return "", err
+	}
+	if err := VerifyChecksumsSignature([]byte(sums), []byte(signature)); err != nil {
+		return "", err
+	}
+	return sums, nil
+}
+
+func (s *Service) fetchText(ctx context.Context, url string, limit int64, fallback func() error) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", checksumMissing()
+		return "", fallback()
 	}
 	request.Header.Set("User-Agent", "Qterm-Updater")
 	response, err := s.downloadClient.Do(request)
@@ -121,11 +146,11 @@ func (s *Service) fetchChecksums(ctx context.Context) (string, error) {
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
-		return "", checksumMissing()
+		return "", fallback()
 	}
-	body, err := io.ReadAll(io.LimitReader(response.Body, maxChecksumBytes))
+	body, err := io.ReadAll(io.LimitReader(response.Body, limit))
 	if err != nil {
-		return "", checksumMissing()
+		return "", fallback()
 	}
 	return string(body), nil
 }

@@ -136,6 +136,7 @@ export const appEn: Record<string, string> = {
   'about.update.state.ready': 'Downloaded, ready to install',
   'about.update.state.installing': 'Restarting to install…',
   'about.update.state.failed': 'Update check failed',
+  'about.update.errorDetail': ' (detail: {detail})',
   'about.update.download': 'Download update',
   'about.update.downloading': 'Downloading {percent}%',
   'about.update.install': 'Restart and install',

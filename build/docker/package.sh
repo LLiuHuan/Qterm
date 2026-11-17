@@ -89,7 +89,13 @@ package_windows() {
     rm -f "${syso}"
 
     log "生成 NSIS 安装包 windows/${arch}"
-    ( cd build/windows/nsis && makensis -DARG_WAILS_${flag}_BINARY="${dir}/${APP_NAME}.exe" project.nsi >/dev/null )
+    # 必须显式指定 per-user 安装范围：project.nsi 的默认值是 machine，
+    # 会装进 C:\Program Files，而应用清单是 asInvoker、普通权限运行，
+    # 装好之后连自动更新都写不进去（探针建不出临时文件，报 target-readonly）。
+    # per-user 装到 %LOCALAPPDATA%\Programs\...，当前用户始终可写，不需要 UAC。
+    ( cd build/windows/nsis && makensis \
+      -DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user \
+      -DARG_WAILS_${flag}_BINARY="${dir}/${APP_NAME}.exe" project.nsi >/dev/null )
     mv "${REPO_ROOT}/bin/${APP_NAME}-${arch}-installer.exe" "${OUT}/qterm-windows-${arch}-setup.exe"
 
     log "打包 windows/${arch} 便携 zip"

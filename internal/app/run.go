@@ -47,6 +47,8 @@ func reportWailsError(err error) {
 
 func Run(assets embed.FS) error {
 
+	recoverFromFailedUpdate()
+
 	iconPath := "frontend/dist/qterm-icon.png"
 	switch runtime.GOOS {
 	case "darwin", "windows", "linux":
@@ -294,6 +296,8 @@ func Run(assets embed.FS) error {
 		return window.Close
 	}
 	service.openWindow(context.Background(), "/", nil)
+
+	confirmUpdateStartup()
 
 	go func() {
 		time.Sleep(settingsWindowPrewarmDelay)

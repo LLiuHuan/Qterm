@@ -139,6 +139,7 @@ export const appJa: Record<string, string> = {
   'about.update.state.ready': 'ダウンロード済み（インストール待ち）',
   'about.update.state.installing': '再起動してインストールしています…',
   'about.update.state.failed': '更新の確認に失敗しました',
+  'about.update.errorDetail': '（詳細：{detail}）',
   'about.update.download': '更新をダウンロード',
   'about.update.downloading': 'ダウンロード中 {percent}%',
   'about.update.install': '再起動してインストール',

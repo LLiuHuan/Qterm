@@ -182,16 +182,20 @@ jobs:
           JS
 
       # 两份 job 各上传一部分，校验和必须在合并后重新生成，否则会缺一半文件。
-      - name: Generate SHA256SUMS
+      # 清单同时用 Ed25519 签名：应用内只内置公钥，因此替换 Release 产物也签不出能验过的清单
+      # （私钥在 secret QTERM_UPDATE_SIGNING_KEY，绝不要提交到仓库）。
+      - name: Generate and sign SHA256SUMS
         shell: bash
+        env:
+          QTERM_UPDATE_SIGNING_KEY: ${{ secrets.QTERM_UPDATE_SIGNING_KEY }}
         run: |
           set -euo pipefail
+          node build/sign-update-manifest.mjs --artifacts artifacts
           cd artifacts
-          # 只对发布文件计算摘要，避免把正在写入的清单自身也算进去。
           export LC_ALL=C
-          sha256sum qterm-* > SHA256SUMS
           sha256sum --check SHA256SUMS
           cat SHA256SUMS
+          cat SHA256SUMS.sig
 
       - name: Generate verified Homebrew Cask
         env:
@@ -214,6 +218,7 @@ jobs:
           files: |
             artifacts/qterm-*
             artifacts/SHA256SUMS
+            artifacts/SHA256SUMS.sig
             artifacts/homebrew/qterm.rb
 
       - uses: actions/upload-artifact@v4

@@ -54,6 +54,8 @@ type Service struct {
 
 	release *Release
 
+	signatureURL string
+
 	checksumURL string
 	stagedPath  string
 	stagedDir   string
@@ -102,7 +104,7 @@ func NewService(options Options) *Service {
 		apiBase:        apiBase,
 
 		apiClient:      &http.Client{Transport: client.Transport, Timeout: 30 * time.Second},
-		downloadClient: &http.Client{Transport: client.Transport},
+		downloadClient: &http.Client{Transport: downloadTransport(client.Transport)},
 		emit:           options.Emit,
 		now:            now,
 		tempRoot:       tempRoot,
@@ -182,6 +184,7 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 
 	asset, hasAsset := pickAsset(payload, s.goos, s.goarch)
 	checksum, hasChecksum := pickChecksumAsset(payload)
+	signature, hasSignature := pickSignatureAsset(payload)
 	release := Release{
 		HasUpdate: comparison < 0,
 		Version:   remoteVersion,
@@ -202,6 +205,10 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 	if hasChecksum {
 		s.checksumURL = checksum.BrowserDownloadURL
 	}
+	s.signatureURL = ""
+	if hasSignature {
+		s.signatureURL = signature.BrowserDownloadURL
+	}
 	s.mu.Unlock()
 
 	switch {
@@ -211,6 +218,11 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 	case !hasAsset:
 
 		err := noAsset(assetNameFor(s.goos, s.goarch))
+		s.failWith(StateAvailable, err, &release)
+		return release, err
+	case !hasSignature:
+
+		err := signatureMissing()
 		s.failWith(StateAvailable, err, &release)
 		return release, err
 	}

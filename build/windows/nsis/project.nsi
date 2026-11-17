@@ -84,7 +84,52 @@ Function .onInit
    !insertmacro wails.checkArchitecture
 FunctionEnd
 
+## 跨安装范围升级的清理。
+##
+## v0.0.8 及更早的安装包是机器级（Program Files + HKLM 卸载项），从本版起改成按用户安装
+## （%LOCALAPPDATA%\Programs + HKCU 卸载项）。两套安装互不覆盖：直接装新版会同时存在
+## 两份程序、两个卸载项、两个快捷方式，用户点哪个都可能不是刚更新的那个。
+##
+## 旧安装目录在 Program Files 下，删除需要管理员权限，而按用户安装的安装包以普通权限运行，
+## 所以这里用 ExecShell "runas" 拉起旧版的卸载程序（会弹 UAC）。静默安装时直接执行，
+## 交互安装时先问一句——用户可能刻意想保留旧版本。
+##
+## 注意这里**不用**注册表里的 UninstallString：它的值本身带引号（`"$INSTDIR\uninstall.exe"`），
+## 再拼进命令行会变成双重引号而启动失败。旧版安装路径是固定公式，直接拼路径更可靠。
+Function RemoveLegacyMachineInstall
+    !if "${WAILS_INSTALL_SCOPE}" == "user"
+    SetRegView 64
+    ReadRegStr $0 HKLM "${UNINST_KEY}" "UninstallString"
+    StrCmp $0 "" legacy_done
+    StrCpy $1 "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}\uninstall.exe"
+    IfFileExists "$1" 0 legacy_done
+    DetailPrint "检测到旧版机器级安装：$1"
+    IfSilent legacy_exec
+    MessageBox MB_OKCANCEL|MB_ICONQUESTION "检测到旧版本以机器级方式安装（Program Files）。\n\n如果不先卸载它，会同时存在两份程序。现在卸载旧版本吗？" IDOK legacy_exec
+    Goto legacy_done
+    legacy_exec:
+    ExecShell "runas" "$1" "/S"
+    ; ExecShell 是异步的、也不会告诉我们 UAC 是否被取消，所以只能轮询卸载项是否消失：
+    ; 每 500ms 看一次，最多等 20 秒（旧卸载程序要删 Program Files 下的目录，慢盘上需要时间）。
+    StrCpy $2 0
+    legacy_wait:
+    ReadRegStr $3 HKLM "${UNINST_KEY}" "UninstallString"
+    StrCmp $3 "" legacy_done
+    IntOp $2 $2 + 1
+    IntCmp $2 40 legacy_timeout legacy_sleep legacy_sleep
+    legacy_sleep:
+    Sleep 500
+    Goto legacy_wait
+    legacy_timeout:
+    IfSilent legacy_done
+    MessageBox MB_OK|MB_ICONEXCLAMATION "旧版本没有卸载完成（可能取消了 UAC 授权，或卸载失败）。\n\n新版会继续安装，但系统里可能同时存在两份程序，请稍后手动卸载旧版本。"
+    legacy_done:
+    !endif
+FunctionEnd
+
 Section
+    Call RemoveLegacyMachineInstall
+
     !insertmacro wails.setShellContext
 
     !insertmacro wails.webview2runtime

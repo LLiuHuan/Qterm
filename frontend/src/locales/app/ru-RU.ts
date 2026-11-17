@@ -141,6 +141,7 @@ export const appRu: Record<string, string> = {
   'about.update.state.ready': 'Загружено, ожидает установки',
   'about.update.state.installing': 'Перезапуск для установки…',
   'about.update.state.failed': 'Не удалось проверить обновления',
+  'about.update.errorDetail': ' (подробности: {detail})',
   'about.update.download': 'Скачать обновление',
   'about.update.downloading': 'Загрузка {percent}%',
   'about.update.install': 'Перезапустить и установить',

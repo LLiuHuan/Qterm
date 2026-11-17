@@ -121,6 +121,7 @@ export const appZh: Record<string, string> = {
   'about.update.state.ready': '已下载，等待安装',
   'about.update.state.installing': '正在重启安装…',
   'about.update.state.failed': '检查更新失败',
+  'about.update.errorDetail': '（详情：{detail}）',
   'about.update.download': '下载更新',
   'about.update.downloading': '正在下载 {percent}%',
   'about.update.install': '重启并安装',

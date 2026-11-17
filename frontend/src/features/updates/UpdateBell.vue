@@ -7,6 +7,7 @@ import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader }
 import AiMessageText from '../ai/AiMessageText.vue'
 import { useI18n } from '@/locales'
 import { installUpdate, shouldNotifyUpdate, useUpdateState } from './updateStore'
+import { describeUpdateError } from './updateError'
 
 const { t } = useI18n()
 const state = useUpdateState()
@@ -28,7 +29,10 @@ function dismiss(): void {
 
 async function installNow(): Promise<void> {
   await installUpdate()
-  if (state.errorKey) return
+  if (state.errorKey) {
+    toast.error(describeUpdateError(state.errorKey, state.errorDetail, t))
+    return
+  }
   open.value = false
   toast.info(t('about.update.restarting'))
 

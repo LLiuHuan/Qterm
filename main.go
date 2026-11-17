@@ -20,6 +20,14 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+
+	if handled, err := qtermapp.RunUpdateHelperIfRequested(os.Args[1:]); handled {
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "qterm: 更新助手失败：%v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 	err := qtermapp.Run(assets)
 	if err != nil {
 		log.Fatal(err)

@@ -135,6 +135,7 @@ export const appKo: Record<string, string> = {
   'about.update.state.ready': '다운로드 완료, 설치 대기 중',
   'about.update.state.installing': '재시작하여 설치하는 중…',
   'about.update.state.failed': '업데이트 확인에 실패했습니다',
+  'about.update.errorDetail': ' (상세: {detail})',
   'about.update.download': '업데이트 다운로드',
   'about.update.downloading': '다운로드 중 {percent}%',
   'about.update.install': '재시작 후 설치',

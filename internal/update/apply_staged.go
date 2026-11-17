@@ -2,22 +2,42 @@ package update
 
 import (
 	"archive/zip"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
+type StagedFailure struct {
+	Detail string
+}
+
+func (f *StagedFailure) Error() string {
+	return "staged update failed: " + f.Detail
+}
+
 func applyStagedExecutable(archivePath, targetPath string) error {
+	if err := ApplyStagedArchive(archivePath, targetPath); err != nil {
+		var failure *StagedFailure
+		if errors.As(err, &failure) {
+			return installFailed(failure.Detail)
+		}
+		return installFailed("archive")
+	}
+	return nil
+}
+
+func ApplyStagedArchive(archivePath, targetPath string) error {
 	reader, err := zip.OpenReader(archivePath)
 	if err != nil {
-		return installFailed("archive")
+		return &StagedFailure{Detail: "archive"}
 	}
 	defer func() { _ = reader.Close() }()
 
 	entry := findExecutableEntry(reader.File, targetPath)
 	if entry == nil {
-		return installFailed("payload")
+		return &StagedFailure{Detail: "payload"}
 	}
 
 	staged := targetPath + ".new"
@@ -26,25 +46,25 @@ func applyStagedExecutable(archivePath, targetPath string) error {
 	size, err := extractZipEntry(entry, staged)
 	if err != nil {
 		_ = os.Remove(staged)
-		return installFailed("extract")
+		return &StagedFailure{Detail: "extract"}
 	}
 
 	if size != int64(entry.UncompressedSize64) {
 		_ = os.Remove(staged)
-		return installFailed("extract")
+		return &StagedFailure{Detail: "extract"}
 	}
 
 	backup := targetPath + ".old"
 	_ = os.Remove(backup)
 	if err := os.Rename(targetPath, backup); err != nil {
 		_ = os.Remove(staged)
-		return installFailed("replace-backup")
+		return &StagedFailure{Detail: "replace-backup"}
 	}
 	if err := os.Rename(staged, targetPath); err != nil {
 
 		_ = os.Rename(backup, targetPath)
 		_ = os.Remove(staged)
-		return installFailed("replace-swap")
+		return &StagedFailure{Detail: "replace-swap"}
 	}
 
 	_ = os.Remove(backup)

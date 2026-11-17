@@ -123,6 +123,7 @@ export const appZhHant: Record<string, string> = {
   'about.update.state.ready': '已下載，等待安裝',
   'about.update.state.installing': '正在重新啟動安裝…',
   'about.update.state.failed': '檢查更新失敗',
+  'about.update.errorDetail': '（詳情：{detail}）',
   'about.update.download': '下載更新',
   'about.update.downloading': '正在下載 {percent}%',
   'about.update.install': '重新啟動並安裝',

@@ -18,7 +18,7 @@ import {
   setDebugLoggingEnabled,
 } from '../../services/diagnostics'
 import { checkUpdate, downloadUpdate, installUpdate, ensureUpdateChecks, useUpdateState } from '../updates/updateStore'
-import { translateErrorKey } from '../../services/errors'
+import { describeUpdateError } from '../updates/updateError'
 import { formatByteSize } from '../../lib/format'
 import { openExternalUrl } from '../../services/externalLink'
 import { updatesAvailable } from '../../services/updates'
@@ -63,7 +63,7 @@ const canDownload = computed(
 )
 const canInstall = computed(() => updateStatus.value.state === 'ready' && !updateState.busy)
 const updateError = computed(() =>
-  updateState.errorKey ? translateErrorKey(updateState.errorKey, t('about.update.state.failed')) : '',
+  updateState.errorKey ? describeUpdateError(updateState.errorKey, updateState.errorDetail, t) : '',
 )
 const updateStateLabel = computed(() => t(`about.update.state.${updateStatus.value.state}`))
 
@@ -82,7 +82,7 @@ async function downloadNow(): Promise<void> {
 async function installNow(): Promise<void> {
   await installUpdate()
   if (updateState.errorKey) {
-    toast.error(translateErrorKey(updateState.errorKey, t('about.update.state.failed')))
+    toast.error(describeUpdateError(updateState.errorKey, updateState.errorDetail, t))
     return
   }
   toast.info(t('about.update.restarting'))

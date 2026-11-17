@@ -140,3 +140,12 @@ func pickChecksumAsset(payload *releasePayload) (releaseAsset, bool) {
 	}
 	return releaseAsset{}, false
 }
+
+func pickSignatureAsset(payload *releasePayload) (releaseAsset, bool) {
+	for _, asset := range payload.Assets {
+		if asset.Name == signatureAssetName && asset.BrowserDownloadURL != "" {
+			return asset, true
+		}
+	}
+	return releaseAsset{}, false
+}
