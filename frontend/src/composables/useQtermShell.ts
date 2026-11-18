@@ -240,7 +240,7 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const terminalFontFamily = computed(() => settings.terminalFontFamily)
   const terminalLightTheme = computed(() => settings.terminalLightTheme ?? 'default-light')
   const terminalDarkTheme = computed(() => settings.terminalDarkTheme ?? 'default-dark')
-  const terminalThemeBackgroundScope = computed(() => settings.terminalThemeBackgroundScope ?? 'terminal')
+  const terminalThemeBackgroundScope = computed(() => settings.terminalThemeBackgroundScope ?? 'shell')
   const terminalAutoCopySelection = computed(() => settings.terminalAutoCopySelection ?? false)
   const terminalCopyFeedback = computed(() => settings.terminalCopyFeedback ?? true)
   const terminalShowLatency = computed(() => settings.terminalShowLatency ?? true)

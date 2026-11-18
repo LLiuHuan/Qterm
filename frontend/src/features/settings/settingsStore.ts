@@ -288,7 +288,7 @@ export const DEFAULT_SETTINGS: QtermSettings = {
   terminalFontFamily: '',
   terminalLightTheme: 'default-light',
   terminalDarkTheme: 'default-dark',
-  terminalThemeBackgroundScope: 'terminal',
+  terminalThemeBackgroundScope: 'shell',
   terminalAutoCopySelection: false,
   terminalCopyFeedback: true,
   terminalShowLatency: true,

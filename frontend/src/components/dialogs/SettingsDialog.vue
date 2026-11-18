@@ -294,7 +294,7 @@ const props = withDefaults(
     terminalLightTheme: 'default-light',
     dark: false,
     terminalDarkTheme: 'default-dark',
-    terminalThemeBackgroundScope: 'terminal',
+    terminalThemeBackgroundScope: 'shell',
     credentials: () => [],
     credentialGateway: undefined,
     credentialPromptRuleGateway: undefined,

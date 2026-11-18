@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { FolderPlus, Loader2, Pencil, Plus, Route, Trash2 } from '@lucide/vue'
-import { QtermButton, QtermEmptyState, QtermSearchToolbar, QtermSwitch } from '@/components/common'
+import { IconButton, QtermButton, QtermEmptyState, QtermSearchToolbar, QtermSwitch } from '@/components/common'
 import { Accordion, AccordionContent, AccordionItem } from '@/components/common/control-primitives'
 import SettingsGroupHeader from '@/components/common/settings/SettingsGroupHeader.vue'
 import { ScrollArea } from '@/components/common/control-primitives'
@@ -377,7 +377,9 @@ function confirmGroupDelete(): void {
                       {{ forwardSummary(row) }} · {{ forwardHostLabel(row, sshHosts) }}
                     </span>
                   </div>
-                  <div class="settings-library-row-actions flex shrink-0 items-center gap-1">
+                  <div
+                    class="settings-library-row-actions settings-library-row-actions--mixed flex shrink-0 items-center"
+                  >
                     <span
                       v-if="isActive(row.id)"
                       class="shrink-0 rounded-full bg-qt-subtle px-2 text-xs leading-4 text-qt-success"

@@ -39,7 +39,7 @@ const { pageBackgroundStyle, dialogThemeContext } = useWindowTheme({
   isDark,
   terminalLightTheme: computed(() => settings.terminalLightTheme ?? 'default-light'),
   terminalDarkTheme: computed(() => settings.terminalDarkTheme ?? 'default-dark'),
-  terminalThemeBackgroundScope: computed(() => settings.terminalThemeBackgroundScope ?? 'terminal'),
+  terminalThemeBackgroundScope: computed(() => settings.terminalThemeBackgroundScope ?? 'shell'),
 })
 
 const hostGateway = createHostGateway()

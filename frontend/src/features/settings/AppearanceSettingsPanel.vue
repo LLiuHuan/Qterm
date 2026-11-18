@@ -77,7 +77,7 @@ const props = withDefaults(
     hostColorStyle: 'block',
     terminalLightTheme: 'default-light',
     terminalDarkTheme: 'default-dark',
-    terminalThemeBackgroundScope: 'terminal',
+    terminalThemeBackgroundScope: 'shell',
     pageBackgroundSize: 'cover',
   },
 )
@@ -816,7 +816,7 @@ function updateOpacity(kind: 'light' | 'dark', value: string | number): void {
         <SegmentedTabs
           id="terminal-theme-background-scope"
           :label="t('appearance.core.backgroundScopeAria')"
-          :model-value="props.terminalThemeBackgroundScope ?? 'terminal'"
+          :model-value="props.terminalThemeBackgroundScope ?? 'shell'"
           :options="[
             { value: 'terminal', label: t('appearance.core.scopeTerminal') },
             { value: 'shell', label: t('appearance.core.scopeShell') },
