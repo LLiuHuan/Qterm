@@ -74,6 +74,9 @@ func detectIconTarget(input DetectIconInput, host model.Host) (sshclient.Target,
 		Address:  strings.TrimSpace(input.Address),
 		Port:     input.Port,
 		Username: strings.TrimSpace(input.Username),
+
+		HostKeyAlgorithms: host.SSHHostKeyAlgorithms,
+		KeyExchanges:      host.SSHKeyExchanges,
 	}
 	if target.Address == "" {
 		target.Address = strings.TrimSpace(host.Address)

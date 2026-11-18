@@ -6,6 +6,7 @@ import (
 	"changeme/internal/vault"
 	"context"
 	"errors"
+	"log/slog"
 )
 
 func (s *CredentialService) startWithSecurityLocked(ctx context.Context) error {
@@ -28,6 +29,10 @@ func (s *CredentialService) startWithSecurityLocked(ctx context.Context) error {
 			}
 		}
 		if err != nil {
+
+			slog.Error("credential vault identity mismatch",
+				"event", "credential.vault.identity_mismatch",
+				"error", err)
 			s.security.Lock()
 			s.status = securityStatusToCredentialStatus(s.security.Status())
 			s.status.State = CredentialVaultStateRecovery
@@ -85,6 +90,9 @@ func (s *CredentialService) migrateLegacyVaultLocked(ctx context.Context) (bool,
 	if err := legacyStoreOpened.Close(); err != nil {
 		return false, err
 	}
+
+	slog.Info("legacy credential vault migrated",
+		"event", "credential.vault.legacy_migrated")
 	return true, nil
 }
 
@@ -186,7 +194,12 @@ func (s *CredentialService) UnlockWithCustomKey(ctx context.Context, key string)
 		return s.status, nil
 	}
 
-	_ = s.security.PersistSystemKey(ctx)
+	if err := s.security.PersistSystemKey(ctx); err != nil {
+
+		slog.Warn("credential keychain persist failed",
+			"event", "credential.keyring.persist_failed",
+			"error", err)
+	}
 	s.passwordSet = true
 	s.autoUnlock = true
 	s.installVaultLocked(store, CredentialVaultModeMasterPassword)

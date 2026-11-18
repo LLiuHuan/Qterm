@@ -95,6 +95,18 @@ export const appEn: Record<string, string> = {
   'application.window.closeToTray': 'Minimize to tray on close',
   'application.window.closeToTrayHelp':
     'Closing the main window keeps Qterm running in the menu bar tray; click the tray icon to restore it.',
+  'application.window.globalShortcut.label': 'Global shortcut',
+  'application.window.globalShortcut.help': 'Brings Qterm to the front from any app; reverts if the key is taken.',
+  'application.window.globalShortcut.unbound': 'Not set',
+  'application.window.globalShortcut.clear': 'Clear global shortcut',
+  'application.window.globalShortcut.error':
+    'Shortcut {binding} could not be registered (likely taken by another app); the previous binding was restored.',
+  'application.window.globalShortcut.rolledBack': 'In effect: {binding}',
+  'application.window.singleInstance.label': 'Single instance',
+  'application.window.singleInstance.help':
+    'Launching Qterm again focuses the existing window instead of starting a second process. Restart the app for changes to take effect.',
+  'application.window.singleInstance.helpDisabled':
+    'When disabled, every launch is a separate process (they may write the same database). Restart the app for changes to take effect.',
   'application.window.rememberSize': 'Remember window size',
   'application.window.rememberSizeHelp': 'Restore the last window size and maximized state at next launch.',
   'application.window.rememberPosition': 'Remember window position',
@@ -149,10 +161,21 @@ export const appEn: Record<string, string> = {
   'about.update.bell.dismiss': 'Cancel',
   'about.update.bell.emptyNotes': 'This release has no release notes.',
   'about.debug.title': 'Debug logging',
-  'about.debug.description': 'Record detailed diagnostics locally while troubleshooting. Disabled by default.',
+  'about.debug.description':
+    'Warnings and errors are recorded by default. Switch to Debug locally while troubleshooting to capture every level.',
   'about.debug.desktopOnly': 'Debug logging is available only in the desktop app.',
-  'about.debug.enabled': 'Debug logging enabled.',
-  'about.debug.disabled': 'Debug logging disabled.',
+  'about.debug.mode.off': 'Off',
+  'about.debug.mode.offHelp': 'Write nothing, so later problems cannot be traced back.',
+  'about.debug.mode.normal': 'Normal (warnings and errors)',
+  'about.debug.mode.normalHelp': 'Default: keeps warnings and errors over time, so the file stays small.',
+  'about.debug.mode.debug': 'Debug (all levels)',
+  'about.debug.mode.debugHelp':
+    'Turn this on temporarily while investigating: records every level, so the file grows faster.',
+  'about.debug.modeChanged': 'Debug log level changed.',
+  'about.debug.status.path': 'Log file',
+  'about.debug.status.size': 'Size',
+  'about.debug.status.dropped': 'Dropped from queue',
+  'about.debug.status.missing': 'The log file has not been created yet',
   'about.debug.actionFailure': 'The debug log operation failed.',
   'about.debug.clear': 'Clear log',
   'about.debug.clearSuccess': 'Debug log cleared.',

@@ -347,7 +347,64 @@ export const shellUiEn: Record<string, string> = {
   'shell.adhoc.error.empty': 'Enter an address to connect.',
   'shell.adhoc.error.invalid': 'Invalid address format; follow the example.',
   'shell.adhoc.error.username': 'SSH needs a username; write it as user@host.',
+  'shell.aiContext.title': 'AI context',
+  'shell.aiContext.description':
+    "Tell the AI what it cannot see: your environment and habits, this host's note, and commands you already saved.",
+  'shell.aiContext.customPromptLabel': 'Custom prompt',
+  'shell.aiContext.customPromptHelp':
+    'Appended after the built-in system prompt to add constraints, habits, or host environment details (distro, shell, preferred tools). Leave empty to skip.',
+  'shell.aiContext.customPromptPlaceholder':
+    'e.g. The target runs Debian 12 with bash; prefer systemctl; never run apt upgrade.',
+  'shell.aiContext.hostNoteLabel': 'Include host note',
+  'shell.aiContext.hostNoteHelp':
+    'When enabled, using the AI in a host terminal sends the current host note to the configured AI service as reference.',
+  'shell.aiContext.snippetIndexLabel': 'Include saved commands',
+  'shell.aiContext.snippetIndexHelp':
+    'Sends your saved snippets (name and command) as reference so the AI reuses them. Commands limited to specific hosts only apply there.',
+  'shell.aiContext.save': 'Save',
+  'shell.aiContext.saved': 'Saved',
+  'shell.aiContext.saveFailed': 'Failed to save AI context settings.',
+  'shell.aiRules.title': 'Command protection rules',
+  'shell.aiRules.description':
+    'Match the commands the AI wants to run with regular expressions. These rules outrank the approval mode above and any "do not ask again in this run" choice.',
+  'shell.aiRules.matchingHint':
+    'Patterns are unanchored: a match anywhere in the command counts. Add ^ and $ yourself for whole-line matching (e.g. ^rm\\s+-rf\\s+/$).',
+  'shell.aiRules.loading': 'Loading…',
+  'shell.aiRules.empty': 'No rules yet. Try one, e.g. set rm\\s+-rf to "Block".',
+  'shell.aiRules.emptyTitle': 'No command protection rules yet',
+  'shell.aiRules.create': 'Add rule',
+  'shell.aiRules.editTitle': 'Edit rule',
+  'shell.aiRules.createTitle': 'Add rule',
+  'shell.aiRules.dialogHint':
+    'When a rule matches: Ask = always request approval; Block = refuse this command and let the AI try another way.',
+  'shell.aiRules.import': 'Import',
+  'shell.aiRules.export': 'Export',
+  'shell.aiRules.edit': 'Edit',
+  'shell.aiRules.remove': 'Delete',
+  'shell.aiRules.cancel': 'Cancel',
+  'shell.aiRules.save': 'Save',
+  'shell.aiRules.action.confirm': 'Ask first',
+  'shell.aiRules.action.deny': 'Block',
+  'shell.aiRules.field.pattern': 'Pattern',
+  'shell.aiRules.field.patternHelp': 'Regular expression; backreferences and lookaround are not supported.',
+  'shell.aiRules.field.action': 'Action',
+  'shell.aiRules.field.note': 'Note',
+  'shell.aiRules.error.generic': 'The operation failed. Please try again.',
+  'shell.aiRules.error.invalidPattern': 'This is not a valid regular expression.',
+  'shell.aiRules.error.tooMany': 'You have reached the rule limit. Delete some rules first.',
   'shell.adhoc.toolUnavailable': 'Not available for temporary connections',
+  'shell.launchIntent.title': 'Open external connection',
+  'shell.launchIntent.description': 'A link asked Qterm to open a connection. Check the target before connecting.',
+  'shell.launchIntent.warning':
+    'Links can come from any page or message. Continue only if you really want to connect to this machine.',
+  'shell.launchIntent.tooMany': 'Too many pending external links; extra requests were ignored',
+  'shell.launchIntent.error.empty': 'The link contains no usable target.',
+  'shell.launchIntent.error.unsupported-scheme':
+    'This link type is not supported. Only qterm, ssh and telnet links can be opened.',
+  'shell.launchIntent.error.unsupported-verb': 'Unrecognised qterm link.',
+  'shell.launchIntent.error.password-in-url':
+    'Passwords in links are not read for safety. Ask for a link without a password.',
+  'shell.launchIntent.error.invalid': 'The link is malformed and no host could be parsed.',
   'shell.toolbar.sftp': 'SFTP',
   'shell.toolbar.newWindow': 'New window',
   'shell.toolbar.global': 'Global tools',
@@ -670,6 +727,7 @@ export const shellUiEn: Record<string, string> = {
   'shell.palette.hosts': 'Hosts',
   'shell.palette.settings': 'Settings',
   'shell.palette.actions': 'Commands',
+  'shell.palette.connectTo': 'Connect to {target}',
   'shell.palette.newLocalTerminal': 'New local terminal',
   'shell.palette.openSettingsAction': 'Open settings',
   'shell.palette.toggleOutputPause': 'Pause / resume terminal output',
@@ -1264,6 +1322,7 @@ export const shellUiEn: Record<string, string> = {
   'shell.credential.privateKey': 'Private key',
   'shell.credential.privateKeyPassphrase': 'Private key passphrase',
   'shell.credential.sshAgent': 'SSH agent',
+  'shell.credential.userCertificate': 'User certificate',
   'shell.hostEditor.optional': '(optional)',
   'shell.hostEditor.usernamePlaceholderRdp': 'For example: Administrator',
   'shell.hostEditor.usernamePlaceholderVnc': 'Optional (Apple RA2 only)',
@@ -1292,6 +1351,9 @@ export const shellUiEn: Record<string, string> = {
     'Reach the target through another saved SSH host; the target sees the jump host as the source.',
   'shell.hostEditor.connectionProxyHint':
     'Connect to the proxy first and let it reach the target; enter a proxy username and password, or leave both blank for no proxy authentication.',
+  'shell.hostEditor.proxyCommandMode': 'Local command',
+  'shell.hostEditor.connectionProxyCommandHint':
+    'Use a local program (ssh / nc / aws / kubectl …) whose stdin/stdout becomes the connection to the target. %h is the host, %p the port.',
   'shell.hostEditor.jumpHost': 'Jump host',
   'shell.hostEditor.jumpHostPlaceholder': 'Select an SSH host to use as the jump host',
   'shell.hostEditor.jumpHostEmpty':
@@ -1484,6 +1546,16 @@ export const shellUiEn: Record<string, string> = {
   'shell.hostIcon.remove': 'Remove icon',
   'shell.hostIcon.importDisabled': 'Custom icons will be available in a later version',
   'shell.hostIcon.import': 'Import icon',
+  'shell.hostIcon.search': 'Search host icons',
+  'shell.hostIcon.searchPlaceholder': 'Search icons',
+  'shell.hostIcon.clearSearch': 'Clear search',
+  'shell.hostIcon.noMatch': 'No matching icons',
+  'shell.hostIcon.category.os': 'Operating systems',
+  'shell.hostIcon.category.network': 'Network devices',
+  'shell.hostIcon.category.nas': 'NAS and storage',
+  'shell.hostIcon.category.cloud': 'Cloud services',
+  'shell.hostIcon.category.virt': 'Virtualization and containers',
+  'shell.hostIcon.category.other': 'Other',
   'shell.hostIcon.removeTitle': 'Remove host icon',
   'shell.hostIcon.removeMessage': 'Remove the current host icon?',
   'shell.hostIcon.removeConfirm': 'Remove',
@@ -1813,6 +1885,8 @@ export const shellUiEn: Record<string, string> = {
   'shell.error.portRange': 'The port must be an integer between 1 and 65535.',
   'shell.error.proxyHostRequired': 'Enter the proxy address.',
   'shell.error.proxyPortRange': 'The proxy port must be an integer between 1 and 65535.',
+  'shell.error.proxyCommandProxyConflict':
+    'ProxyCommand and a proxy (SOCKS5/HTTP) cannot be used together: both establish the first leg of the connection, so pick one.',
   'shell.error.passwordRequired': 'Enter the login password.',
   'shell.error.authenticationFailed': 'Could not complete SSH authentication.',
   'shell.error.authenticationChallenge': 'Could not read the SSH authentication request. Try again or reconnect.',
@@ -1918,6 +1992,30 @@ export const shellUiEn: Record<string, string> = {
   'shell.otp.fillCode': 'Fill code',
   'shell.otp.generateError': 'Could not generate the code. Check credential storage.',
 
+  'shell.hostEditor.sshHandshake.title': 'SSH handshake & ProxyCommand',
+  'shell.hostEditor.sshHandshake.description':
+    'Loosen or tighten negotiation algorithms for legacy devices, or tunnel the first leg through a local command. Defaults follow the built-in list.',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithms': 'Host key algorithms',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithmsHelp':
+    'Leave empty to use the default list; once set, it **replaces** the defaults entirely and only the listed algorithms are offered.',
+  'shell.hostEditor.sshHandshake.keyExchanges': 'Key exchange algorithms',
+  'shell.hostEditor.sshHandshake.keyExchangesHelp':
+    'Leave empty to use the default list; only fill this in when a legacy device requires something like group1-sha1.',
+  'shell.hostEditor.sshHandshake.deprecatedHint':
+    'Algorithms marked “deprecated” have known weaknesses. Use them only when the remote device supports nothing better.',
+  'shell.hostEditor.sshHandshake.addAlgorithm': 'Add algorithm…',
+  'shell.hostEditor.sshHandshake.resetAlgorithms': 'Use defaults',
+  'shell.hostEditor.sshHandshake.proxyCommand': 'ProxyCommand',
+  'shell.hostEditor.sshHandshake.proxyCommandPlaceholder': 'e.g. ssh -W %h:%p bastion.example.com',
+  'shell.hostEditor.sshHandshake.proxyCommandHelp':
+    "The command's stdin/stdout is used as the connection to the target. %h and %p are replaced with the address and port; cannot be combined with a proxy (SOCKS5/HTTP).",
+  'shell.hostEditor.sshHandshake.proxyCommandAdvancedHint':
+    'If you only need to go through another saved SSH host, use “Jump host” instead. ProxyCommand is for channels that SSH itself cannot express, such as AWS SSM, Kubernetes, or Cloudflare Tunnel.',
+  'shell.hostEditor.sshHandshake.deprecatedTag': 'deprecated',
+  'shell.hostEditor.sshHandshake.defaultGroup': 'Enabled by default',
+  'shell.hostEditor.sshHandshake.deprecatedGroup': 'Deprecated (known weaknesses)',
+  'shell.hostEditor.sshHandshake.usingDefaults': 'Using the built-in default algorithm list',
+  'shell.hostEditor.sshHandshake.removeAlgorithm': 'Remove {name}',
   'shell.otp.search': 'Search issuer or account',
   'shell.otp.scan': 'Scan QR code',
   'shell.otp.scanHint': 'Choose or paste a QR image here. Review the result before saving.',

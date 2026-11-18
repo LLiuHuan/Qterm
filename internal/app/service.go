@@ -29,6 +29,7 @@ import (
 	"changeme/internal/terminal"
 	"changeme/internal/tmux"
 	"changeme/internal/translate"
+	"changeme/internal/trzszfiles"
 	"changeme/internal/update"
 	"changeme/internal/vnc"
 	"changeme/internal/zmodem"
@@ -58,9 +59,15 @@ type Service struct {
 
 	adhoc *adHocHostRegistry
 
-	tray        *trayState
-	hosts       *host.HostService
-	credentials *credential.CredentialService
+	tray *trayState
+
+	globalShortcut globalShortcutState
+
+	commandRules aiCommandRulesState
+
+	launchIntents launchIntentState
+	hosts         *host.HostService
+	credentials   *credential.CredentialService
 
 	proxies  *proxy.Service
 	security *security.Manager
@@ -111,8 +118,10 @@ type Service struct {
 
 	terminalControl *terminal.Manager
 
-	rdpTokens   *terminal.TokenStore
-	zmodem      *zmodem.Manager
+	rdpTokens *terminal.TokenStore
+	zmodem    *zmodem.Manager
+
+	trzszFiles  *trzszfiles.Manager
 	fileDialogs *appFileDialogs
 
 	recordingDirOverride string
@@ -185,6 +194,7 @@ func NewService(
 		tokens:          tokens,
 		rdpTokens:       rdpTokens,
 		zmodem:          files,
+		trzszFiles:      trzszfiles.NewManager(),
 		windowTransfers: make(map[string]*sessionWindowTransfer),
 	}
 }
@@ -369,6 +379,8 @@ func (s *Service) ServiceStartup(ctx context.Context, _ application.ServiceOptio
 		logCLIError(err)
 	}
 	s.started = true
+
+	s.registerGlobalShortcutFromPreferences(ctx)
 	return nil
 }
 
@@ -410,6 +422,9 @@ func (s *Service) ServiceShutdown() error {
 		firstErr = err
 	}
 	if err := s.zmodem.Close(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	if err := s.trzszFiles.Close(); err != nil && firstErr == nil {
 		firstErr = err
 	}
 	if err := s.sftp.Close(); err != nil && firstErr == nil {

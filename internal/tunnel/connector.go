@@ -101,6 +101,10 @@ type Target struct {
 	Username string
 
 	Timeout time.Duration
+
+	HostKeyAlgorithms []string
+
+	KeyExchanges []string
 }
 
 type Connector struct {

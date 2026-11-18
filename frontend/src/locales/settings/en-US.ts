@@ -4,6 +4,7 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.credentials.kind.privateKey': 'Private key',
   'settings.credentials.kind.privateKeyPassphrase': 'Private key passphrase',
   'settings.credentials.kind.sshAgent': 'SSH Agent',
+  'settings.credentials.kind.userCertificate': 'User certificate',
   'settings.credentials.hostCount': 'Linked hosts: {count}',
   'settings.credentials.hostList.title': 'Linked hosts',
   'settings.credentials.vaultLocked.title': 'Vault is locked',
@@ -17,6 +18,8 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.credentials.validation.passwordRequired': 'Enter a password.',
   'settings.credentials.validation.privateKeyRequired': 'Choose or paste a private key.',
   'settings.credentials.validation.agentPublicKeyRequired': 'Enter a valid SSH Agent public key.',
+  'settings.credentials.validation.certificateRequired':
+    'Enter the user certificate (contents of the *-cert.pub file).',
   'settings.credentials.toast.updated': 'Credential updated',
   'settings.credentials.toast.created': 'Credential created',
   'settings.credentials.toast.deleted': 'Credential deleted',
@@ -75,6 +78,7 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.credentials.action.createKey': 'Create private key credential',
   'settings.credentials.action.importPrivateKey': 'Import local private key',
   'settings.credentials.action.createAgent': 'Create SSH Agent credential',
+  'settings.credentials.action.createCertificate': 'Create user certificate credential',
   'settings.credentials.action.quickCreate': 'Add credential',
   'settings.credentials.action.copyPublicKey': 'Copy public key',
   'settings.credentials.action.copyInstallCommand': 'Copy install command',
@@ -106,6 +110,15 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.credentials.field.agentPublicKeyPlaceholder': 'Paste an ssh-ed25519 or ssh-rsa public key',
   'settings.credentials.field.agentPublicKeyHelp':
     'Only the public key itself is stored to match the system SSH Agent; no private key is saved.',
+
+  'settings.credentials.field.agentSecurityKeyHelp':
+    'FIDO2 security keys are supported too (sk-ssh-ed25519@openssh.com / sk-ecdsa-sha2-nistp256@openssh.com): load the key into your system SSH agent with ssh-add first, then touch the device when connecting.',
+  'settings.credentials.field.certificate': 'User certificate',
+  'settings.credentials.field.certificatePlaceholder': 'Paste the ssh-ed25519-cert-v01@openssh.com ... certificate',
+  'settings.credentials.field.certificateHelp':
+    'A user certificate signed by a CA (the *-cert.pub file), not a plain public key.',
+  'settings.credentials.field.certificateKeyHelp':
+    'Private key for this certificate; the app verifies that the two match.',
   'settings.credentials.field.optional': '(optional)',
   'settings.credentials.field.passwordPlaceholder': 'Enter the login password',
   'settings.credentials.field.privateKeyPlaceholder': 'Paste a private key or choose a local file above',
@@ -388,6 +401,8 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.shortcuts.group.navigationDescription': 'Split layout and sidebar visibility.',
   'settings.shortcuts.group.remote': 'Remote files',
   'settings.shortcuts.group.remoteDescription': 'Save actions for remote file editing.',
+  'settings.shortcuts.group.global': 'Global',
+  'settings.shortcuts.group.globalDescription': 'System-wide shortcuts that fire from any application.',
   'settings.shortcuts.binding.unbound': 'Unbound',
   'settings.shortcuts.group.count': '{count}',
   'settings.shortcuts.action.nextTab': 'Next tab',
@@ -420,6 +435,12 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.shortcuts.action.disconnectSession': 'Disconnect',
   'settings.shortcuts.action.disconnectSessionDescription': 'Disconnect the current session; the tab stays open.',
   'settings.shortcuts.action.focusNextPane': 'Move focus between split panes',
+  'settings.shortcuts.action.increaseTerminalFontSize': 'Increase terminal font size',
+  'settings.shortcuts.action.increaseTerminalFontSizeDescription':
+    'Make the terminal font one step larger, matching Ctrl/Cmd + wheel up.',
+  'settings.shortcuts.action.decreaseTerminalFontSize': 'Decrease terminal font size',
+  'settings.shortcuts.action.decreaseTerminalFontSizeDescription':
+    'Make the terminal font one step smaller, matching Ctrl/Cmd + wheel down.',
   'settings.shortcuts.action.focusNextPaneDescription':
     'Move focus to the next split pane in layout order; only available while split.',
   'settings.shortcuts.action.closePane': 'Close current split pane',
@@ -597,12 +618,17 @@ export const settingsAssetsEn: Record<string, string> = {
   'settings.shortcuts.error.switchTabNumber': 'Use a modifier plus a number from 1 to 9 to switch tabs.',
   'settings.shortcuts.error.conflict': 'This shortcut is already assigned to “{name}”.',
   'settings.shortcuts.recording.hint': 'Recording. Press a key combination. Press Esc to cancel.',
-  'settings.shortcuts.recording.tokenHint':
-    'Press any of the main keys in “modifier + {token}”. They share the same modifier, so only the modifier is recorded. Press Esc to cancel.',
+  'settings.shortcuts.recording.tokenHint': 'Any key in “{token}” works; only the modifier is recorded. Esc cancels.',
   'settings.shortcuts.recording.active': 'Recording…',
   'settings.shortcuts.recording.start': 'Record shortcut',
+  'settings.shortcuts.fixedHint': 'Fixed, shared with wheel zoom, cannot be changed.',
   'settings.shortcuts.action.reset': 'Restore the default shortcut for “{name}”',
   'settings.shortcuts.action.resetTitle': 'Restore default',
+
+  'settings.shortcuts.action.disable': 'Disable the shortcut for “{name}”',
+  'settings.shortcuts.action.disableTitle': 'Disable shortcut',
+  'settings.shortcuts.action.enable': 'Enable the shortcut for “{name}”',
+  'settings.shortcuts.action.enableTitle': 'Enable shortcut',
   'settings.shortcuts.binding.aria': '{name}: {binding}',
   'settings.shortcuts.conflict.duplicate':
     'Conflicts with “{names}”: both actions use the same combination, so this one is disabled. Reassign one of them.',

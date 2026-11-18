@@ -14,7 +14,7 @@ import CredentialCreateDialog from '../../components/dialogs/CredentialCreateDia
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/common/form-controls'
 import { Label, ScrollArea } from '../../components/common/control-primitives'
 import { computed, ref, watch } from 'vue'
-import { FileKey, KeyRound, Loader2, LockKeyhole, Pencil, Search, Trash2, X } from '@lucide/vue'
+import { BadgeCheck, FileKey, KeyRound, Loader2, LockKeyhole, Pencil, Search, Trash2, X } from '@lucide/vue'
 import { toast } from '../../services/toast'
 import { QtermDialog, QtermDialogContent, QtermDialogFooter, QtermDialogHeader } from '../../components/common/dialog'
 import {
@@ -53,9 +53,9 @@ watch(
 )
 const items = ref<CredentialRecord[]>([])
 const query = ref('')
-const kindFilter = ref<'all' | 'password' | 'privateKey' | 'sshAgent'>('all')
+const kindFilter = ref<'all' | 'password' | 'privateKey' | 'userCertificate' | 'sshAgent'>('all')
 const formOpen = ref(false)
-const formKind = ref<'password' | 'privateKey' | 'sshAgent'>('password')
+const formKind = ref<'password' | 'privateKey' | 'userCertificate' | 'sshAgent'>('password')
 
 const formInitialKeyMode = ref<'generate' | 'upload' | 'manual'>('generate')
 const editing = ref<CredentialRecord | null>(null)
@@ -144,7 +144,7 @@ function kindLabel(kind: CredentialKind): string {
 }
 
 function openCreate(
-  kind: 'password' | 'privateKey' | 'sshAgent',
+  kind: 'password' | 'privateKey' | 'userCertificate' | 'sshAgent',
   keyMode: 'generate' | 'upload' | 'manual' = 'generate',
 ): void {
   editing.value = null
@@ -155,7 +155,14 @@ function openCreate(
 
 function openEdit(item: CredentialRecord): void {
   editing.value = item
-  formKind.value = item.kind === 'password' ? 'password' : item.kind === 'sshAgent' ? 'sshAgent' : 'privateKey'
+  formKind.value =
+    item.kind === 'password'
+      ? 'password'
+      : item.kind === 'sshAgent'
+        ? 'sshAgent'
+        : item.kind === 'userCertificate'
+          ? 'userCertificate'
+          : 'privateKey'
   formInitialKeyMode.value = 'generate'
   formOpen.value = true
 }
@@ -302,6 +309,9 @@ async function confirmDelete(): Promise<void> {
           <QtermButton variant="outline" type="button" @click="openCreate('sshAgent')">
             <LockKeyhole :size="15" />{{ t('settings.credentials.action.createAgent') }}
           </QtermButton>
+          <QtermButton variant="outline" type="button" @click="openCreate('userCertificate')">
+            <BadgeCheck :size="15" />{{ t('settings.credentials.action.createCertificate') }}
+          </QtermButton>
           <QtermButton variant="outline" type="button" @click="choosePrivateKey">
             <FileKey :size="15" />{{ t('settings.credentials.action.importPrivateKey') }}
           </QtermButton>
@@ -316,6 +326,7 @@ async function confirmDelete(): Promise<void> {
               <SelectItem value="password">{{ kindLabel('password') }}</SelectItem>
               <SelectItem value="privateKey">{{ kindLabel('privateKey') }}</SelectItem>
               <SelectItem value="sshAgent">{{ kindLabel('sshAgent') }}</SelectItem>
+              <SelectItem value="userCertificate">{{ kindLabel('userCertificate') }}</SelectItem>
             </SelectContent>
           </Select>
           <label class="credential-search relative flex-1">
@@ -361,7 +372,7 @@ async function confirmDelete(): Promise<void> {
       />
 
       <ScrollArea v-else-if="filtered.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
-        <div class="credential-list grid gap-2 pr-2">
+        <div class="credential-list grid gap-2 pr-px">
           <article
             v-for="item in visibleItems"
             :key="item.id"
@@ -387,15 +398,9 @@ async function confirmDelete(): Promise<void> {
               </button>
             </div>
             <div class="credential-row-actions settings-library-row-actions">
-              <QtermButton
-                variant="ghost"
-                size="icon-sm"
-                type="button"
-                :aria-label="t('settings.credentials.action.edit')"
-                @click="openEdit(item)"
-              >
+              <IconButton size="icon-sm" :label="t('settings.credentials.action.edit')" @click="openEdit(item)">
                 <Pencil :size="15" />
-              </QtermButton>
+              </IconButton>
               <IconButton
                 danger
                 size="icon-sm"

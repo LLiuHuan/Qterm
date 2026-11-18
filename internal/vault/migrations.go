@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"strconv"
 	"strings"
 )
@@ -28,6 +29,13 @@ func runMigrations(ctx context.Context, store *Store) error {
 		return fmt.Errorf("read vault schema version: %w", err)
 	}
 	if current > len(entries) {
+
+		slog.Error("vault schema version is newer than application",
+			"event", "vault.migration.failed",
+			"stage", "version_mismatch",
+			"from", current,
+			"to", len(entries),
+			"error", ErrSchemaTooNew)
 		return fmt.Errorf("vault schema version %d exceeds supported version %d: %w", current, len(entries), ErrSchemaTooNew)
 	}
 
@@ -54,6 +62,11 @@ func runMigrations(ctx context.Context, store *Store) error {
 			return fmt.Errorf("read vault migration %q: %w", entry.Name(), err)
 		}
 		if _, err := tx.ExecContext(ctx, string(migration)); err != nil {
+			slog.Error("vault migration apply failed",
+				"event", "vault.migration.failed",
+				"stage", "apply",
+				"version", version,
+				"error", err)
 			return fmt.Errorf("apply vault migration %q: %w", entry.Name(), err)
 		}
 		pragma := fmt.Sprintf("PRAGMA user_version = %d", version)
@@ -63,7 +76,20 @@ func runMigrations(ctx context.Context, store *Store) error {
 	}
 
 	if err := tx.Commit(); err != nil {
+		slog.Error("vault migration commit failed",
+			"event", "vault.migration.failed",
+			"stage", "commit",
+			"from", current,
+			"to", len(entries),
+			"error", err)
 		return fmt.Errorf("commit vault migrations: %w", err)
+	}
+	if current < len(entries) {
+		slog.Info("vault schema migrated",
+			"event", "vault.migration.applied",
+			"from", current,
+			"to", len(entries),
+			"count", len(entries)-current)
 	}
 	return nil
 }

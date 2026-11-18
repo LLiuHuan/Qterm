@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"errors"
+	"log/slog"
 	"os"
 )
 
@@ -18,6 +19,11 @@ func (s *CredentialService) loadMasterKeyWithPasswordLocked(ctx context.Context,
 	closeErr := store.Close()
 	if loadErr != nil {
 		clear(masterKey)
+
+		slog.Warn("credential master key unlock failed",
+			"event", "credential.master_key.unlock_failed",
+			"reason", masterKeyUnlockReason(loadErr),
+			"error", loadErr)
 		if closeErr != nil {
 			return nil, errors.Join(loadErr, closeErr)
 		}
@@ -155,4 +161,21 @@ func savePasswordHintWithContext(ctx context.Context, path, hint string) error {
 		return err
 	}
 	return contextError(ctx)
+}
+
+func masterKeyUnlockReason(err error) string {
+	switch {
+	case errors.Is(err, vault.ErrMasterPasswordAuthentication):
+		return "authentication"
+	case errors.Is(err, vault.ErrInvalidMasterKeyWrap):
+		return "invalid_wrap"
+	case errors.Is(err, vault.ErrUnsupportedMasterKeyWrap):
+		return "unsupported_wrap"
+	case errors.Is(err, vault.ErrMasterKeyNotFound):
+		return "not_found"
+	case errors.Is(err, vault.ErrMasterKeyUnavailable):
+		return "unavailable"
+	default:
+		return "unavailable"
+	}
 }

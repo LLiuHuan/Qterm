@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
 	"strings"
@@ -305,7 +306,12 @@ func (m *Manager) Open(ctx context.Context, options Options) (*Session, error) {
 		Clipboard: NormalizeClipboardSettings(options.Clipboard),
 	}
 
+	openStart := time.Now()
 	if err := probeHostReachable(ctx, options.Host, options.Port, probeTimeout); err != nil {
+
+		slog.Warn("remote desktop host probe failed", "event", "rdp.host.probe_failed",
+			"host", options.Host, "port", options.Port, "stage", "probe",
+			"timeout_ms", probeTimeout.Milliseconds(), "error", err)
 		return nil, err
 	}
 
@@ -315,9 +321,24 @@ func (m *Manager) Open(ctx context.Context, options Options) (*Session, error) {
 	}
 	helper, err := openHelperSession(ctx, engine, sessionOptions)
 	if err != nil {
+		slog.Error("remote desktop helper start failed", "event", "rdp.helper.start_failed",
+			"host", options.Host, "port", options.Port, "engine", string(engine),
+			"stage", "helper", "duration_ms", time.Since(openStart).Milliseconds(), "error", err)
 		return nil, err
 	}
-	return m.register(options, helper, engine)
+	session, err := m.register(options, helper, engine)
+	if err != nil {
+
+		slog.Error("remote desktop session register failed", "event", "rdp.session.register_failed",
+			"host", options.Host, "port", options.Port, "engine", string(engine),
+			"stage", "register", "error", err)
+		return nil, err
+	}
+
+	slog.Info("remote desktop session opened", "event", "rdp.session.opened",
+		"session_id", session.ID(), "host", options.Host, "port", options.Port,
+		"engine", string(engine), "duration_ms", time.Since(openStart).Milliseconds())
+	return session, nil
 }
 
 func (m *Manager) register(options Options, connection protocolSession, engine HelperEngine) (*Session, error) {
@@ -473,7 +494,11 @@ func (s *Session) renderLoop(ctx context.Context) {
 			}
 		}
 
-		_ = s.closeConnection()
+		if err := s.closeConnection(); err != nil {
+
+			slog.Warn("remote desktop session close failed", "event", "rdp.session.close_failed",
+				"session_id", s.id, "host", s.options.Host, "port", s.options.Port, "error", err)
+		}
 		close(s.done)
 	}()
 	for {
@@ -484,6 +509,12 @@ func (s *Session) renderLoop(ctx context.Context) {
 		s.mu.Lock()
 		s.stats = mergeStats(s.stats, stats)
 		if err != nil {
+
+			if ctx.Err() == nil {
+				slog.Warn("remote desktop render stopped", "event", "rdp.session.render_failed",
+					"session_id", s.id, "host", s.options.Host, "port", s.options.Port,
+					"guard", "render", "error", err)
+			}
 			s.lastError = err
 			s.closed = true
 			s.mu.Unlock()

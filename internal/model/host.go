@@ -161,6 +161,11 @@ type HostInput struct {
 
 	ProxyPassword      string `json:"proxyPassword,omitempty"`
 	ClearProxyPassword bool   `json:"clearProxyPassword,omitempty"`
+
+	SSHHostKeyAlgorithms []string `json:"sshHostKeyAlgorithms,omitempty"`
+	SSHKeyExchanges      []string `json:"sshKeyExchanges,omitempty"`
+
+	SSHProxyCommand string `json:"sshProxyCommand,omitempty"`
 }
 
 type GroupInput struct {
@@ -258,6 +263,10 @@ type Host struct {
 	ProxyHost     *string `json:"proxyHost,omitempty"`
 	ProxyPort     *int    `json:"proxyPort,omitempty"`
 	ProxyUsername *string `json:"proxyUsername,omitempty"`
+
+	SSHHostKeyAlgorithms []string `json:"sshHostKeyAlgorithms,omitempty"`
+	SSHKeyExchanges      []string `json:"sshKeyExchanges,omitempty"`
+	SSHProxyCommand      string   `json:"sshProxyCommand,omitempty"`
 }
 
 type Group struct {
@@ -607,6 +616,26 @@ func NewHost(id string, input HostInput, now time.Time) (Host, error) {
 	} else {
 		input.ProxyPort = &proxyPort
 	}
+
+	hostKeyAlgorithms, err := NormalizeSSHHostKeyAlgorithms("sshHostKeyAlgorithms", input.SSHHostKeyAlgorithms)
+	if err != nil {
+		return Host{}, err
+	}
+	keyExchanges, err := NormalizeSSHKeyExchanges("sshKeyExchanges", input.SSHKeyExchanges)
+	if err != nil {
+		return Host{}, err
+	}
+	proxyCommand, err := NormalizeSSHProxyCommand(input.SSHProxyCommand)
+	if err != nil {
+		return Host{}, err
+	}
+	if proxyCommand != "" && (proxyID != "" || proxyMode != ProxyModeNone) {
+
+		return Host{}, hostValidationError("sshProxyCommand", "不能与代理（SOCKS5/HTTP）同时使用")
+	}
+	input.SSHHostKeyAlgorithms = hostKeyAlgorithms
+	input.SSHKeyExchanges = keyExchanges
+	input.SSHProxyCommand = proxyCommand
 
 	if input.X11Forwarding == nil {
 		value := false
@@ -1018,8 +1047,12 @@ func NewHost(id string, input HostInput, now time.Time) (Host, error) {
 		ProxyPort:               input.ProxyPort,
 		ProxyUsername:           input.ProxyUsername,
 		ProxyPasswordConfigured: input.ProxyPassword != "",
-		CreatedAt:               now,
-		UpdatedAt:               now,
+
+		SSHHostKeyAlgorithms: input.SSHHostKeyAlgorithms,
+		SSHKeyExchanges:      input.SSHKeyExchanges,
+		SSHProxyCommand:      input.SSHProxyCommand,
+		CreatedAt:            now,
+		UpdatedAt:            now,
 	}, nil
 }
 

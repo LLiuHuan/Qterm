@@ -497,7 +497,7 @@ onBeforeUnmount(() => {
         :description="t('settings.snippets.empty.matching')"
       />
       <ScrollArea v-else type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
-        <div class="snippets-groups pr-2 pb-1">
+        <div class="snippets-groups pr-px pb-1">
           <Accordion v-model="expandedGroups" type="multiple" class="snippet-list-accordion">
             <AccordionItem
               v-for="[categoryID, title, items] in grouped"
@@ -518,13 +518,12 @@ onBeforeUnmount(() => {
                 data-snippet-group-toggle
               >
                 <template v-if="commandGroups.some((group) => group.name === title)" #actions>
-                  <QtermButton
-                    variant="ghost"
+                  <IconButton
                     size="icon-sm"
-                    :aria-label="t('settings.snippets.action.editGroup', { name: title })"
+                    :label="t('settings.snippets.action.editGroup', { name: title })"
                     @click.stop="editGroup(title)"
                     ><Pencil :size="14"
-                  /></QtermButton>
+                  /></IconButton>
                   <IconButton
                     danger
                     size="icon-sm"

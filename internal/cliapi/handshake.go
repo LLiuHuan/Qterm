@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -53,6 +54,9 @@ func RemoveHandshake(path string) error {
 		return nil
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+
+		slog.Warn("cli handshake file not removed", "event", "cli.handshake.remove_failed",
+			"path", path, "error", err)
 		return fmt.Errorf("cliapi: remove handshake: %w", err)
 	}
 	return nil

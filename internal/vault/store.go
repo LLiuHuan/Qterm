@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -259,13 +260,26 @@ func open(ctx context.Context, path string, cipher *Cipher, allowCreate bool) (*
 	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
+
+		slog.Error("vault directory create failed",
+			"event", "vault.open.directory_failed",
+			"path", filepath.Base(dir),
+			"error", err)
 		return nil, fmt.Errorf("create vault directory: %w", err)
 	}
 	if err := protectLocalPath(dir, true); err != nil {
+		slog.Error("vault directory protect failed",
+			"event", "vault.open.protect_failed",
+			"path", filepath.Base(dir),
+			"error", err)
 		return nil, fmt.Errorf("protect vault directory: %w", err)
 	}
 	if runtime.GOOS != "windows" {
 		if err := os.Chmod(dir, 0o700); err != nil {
+			slog.Error("vault directory permissions restrict failed",
+				"event", "vault.open.protect_failed",
+				"path", filepath.Base(dir),
+				"error", err)
 			return nil, fmt.Errorf("restrict vault directory permissions: %w", err)
 		}
 	}
@@ -277,6 +291,10 @@ func open(ctx context.Context, path string, cipher *Cipher, allowCreate bool) (*
 	dsn := sqlitedsn.Build(path, sqlitedsn.Options{Mode: mode})
 	connector, err := sqlite.NewConnector(dsn)
 	if err != nil {
+		slog.Error("vault connector create failed",
+			"event", "vault.open.connector_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("create vault SQLite connector: %w", err)
 	}
 	db := sql.OpenDB(connector)
@@ -291,18 +309,35 @@ func open(ctx context.Context, path string, cipher *Cipher, allowCreate bool) (*
 	}()
 
 	if err := db.PingContext(ctx); err != nil {
+
+		slog.Error("vault connect failed",
+			"event", "vault.open.connect_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("connect vault database: %w", err)
 	}
 	if err := protectOpenedVaultFile(path); err != nil {
+		slog.Error("vault file protect failed",
+			"event", "vault.open.protect_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("protect vault database: %w", err)
 	}
 	if err := protectVaultDatabaseSidecars(path); err != nil {
+		slog.Error("vault sidecar protect failed",
+			"event", "vault.open.protect_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("protect vault database sidecars: %w", err)
 	}
 	if err := runMigrations(ctx, store); err != nil {
 		return nil, err
 	}
 	if err := store.protectSidecarsAfterWrite(ctx); err != nil {
+		slog.Error("vault sidecar protect after migration failed",
+			"event", "vault.open.protect_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("protect vault database sidecars after migration: %w", err)
 	}
 
@@ -630,6 +665,11 @@ func (s *Store) Read(ctx context.Context, id string) (Secret, error) {
 	}
 	secret.Value, err = s.cipher.Open(secret.ID, secret.Kind, envelope)
 	if err != nil {
+
+		slog.Error("vault record decrypt failed",
+			"event", "vault.record.decrypt_failed",
+			"kind", int(secret.Kind),
+			"error", err)
 		return Secret{}, err
 	}
 	if err := contextError(ctx); err != nil {

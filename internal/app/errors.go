@@ -8,7 +8,7 @@ import (
 )
 
 func publicError(err error) error {
-	if errno.Extract(err) == nil && (errors.Is(err, model.ErrInvalidHost) || errors.Is(err, model.ErrInvalidGroup) || errors.Is(err, model.ErrInvalidCredential) || errors.Is(err, model.ErrInvalidCredentialPromptRule) || errors.Is(err, model.ErrInvalidSession) || errors.Is(err, model.ErrInvalidSFTPTransfer)) {
+	if errno.Extract(err) == nil && (errors.Is(err, model.ErrInvalidHost) || errors.Is(err, model.ErrInvalidGroup) || errors.Is(err, model.ErrInvalidCredential) || errors.Is(err, model.ErrInvalidCredentialPromptRule) || errors.Is(err, model.ErrInvalidSession) || errors.Is(err, model.ErrInvalidSFTPTransfer) || errors.Is(err, model.ErrInvalidAICommandRule)) {
 		return errno.New(errno.CodeInvalidArg, "error.invalidArgument", "")
 	}
 	if errors.Is(err, model.ErrCredentialVaultLocked) {

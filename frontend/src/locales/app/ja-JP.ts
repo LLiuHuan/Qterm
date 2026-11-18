@@ -97,6 +97,18 @@ export const appJa: Record<string, string> = {
   'application.window.closeToTray': '閉じるときにトレイへ最小化',
   'application.window.closeToTrayHelp':
     'メインウィンドウを閉じてもメニューバーのトレイで動作を続けます。トレイアイコンをクリックすると復元します。',
+  'application.window.globalShortcut.label': 'グローバルショートカット',
+  'application.window.globalShortcut.help': 'どのアプリでもこのキーで Qterm を前面に。占有時は元に戻して通知します。',
+  'application.window.globalShortcut.unbound': '未設定',
+  'application.window.globalShortcut.clear': 'グローバルショートカットを解除',
+  'application.window.globalShortcut.error':
+    'ショートカット {binding} を登録できませんでした（他のアプリが使用中の可能性）。元の設定に戻しました。',
+  'application.window.globalShortcut.rolledBack': '現在有効: {binding}',
+  'application.window.singleInstance.label': '単一インスタンス',
+  'application.window.singleInstance.help':
+    '再度 Qterm を起動したとき、新しいプロセスを開始せず既存のウィンドウを前面に出します。変更は再起動後に反映されます。',
+  'application.window.singleInstance.helpDisabled':
+    '無効にすると起動ごとに別プロセスになります（同じデータベースを同時に書き込む可能性があります）。変更は再起動後に反映されます。',
   'application.window.rememberSize': 'ウィンドウサイズを記憶',
   'application.window.rememberSizeHelp': '次回起動時に、前回終了時のウィンドウサイズと最大化状態を復元します。',
   'application.window.rememberPosition': 'ウィンドウ位置を記憶',
@@ -152,10 +164,21 @@ export const appJa: Record<string, string> = {
   'about.update.bell.dismiss': 'キャンセル',
   'about.update.bell.emptyNotes': 'このリリースには更新内容が記載されていません。',
   'about.debug.title': 'デバッグログ',
-  'about.debug.description': '問題の調査中に詳細な診断ログをローカルへ記録します。既定では無効です。',
+  'about.debug.description':
+    '既定では警告とエラーを記録します。調査中はローカルで「デバッグ」に切り替えると全レベルを記録します。',
   'about.debug.desktopOnly': 'デバッグログはデスクトップアプリでのみ利用できます。',
-  'about.debug.enabled': 'デバッグログを有効にしました。',
-  'about.debug.disabled': 'デバッグログを無効にしました。',
+  'about.debug.mode.off': 'オフ',
+  'about.debug.mode.offHelp': 'ログを一切書きません（後から問題を追えなくなります）。',
+  'about.debug.mode.normal': '通常（警告とエラー）',
+  'about.debug.mode.normalHelp': '既定の設定です。警告とエラーを長期間記録するため、ファイルは小さく保たれます。',
+  'about.debug.mode.debug': 'デバッグ（全レベル）',
+  'about.debug.mode.debugHelp':
+    '問題の調査中だけ有効にします。全レベルを記録するため、ファイルの増え方が速くなります。',
+  'about.debug.modeChanged': 'デバッグログの設定を切り替えました。',
+  'about.debug.status.path': 'ログファイル',
+  'about.debug.status.size': 'サイズ',
+  'about.debug.status.dropped': 'キューから破棄',
+  'about.debug.status.missing': 'ログファイルはまだ作成されていません',
   'about.debug.actionFailure': 'デバッグログの操作に失敗しました。',
   'about.debug.clear': 'ログを消去',
   'about.debug.clearSuccess': 'デバッグログを消去しました。',

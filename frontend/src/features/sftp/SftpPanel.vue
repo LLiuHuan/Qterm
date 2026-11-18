@@ -38,6 +38,7 @@ import { loadSettings, loadSettingsFromPreferences } from '../settings/settingsS
 import { useSftpPanelTransfers } from './useSftpPanelTransfers'
 import SftpBrowserPane, { type SftpBrowserEntry, type SftpBrowserSegment } from './SftpBrowserPane.vue'
 import SftpFileInfoDialog from './SftpFileInfoDialog.vue'
+import { emptyPrincipalIndex, toPrincipalIndex, type RemotePrincipalIndex } from './remotePrincipals'
 import { writeClipboardText } from '../../services/clipboard'
 
 const props = withDefaults(
@@ -583,6 +584,34 @@ const permissionBits = ref({
 })
 const infoEntry = ref<RemoteFileEntry | null>(null)
 
+const infoPrincipals = ref<RemotePrincipalIndex>(emptyPrincipalIndex)
+const infoPrincipalsSession = ref('')
+let infoPrincipalsPending: Promise<RemotePrincipalIndex> | null = null
+
+function fileInfoPrincipals(): RemotePrincipalIndex {
+  const sessionId = props.sessionId
+  if (sessionId && infoPrincipalsSession.value === sessionId) return infoPrincipals.value
+  if (!sessionId || !props.available || !props.gateway.listRemotePrincipals) return emptyPrincipalIndex
+  if (infoPrincipalsPending) return infoPrincipals.value
+  const pending = props.gateway
+    .listRemotePrincipals(sessionId)
+    .then((principals) => toPrincipalIndex(principals.users, principals.groups))
+
+    .catch(() => emptyPrincipalIndex)
+    .then((index) => {
+      if (sessionId === props.sessionId) {
+        infoPrincipalsSession.value = sessionId
+        infoPrincipals.value = index
+      }
+      return index
+    })
+    .finally(() => {
+      if (infoPrincipalsPending === pending) infoPrincipalsPending = null
+    })
+  infoPrincipalsPending = pending
+  return infoPrincipals.value
+}
+
 function modeDigitsFromEntry(mode?: string): string {
   const value = mode?.trim() ?? ''
   if (/^0?[0-7]{3}$/.test(value)) return value.slice(-3)
@@ -765,6 +794,9 @@ function deleteBrowserEntry(entry: SftpBrowserEntry): void {
 
 function showBrowserInfo(entry: SftpBrowserEntry): void {
   infoEntry.value = browserEntrySource(entry) ?? null
+  if (!infoEntry.value) return
+
+  void fileInfoPrincipals()
 }
 
 function downloadBrowserEntry(entry: SftpBrowserEntry): void {
@@ -1120,6 +1152,7 @@ function openBrowserEntry(entry: SftpBrowserEntry): void {
       :open="Boolean(infoEntry)"
       :entry="infoEntry"
       :path="infoEntry?.path"
+      :principals="infoPrincipals"
       @update:open="(open) => !open && (infoEntry = null)"
       @copy-path="copyRemotePath"
     />
@@ -1197,33 +1230,5 @@ function openBrowserEntry(entry: SftpBrowserEntry): void {
 }
 .sftp-permission-grid :deep([data-slot='checkbox']) {
   justify-self: center;
-}
-.sftp-info-grid {
-  padding: 0 16px 16px;
-}
-.sftp-info-grid > div {
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--qt-border) 55%, transparent);
-}
-.sftp-info-grid > div:last-child {
-  border-bottom: 0;
-}
-.sftp-info-grid > div > span:first-child {
-  color: var(--qt-muted);
-}
-.sftp-info-path-value {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-.sftp-info-path-value > span {
-  min-width: 0;
-  flex: 1;
-  overflow-wrap: anywhere;
 }
 </style>

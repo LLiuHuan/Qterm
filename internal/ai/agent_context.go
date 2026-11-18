@@ -29,6 +29,7 @@ func redactAgentContext(text string) string {
 	redacted = auditURLPassword.ReplaceAllString(redacted, "${1}***${3}")
 	redacted = auditSecretPair.ReplaceAllString(redacted, "${1}***")
 	redacted = auditAttachedPassword.ReplaceAllString(redacted, "${1}***")
+	redacted = noteSecretPair.ReplaceAllString(redacted, "${1}***")
 	redacted = credentialTokenPattern.ReplaceAllString(redacted, "***")
 	redacted, _ = truncateUTF8(redacted, maxAgentContextInjectedBytes)
 	return redacted

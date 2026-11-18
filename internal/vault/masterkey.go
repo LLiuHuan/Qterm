@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
+	"path/filepath"
 )
 
 var (
@@ -135,6 +137,10 @@ func initializeMasterKey(
 		}
 		return nil, fmt.Errorf("save new vault master key: %w", err)
 	}
+
+	slog.Info("vault master key created",
+		"event", "vault.masterkey.created",
+		"path", filepath.Base(path))
 	return masterKey, nil
 }
 

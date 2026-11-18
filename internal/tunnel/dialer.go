@@ -180,6 +180,12 @@ func NewConnectorWithDialer(hostKey ssh.HostKeyCallback, dial DialerFunc) *Conne
 }
 
 var hostKeyAlgorithms = []string{
+	ssh.CertAlgoRSASHA256v01,
+	ssh.CertAlgoRSASHA512v01,
+	ssh.CertAlgoECDSA256v01,
+	ssh.CertAlgoECDSA384v01,
+	ssh.CertAlgoECDSA521v01,
+	ssh.CertAlgoED25519v01,
 	ssh.KeyAlgoED25519,
 	ssh.KeyAlgoECDSA256,
 	ssh.KeyAlgoECDSA384,
@@ -187,6 +193,13 @@ var hostKeyAlgorithms = []string{
 	ssh.KeyAlgoRSASHA512,
 	ssh.KeyAlgoRSASHA256,
 	ssh.KeyAlgoRSA,
+}
+
+func handshakeAlgorithms(candidates, fallback []string) []string {
+	if len(candidates) == 0 {
+		return append([]string(nil), fallback...)
+	}
+	return append([]string(nil), candidates...)
 }
 
 func (c *Connector) connectOver(
@@ -277,11 +290,18 @@ func (c *Connector) connectOverMethods(
 
 	stopCancellation := context.AfterFunc(connectCtx, func() { _ = netConn.Close() })
 	config := &ssh.ClientConfig{
-		User:              username,
-		Auth:              filteredAuth,
-		HostKeyCallback:   c.hostKey,
-		HostKeyAlgorithms: hostKeyAlgorithms,
+		User:            username,
+		Auth:            filteredAuth,
+		HostKeyCallback: c.hostKey,
+
+		HostKeyAlgorithms: handshakeAlgorithms(target.HostKeyAlgorithms, hostKeyAlgorithms),
 	}
+
+	if len(target.KeyExchanges) > 0 {
+		config.KeyExchanges = append([]string(nil), target.KeyExchanges...)
+	}
+
+	type dialGuardReleaser interface{ ReleaseDialGuard() }
 	clientConn, channels, requests, err := ssh.NewClientConn(netConn, address, config)
 	if !stopCancellation() {
 		if contextErr := connectCtx.Err(); contextErr != nil {
@@ -290,6 +310,9 @@ func (c *Connector) connectOverMethods(
 	}
 	if err != nil {
 		return nil, connectError(connectCtx, StageHandshake, err)
+	}
+	if releaser, ok := netConn.(dialGuardReleaser); ok {
+		releaser.ReleaseDialGuard()
 	}
 
 	_ = netConn.SetDeadline(time.Time{})

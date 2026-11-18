@@ -4,6 +4,7 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.credentials.kind.privateKey': 'Clé privée',
   'settings.credentials.kind.privateKeyPassphrase': 'Phrase secrète de la clé',
   'settings.credentials.kind.sshAgent': 'SSH Agent',
+  'settings.credentials.kind.userCertificate': 'Certificat utilisateur',
   'settings.credentials.hostCount': 'Hôtes associés : {count}',
   'settings.credentials.hostList.title': 'Hôtes associés',
   'settings.credentials.vaultLocked.title': 'Coffre-fort verrouillé',
@@ -17,6 +18,8 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.credentials.validation.passwordRequired': 'Saisissez un mot de passe.',
   'settings.credentials.validation.privateKeyRequired': 'Choisissez ou collez une clé privée.',
   'settings.credentials.validation.agentPublicKeyRequired': 'Saisissez une clé publique SSH Agent valide.',
+  'settings.credentials.validation.certificateRequired':
+    'Saisissez le certificat utilisateur (contenu du fichier *-cert.pub).',
   'settings.credentials.toast.updated': 'Identifiant mis à jour',
   'settings.credentials.toast.created': 'Identifiant créé',
   'settings.credentials.toast.deleted': 'Identifiant supprimé',
@@ -77,6 +80,7 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.credentials.action.createKey': 'Créer un identifiant de clé privée',
   'settings.credentials.action.importPrivateKey': 'Importer une clé privée locale',
   'settings.credentials.action.createAgent': 'Créer un identifiant SSH Agent',
+  'settings.credentials.action.createCertificate': 'Créer un identifiant de certificat utilisateur',
   'settings.credentials.action.quickCreate': 'Ajouter un identifiant',
   'settings.credentials.action.copyPublicKey': 'Copier la clé publique',
   'settings.credentials.action.copyInstallCommand': 'Copier la commande d’installation',
@@ -108,6 +112,15 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.credentials.field.agentPublicKeyPlaceholder': 'Collez une clé publique ssh-ed25519 ou ssh-rsa',
   'settings.credentials.field.agentPublicKeyHelp':
     'Seule la clé publique est enregistrée, afin de correspondre au SSH Agent du système ; aucune clé privée n’est conservée.',
+
+  'settings.credentials.field.agentSecurityKeyHelp':
+    'Les clés de sécurité FIDO2 sont aussi prises en charge (sk-ssh-ed25519@openssh.com / sk-ecdsa-sha2-nistp256@openssh.com) : chargez d’abord la clé dans l’agent SSH système avec ssh-add, puis touchez l’appareil lors de la connexion.',
+  'settings.credentials.field.certificate': 'Certificat utilisateur',
+  'settings.credentials.field.certificatePlaceholder': 'Collez le certificat ssh-ed25519-cert-v01@openssh.com ...',
+  'settings.credentials.field.certificateHelp':
+    'Un certificat signé par une CA (fichier *-cert.pub), pas une clé publique simple.',
+  'settings.credentials.field.certificateKeyHelp':
+    'Clé privée associée à ce certificat ; l’application vérifie la correspondance.',
   'settings.credentials.field.optional': '(facultatif)',
   'settings.credentials.field.passwordPlaceholder': 'Saisissez le mot de passe de connexion',
   'settings.credentials.field.privateKeyPlaceholder':
@@ -397,6 +410,9 @@ export const settingsAssetsFr: Record<string, string> = {
     'Disposition des volets divisés et visibilité de la barre latérale.',
   'settings.shortcuts.group.remote': 'Fichiers distants',
   'settings.shortcuts.group.remoteDescription': 'Actions d’enregistrement pour l’édition de fichiers distants.',
+  'settings.shortcuts.group.global': 'Global',
+  'settings.shortcuts.group.globalDescription':
+    'Raccourcis au niveau du système, actifs depuis n’importe quelle application.',
   'settings.shortcuts.binding.unbound': 'Non attribué',
   'settings.shortcuts.group.count': '{count}',
   'settings.shortcuts.action.nextTab': 'Onglet suivant',
@@ -430,6 +446,12 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.shortcuts.action.disconnectSession': 'Déconnecter',
   'settings.shortcuts.action.disconnectSessionDescription': 'Déconnecter la session actuelle ; l’onglet reste ouvert.',
   'settings.shortcuts.action.focusNextPane': 'Déplacer le focus entre les volets divisés',
+  'settings.shortcuts.action.increaseTerminalFontSize': 'Agrandir la police du terminal',
+  'settings.shortcuts.action.increaseTerminalFontSizeDescription':
+    'Augmente la police du terminal d’un cran, comme Ctrl/Cmd + molette vers le haut.',
+  'settings.shortcuts.action.decreaseTerminalFontSize': 'Réduire la police du terminal',
+  'settings.shortcuts.action.decreaseTerminalFontSizeDescription':
+    'Diminue la police du terminal d’un cran, comme Ctrl/Cmd + molette vers le bas.',
   'settings.shortcuts.action.focusNextPaneDescription':
     'Déplacer le focus vers le volet divisé suivant dans l’ordre de la disposition ; disponible uniquement en mode divisé.',
   'settings.shortcuts.action.closePane': 'Fermer le volet divisé actif',
@@ -611,11 +633,17 @@ export const settingsAssetsFr: Record<string, string> = {
   'settings.shortcuts.recording.hint':
     'Enregistrement en cours. Appuyez sur une combinaison de touches. Appuyez sur Esc pour annuler.',
   'settings.shortcuts.recording.tokenHint':
-    'Appuyez sur l’une des touches principales de « modificateur + {token} » : elles partagent le même modificateur, seule la partie modificateur est enregistrée. Appuyez sur Esc pour annuler.',
+    'N’importe quelle touche de « {token} » ; seuls les modificateurs sont enregistrés. Échap annule.',
   'settings.shortcuts.recording.active': 'Enregistrement…',
   'settings.shortcuts.recording.start': 'Enregistrer le raccourci',
+  'settings.shortcuts.fixedHint': 'Fixe, partagé avec le zoom à la molette, non modifiable.',
   'settings.shortcuts.action.reset': 'Rétablir le raccourci par défaut pour « {name} »',
   'settings.shortcuts.action.resetTitle': 'Rétablir par défaut',
+
+  'settings.shortcuts.action.disable': 'Désactiver le raccourci de « {name} »',
+  'settings.shortcuts.action.disableTitle': 'Désactiver le raccourci',
+  'settings.shortcuts.action.enable': 'Activer le raccourci de « {name} »',
+  'settings.shortcuts.action.enableTitle': 'Activer le raccourci',
   'settings.shortcuts.binding.aria': '{name} : {binding}',
   'settings.shortcuts.conflict.duplicate':
     "Conflit avec « {names} » : les deux actions utilisent la même combinaison, celle-ci est donc désactivée. Réaffectez l'une d'elles.",

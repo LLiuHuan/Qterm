@@ -224,6 +224,10 @@ func (s *Snapshot) Validate() error {
 			ProxyHost:     h.ProxyHost,
 			ProxyPort:     h.ProxyPort,
 			ProxyUsername: h.ProxyUsername,
+
+			SSHHostKeyAlgorithms: h.SSHHostKeyAlgorithms,
+			SSHKeyExchanges:      h.SSHKeyExchanges,
+			SSHProxyCommand:      h.SSHProxyCommand,
 		}
 		if h.ConnectTimeoutSeconds != 0 {
 			value := h.ConnectTimeoutSeconds

@@ -4,6 +4,7 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.credentials.kind.privateKey': '秘密鍵',
   'settings.credentials.kind.privateKeyPassphrase': '秘密鍵のパスフレーズ',
   'settings.credentials.kind.sshAgent': 'SSH Agent',
+  'settings.credentials.kind.userCertificate': 'ユーザー証明書',
   'settings.credentials.hostCount': '関連ホスト：{count} 台',
   'settings.credentials.hostList.title': '関連ホスト',
   'settings.credentials.vaultLocked.title': '保管庫がロックされています',
@@ -17,6 +18,7 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.credentials.validation.passwordRequired': 'パスワードを入力してください。',
   'settings.credentials.validation.privateKeyRequired': '秘密鍵を選択するか貼り付けてください。',
   'settings.credentials.validation.agentPublicKeyRequired': '有効な SSH Agent 公開鍵を入力してください。',
+  'settings.credentials.validation.certificateRequired': 'ユーザー証明書（*-cert.pub の内容）を入力してください。',
   'settings.credentials.toast.updated': '認証情報を更新しました',
   'settings.credentials.toast.created': '認証情報を作成しました',
   'settings.credentials.toast.deleted': '認証情報を削除しました',
@@ -75,6 +77,7 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.credentials.action.createKey': '秘密鍵の認証情報を作成',
   'settings.credentials.action.importPrivateKey': 'ローカル秘密鍵をインポート',
   'settings.credentials.action.createAgent': 'SSH Agent 認証情報を作成',
+  'settings.credentials.action.createCertificate': 'ユーザー証明書認証情報を作成',
   'settings.credentials.action.quickCreate': '認証情報を追加',
   'settings.credentials.action.copyPublicKey': '公開鍵をコピー',
   'settings.credentials.action.copyInstallCommand': 'インストールコマンドをコピー',
@@ -106,6 +109,14 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.credentials.field.agentPublicKeyPlaceholder': 'ssh-ed25519 または ssh-rsa 公開鍵を貼り付け',
   'settings.credentials.field.agentPublicKeyHelp':
     '公開鍵そのものだけを保存し、システムの SSH Agent との照合に使用します。秘密鍵は保存されません。',
+
+  'settings.credentials.field.agentSecurityKeyHelp':
+    'FIDO2 セキュリティキー（sk-ssh-ed25519@openssh.com / sk-ecdsa-sha2-nistp256@openssh.com）にも対応します。先に ssh-add でシステムの SSH エージェントに鍵を読み込ませ、接続時にデバイスをタッチしてください。',
+  'settings.credentials.field.certificate': 'ユーザー証明書',
+  'settings.credentials.field.certificatePlaceholder': 'ssh-ed25519-cert-v01@openssh.com ... 証明書を貼り付け',
+  'settings.credentials.field.certificateHelp':
+    'CA が署名したユーザー証明書（*-cert.pub ファイル）です。公開鍵ではありません。',
+  'settings.credentials.field.certificateKeyHelp': 'この証明書に対応する秘密鍵です。両者が一致するか検証されます。',
   'settings.credentials.field.optional': '（任意）',
   'settings.credentials.field.passwordPlaceholder': 'ログインパスワードを入力',
   'settings.credentials.field.privateKeyPlaceholder':
@@ -388,6 +399,8 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.shortcuts.group.navigationDescription': '分割レイアウトとサイドバーの表示。',
   'settings.shortcuts.group.remote': 'リモートファイル',
   'settings.shortcuts.group.remoteDescription': 'リモートファイル編集の保存操作。',
+  'settings.shortcuts.group.global': 'グローバル',
+  'settings.shortcuts.group.globalDescription': 'どのアプリからでも反応する OS レベルのショートカット。',
   'settings.shortcuts.binding.unbound': '未割り当て',
   'settings.shortcuts.group.count': '{count}',
   'settings.shortcuts.action.nextTab': '次のタブ',
@@ -420,6 +433,12 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.shortcuts.action.disconnectSession': '切断',
   'settings.shortcuts.action.disconnectSessionDescription': '現在のセッションを切断します。タブは開いたまま残ります。',
   'settings.shortcuts.action.focusNextPane': '分割ペイン間でフォーカスを移動',
+  'settings.shortcuts.action.increaseTerminalFontSize': 'ターミナル文字を拡大',
+  'settings.shortcuts.action.increaseTerminalFontSizeDescription':
+    'ターミナルの文字を一段大きくします。Ctrl/Cmd + ホイール上と同じ動作です。',
+  'settings.shortcuts.action.decreaseTerminalFontSize': 'ターミナル文字を縮小',
+  'settings.shortcuts.action.decreaseTerminalFontSizeDescription':
+    'ターミナルの文字を一段小さくします。Ctrl/Cmd + ホイール下と同じ動作です。',
   'settings.shortcuts.action.focusNextPaneDescription':
     'ペインのレイアウト順に、次の分割ペインへフォーカスを移動します。分割中のみ使用できます。',
   'settings.shortcuts.action.closePane': '現在の分割ペインを閉じる',
@@ -597,12 +616,17 @@ export const settingsAssetsJa: Record<string, string> = {
   'settings.shortcuts.error.switchTabNumber': 'タブの切り替えには、修飾キーと 1〜9 の数字キーを使用してください。',
   'settings.shortcuts.error.conflict': 'このショートカットは「{name}」にすでに割り当てられています。',
   'settings.shortcuts.recording.hint': '記録中です。キーの組み合わせを押してください。Esc でキャンセルします。',
-  'settings.shortcuts.recording.tokenHint':
-    '「修飾キー + {token}」のいずれかの主キーを押してください。これらの主キーは同じ修飾キーを共有するため、記録されるのは修飾キーの部分のみです。Esc でキャンセルします。',
+  'settings.shortcuts.recording.tokenHint': '「{token}」のいずれかのキーで可。修飾キーのみ記録。Esc で取消。',
   'settings.shortcuts.recording.active': '記録中…',
   'settings.shortcuts.recording.start': 'ショートカットを記録',
+  'settings.shortcuts.fixedHint': '固定。ホイールズームと共通で、変更できません。',
   'settings.shortcuts.action.reset': '「{name}」のショートカットを既定に戻す',
   'settings.shortcuts.action.resetTitle': '既定に戻す',
+
+  'settings.shortcuts.action.disable': '「{name}」のショートカットを無効にする',
+  'settings.shortcuts.action.disableTitle': 'ショートカットを無効化',
+  'settings.shortcuts.action.enable': '「{name}」のショートカットを有効にする',
+  'settings.shortcuts.action.enableTitle': 'ショートカットを有効化',
   'settings.shortcuts.binding.aria': '{name}：{binding}',
   'settings.shortcuts.conflict.duplicate':
     '「{names}」と競合しています。2 つの操作が同じ組み合わせに割り当てられているため、この操作は無効になりました。どちらか一方を割り当て直してください。',

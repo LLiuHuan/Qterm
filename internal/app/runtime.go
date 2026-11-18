@@ -14,6 +14,8 @@ func ConfigureRuntime(service *Service, application *wailsapp.App) {
 	ConfigureSessionDialogs(service, application.Dialog, application.Env)
 	RegisterSessionStreams(application, service)
 
+	RegisterLaunchIntents(service, application)
+
 	RegisterRdpStreams(application, service)
 
 	RegisterVncStreams(application, service)

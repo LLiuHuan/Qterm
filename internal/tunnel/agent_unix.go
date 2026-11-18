@@ -39,5 +39,6 @@ func openAgentSigner(ctx context.Context, publicKey []byte) (net.Conn, ssh.Signe
 		}
 	}
 	_ = conn.Close()
-	return nil, nil, errors.New("SSH agent key is not loaded")
+
+	return nil, nil, ErrSSHAgentKeyMissing
 }

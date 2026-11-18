@@ -113,6 +113,9 @@ type agentRunState struct {
 	maxSteps     int
 	channel      string
 	contextText  string
+	customPrompt string
+	hostNote     string
+	snippetIndex []string
 	modelTimeout time.Duration
 	stepTimeout  time.Duration
 	driving      bool
@@ -252,6 +255,9 @@ func (m *Manager) Start(ctx context.Context, input StartInput) (AgentSnapshot, e
 		maxSteps:     input.MaxSteps,
 		channel:      channel,
 		contextText:  contextText,
+		customPrompt: capPromptBlock(strings.TrimSpace(input.CustomPrompt), maxCustomPromptBytes),
+		hostNote:     capPromptBlock(strings.TrimSpace(input.HostNote), maxHostNoteBytes),
+		snippetIndex: capSnippetIndex(input.SnippetIndex),
 		modelTimeout: clampSeconds(input.ModelTimeoutSeconds, 5, 600),
 		stepTimeout:  clampSeconds(input.StepTimeoutSeconds, 5, 600),
 		runCtx:       runCtx,
@@ -1125,6 +1131,36 @@ func (m *Manager) contextFor(runID string) string {
 		return ""
 	}
 	return state.contextText
+}
+
+func (m *Manager) customPromptFor(runID string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return ""
+	}
+	return state.customPrompt
+}
+
+func (m *Manager) hostNoteFor(runID string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return ""
+	}
+	return state.hostNote
+}
+
+func (m *Manager) snippetIndexFor(runID string) []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	state, ok := m.runs[strings.TrimSpace(runID)]
+	if !ok {
+		return nil
+	}
+	return append([]string(nil), state.snippetIndex...)
 }
 
 func (m *Manager) executionChannelFor(runID string) string {

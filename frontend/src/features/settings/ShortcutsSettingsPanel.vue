@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { QtermButton } from '../../components/common'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RotateCcw, Keyboard, TriangleAlert } from '@lucide/vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { Ban, RotateCcw, Keyboard, Power, TriangleAlert } from '@lucide/vue'
+import GlobalShortcutSettings from './GlobalShortcutSettings.vue'
+import ShortcutKeycaps from './ShortcutKeycaps.vue'
 import {
   DEFAULT_SHORTCUTS,
+  FIXED_SHORTCUT_ACTIONS,
   SHORTCUT_ACTION_GROUPS,
   UNBOUND_SHORTCUT,
   shortcutConflicts,
@@ -21,14 +24,21 @@ import { useI18n } from '@/locales'
 const props = withDefaults(
   defineProps<{
     shortcuts?: ShortcutBindings
+    globalShortcut?: string
+    globalShortcutEffective?: string
+    globalShortcutError?: string
   }>(),
   {
     shortcuts: () => ({ ...DEFAULT_SHORTCUTS }),
+    globalShortcut: '',
+    globalShortcutEffective: '',
+    globalShortcutError: '',
   },
 )
 
 const emit = defineEmits<{
   'update:shortcut': [action: ShortcutAction, binding: string]
+  'update:globalShortcut': [binding: string]
 }>()
 
 const recording = ref<ShortcutAction | null>(null)
@@ -59,9 +69,27 @@ function bindingTokens(action: ShortcutAction): string[] {
   return isBound(action) ? displayTokens(currentShortcuts.value[action]) : []
 }
 
+function isFixedAction(action: ShortcutAction): boolean {
+  return FIXED_SHORTCUT_ACTIONS.has(action)
+}
+
 function startRecording(action: ShortcutAction): void {
+  if (isFixedAction(action)) return
+
+  if (globalShortcutRecording.value) {
+    globalShortcutRecording.value = false
+    globalShortcutControl.value?.cancelRecording()
+  }
   recordingError.value = ''
   recording.value = action
+}
+
+function toggleShortcut(action: ShortcutAction): void {
+  if (isFixedAction(action)) return
+  const bound = isBound(action)
+  if (recording.value === action) cancelRecording()
+  recordingError.value = ''
+  emit('update:shortcut', action, bound ? UNBOUND_SHORTCUT : DEFAULT_SHORTCUTS[action])
 }
 
 function cancelRecording(): void {
@@ -70,6 +98,7 @@ function cancelRecording(): void {
 }
 
 function resetShortcut(action: ShortcutAction): void {
+  if (isFixedAction(action)) return
   recordingError.value = ''
   emit('update:shortcut', action, DEFAULT_SHORTCUTS[action])
 }
@@ -143,6 +172,61 @@ function tokenHint(action: ShortcutAction): string {
 
 const conflicts = computed(() => shortcutConflicts(currentShortcuts.value))
 
+const globalShortcutRecording = ref(false)
+const globalShortcutControl = ref<{ cancelRecording: () => void } | null>(null)
+
+const acknowledgedGlobalShortcut = ref(props.globalShortcut ?? '')
+let globalShortcutQosTimer: number | null = null
+
+const globalShortcutSettling = computed(
+  () => Boolean(props.globalShortcut) && props.globalShortcut !== acknowledgedGlobalShortcut.value,
+)
+
+const globalShortcutRolledBack = computed(
+  () =>
+    !globalShortcutSettling.value &&
+    Boolean(props.globalShortcutEffective) &&
+    Boolean(props.globalShortcut) &&
+    props.globalShortcutEffective !== props.globalShortcut,
+)
+
+const GLOBAL_SHORTCUT_SETTLE_MS = 1200
+
+function scheduleGlobalShortcutSettle(): void {
+  if (globalShortcutQosTimer !== null) window.clearTimeout(globalShortcutQosTimer)
+  globalShortcutQosTimer = window.setTimeout(() => {
+    globalShortcutQosTimer = null
+    acknowledgedGlobalShortcut.value = props.globalShortcut ?? ''
+  }, GLOBAL_SHORTCUT_SETTLE_MS)
+}
+
+watch(
+  () => props.globalShortcutEffective,
+  (effective) => {
+    if (effective && effective === props.globalShortcut) {
+      if (globalShortcutQosTimer !== null) {
+        window.clearTimeout(globalShortcutQosTimer)
+        globalShortcutQosTimer = null
+      }
+      acknowledgedGlobalShortcut.value = effective
+      return
+    }
+    scheduleGlobalShortcutSettle()
+  },
+)
+
+watch(
+  () => props.globalShortcut,
+  (value, previous) => {
+    if (value && value !== previous) scheduleGlobalShortcutSettle()
+  },
+)
+
+function onGlobalShortcutRecordingChange(value: boolean): void {
+  globalShortcutRecording.value = value
+  if (value && recording.value) cancelRecording()
+}
+
 function conflictFor(action: ShortcutAction): ShortcutConflict | undefined {
   return conflicts.value[action]
 }
@@ -166,6 +250,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleRecordingKeydown, true)
+  if (globalShortcutQosTimer !== null) window.clearTimeout(globalShortcutQosTimer)
 })
 </script>
 
@@ -196,12 +281,17 @@ onBeforeUnmount(() => {
         >
           <div class="shortcut-description">
             <strong class="text-sm">{{ actionLabel(item.id) }}</strong>
-            <small class="text-xs" :class="{ 'shortcut-description-error': recording === item.id && recordingError }">
+
+            <small
+              class="min-h-8 text-xs"
+              :class="{ 'shortcut-description-error': recording === item.id && recordingError }"
+            >
               <template v-if="recording === item.id && recordingError">{{ recordingError }}</template>
               <template v-else-if="recording === item.id && tokenHint(item.id)">{{
                 t('settings.shortcuts.recording.tokenHint', { token: tokenHint(item.id) })
               }}</template>
               <template v-else-if="recording === item.id">{{ t('settings.shortcuts.recording.hint') }}</template>
+              <template v-else-if="isFixedAction(item.id)">{{ t('settings.shortcuts.fixedHint') }}</template>
               <template v-else-if="conflictFor(item.id)">
                 <span class="shortcut-conflict-message text-[var(--destructive,#dc2626)]">
                   <TriangleAlert
@@ -233,18 +323,17 @@ onBeforeUnmount(() => {
               <span v-if="!isBound(item.id)" class="text-xs text-qt-muted">{{
                 t('settings.shortcuts.binding.unbound')
               }}</span>
-              <template v-for="(token, tokenIndex) in bindingTokens(item.id)" :key="`${token}-${tokenIndex}`">
-                <kbd class="text-xs">{{ token }}</kbd>
-                <span v-if="tokenIndex < bindingTokens(item.id).length - 1" class="text-gray-400">+</span>
-              </template>
+              <ShortcutKeycaps :tokens="bindingTokens(item.id)" />
             </div>
             <QtermButton
               variant="outline"
-              size="sm"
-              class="shortcut-record-button transition"
+              size="xs"
+              class="shortcut-record-button min-w-[112px] transition"
               :class="{ recording: recording === item.id }"
               type="button"
+              :disabled="isFixedAction(item.id)"
               :data-shortcut-capture="recording === item.id ? 'true' : undefined"
+              :data-shortcut-fixed="isFixedAction(item.id) ? 'true' : undefined"
               @click="recording === item.id ? cancelRecording() : startRecording(item.id)"
             >
               <Keyboard :size="14" aria-hidden="true" />
@@ -256,15 +345,84 @@ onBeforeUnmount(() => {
             </QtermButton>
             <QtermButton
               variant="ghost"
-              size="icon-sm"
+              size="icon-xs"
               type="button"
+              :disabled="isFixedAction(item.id)"
               :aria-label="t('settings.shortcuts.action.reset', { name: actionLabel(item.id) })"
               :title="t('settings.shortcuts.action.resetTitle')"
+              data-shortcut-reset
               @click="resetShortcut(item.id)"
             >
               <RotateCcw :size="14" aria-hidden="true" />
             </QtermButton>
+            <QtermButton
+              v-if="!isFixedAction(item.id)"
+              variant="ghost"
+              size="icon-xs"
+              type="button"
+              :aria-label="
+                isBound(item.id)
+                  ? t('settings.shortcuts.action.disable', { name: actionLabel(item.id) })
+                  : t('settings.shortcuts.action.enable', { name: actionLabel(item.id) })
+              "
+              :title="
+                isBound(item.id)
+                  ? t('settings.shortcuts.action.disableTitle')
+                  : t('settings.shortcuts.action.enableTitle')
+              "
+              :data-shortcut-disable="isBound(item.id) ? 'true' : undefined"
+              :data-shortcut-enable="isBound(item.id) ? undefined : 'true'"
+              @click="toggleShortcut(item.id)"
+            >
+              <Ban v-if="isBound(item.id)" :size="14" aria-hidden="true" />
+              <Power v-else :size="14" aria-hidden="true" />
+            </QtermButton>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="shortcuts-group gap-4 flex flex-col" data-global-shortcut-group>
+      <header class="settings-section-header shortcuts-group-header mt-2">
+        <div>
+          <h3 class="m-0 text-sm">{{ t('settings.shortcuts.group.global') }}</h3>
+          <p class="mt-0.75 mb-0 text-xs">{{ t('settings.shortcuts.group.globalDescription') }}</p>
+        </div>
+        <span class="shortcuts-count text-xs">1</span>
+      </header>
+      <div
+        class="settings-card shortcuts-card border border-solid border-qt-border rounded-[8px] [background:color-mix(in_srgb,_var(--qt-panel)_32%,_transparent)] [-webkit-backdrop-filter:blur(16px)_saturate(135%)] [backdrop-filter:blur(16px)_saturate(135%)]"
+      >
+        <div
+          class="settings-card-row shortcut-row flex-cb gap-[16px] pt-[12px] pr-[14px] pb-[12px] pl-[14px] border-b border-b-qt-divider"
+          data-global-shortcut-row
+        >
+          <div class="shortcut-description">
+            <strong class="text-sm">{{ t('application.window.globalShortcut.label') }}</strong>
+            <small
+              class="min-h-8 text-xs"
+              :class="{ 'shortcut-description-error': Boolean(props.globalShortcutError) }"
+            >
+              <template v-if="globalShortcutRecording">{{ t('settings.shortcuts.recording.hint') }}</template>
+              <template v-else-if="props.globalShortcutError">
+                <TriangleAlert :size="12" aria-hidden="true" />
+                <span data-global-shortcut-error>{{ props.globalShortcutError }}</span>
+              </template>
+              <span v-else-if="globalShortcutRolledBack" data-global-shortcut-rollback>
+                {{ t('application.window.globalShortcut.rolledBack', { binding: props.globalShortcutEffective }) }}
+              </span>
+              <template v-else>
+                {{ t('application.window.globalShortcut.help') }}
+              </template>
+            </small>
+          </div>
+          <GlobalShortcutSettings
+            ref="globalShortcutControl"
+            :binding="props.globalShortcut ?? ''"
+            :name="t('application.window.globalShortcut.label')"
+            @update:binding="emit('update:globalShortcut', $event)"
+            @recording-change="onGlobalShortcutRecordingChange"
+          />
         </div>
       </div>
     </section>
@@ -304,7 +462,12 @@ onBeforeUnmount(() => {
 }
 
 .shortcut-description small {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+
+  line-height: 16px;
 }
 
 .shortcut-description-error {
@@ -347,8 +510,9 @@ onBeforeUnmount(() => {
 }
 
 .shortcut-record-button.recording {
-  background-color: var(--primary) !important;
-  color: var(--primary-foreground) !important;
+  background-color: color-mix(in srgb, var(--qt-accent) 14%, transparent) !important;
+  border-color: var(--qt-accent) !important;
+  color: var(--qt-accent) !important;
 }
 
 .shortcut-recording-hint,

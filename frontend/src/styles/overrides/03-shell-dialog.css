@@ -161,8 +161,9 @@ body [data-sonner-toaster] {
 .qterm-dialog.has-page-background {
   --qt-border: var(--qt-background-border, color-mix(in srgb, var(--qt-text) 28%, transparent));
   --qt-divider: color-mix(in srgb, var(--qt-text) 14%, transparent);
-  --qt-hover: transparent;
-  --qt-active: transparent;
+
+  --qt-hover: color-mix(in srgb, var(--qt-text) 10%, transparent);
+  --qt-active: color-mix(in srgb, var(--qt-text) 16%, transparent);
 }
 
 .qterm-dialog.has-page-background.is-dark {
@@ -240,16 +241,23 @@ body [data-sonner-toaster] {
 }
 
 .qterm-dialog.has-page-background
-  :is(
-    [data-slot='button'][data-variant='ghost']:hover:not(:disabled),
-    [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']):hover:not(:disabled),
-    .settings-nav-item:hover:not(:disabled),
-    .settings-nav-item.is-active,
-    .settings-nav-item.is-active:hover:not(:disabled)
-  ) {
-  background: transparent !important;
-  border-color: var(--qt-border) !important;
+  :is([data-slot='button'][data-variant='ghost']:hover:not(:disabled), .settings-nav-item:hover:not(:disabled)) {
+  background: var(--qt-hover) !important;
+  border-color: transparent !important;
   box-shadow: none !important;
+}
+
+.qterm-dialog.has-page-background
+  [data-slot='button']:is([data-variant='outline'], [data-variant='secondary']):hover:not(:disabled) {
+  background: var(--qt-hover) !important;
+  border-color: color-mix(in srgb, var(--qt-text) 28%, transparent) !important;
+  box-shadow: none !important;
+}
+
+.qterm-dialog.has-page-background :is(.settings-nav-item.is-active, .settings-nav-item.is-active:hover:not(:disabled)) {
+  background: var(--qt-active) !important;
+  border-color: var(--qt-border) !important;
+  box-shadow: inset 0 0 0 1px var(--qt-border) !important;
 }
 
 .qterm-dialog.has-page-background .qterm-segmented-tabs__trigger[data-state='active'] {
@@ -619,8 +627,7 @@ body [data-sonner-toaster] {
     .snippet-panel-header,
     .snippet-host,
     .snippet-bindings,
-    .snippet-list-accordion .snippet-row,
-    .sftp-info-grid > div
+    .snippet-list-accordion .snippet-row
   ) {
   border-color: transparent;
 }

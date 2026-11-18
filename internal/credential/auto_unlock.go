@@ -5,6 +5,7 @@ import (
 	"changeme/internal/vault"
 	"context"
 	"errors"
+	"log/slog"
 )
 
 func (s *CredentialService) UnlockAutomatically(ctx context.Context) (CredentialVaultStatus, error) {
@@ -95,14 +96,23 @@ func (s *CredentialService) unlockAutomaticLocked(ctx context.Context) error {
 	if err := contextError(ctx); err != nil {
 		return err
 	}
+
+	degrade := func(stage string, cause error) {
+		slog.Warn("credential automatic unlock failed",
+			"event", "credential.auto_unlock.failed",
+			"stage", stage,
+			"error", cause)
+	}
 	key, err := vault.LoadAutoUnlockKey(s.autoKeyPath)
 	if err != nil {
+		degrade("load_key", err)
 		s.status = s.statusForUnlock(CredentialVaultModeAutomatic, err)
 		return nil
 	}
 	defer clear(key)
 	keyStore, err := s.autoKeyStore(s.autoWrapPath, key)
 	if err != nil {
+		degrade("init_store", err)
 		s.status = s.statusForUnlock(CredentialVaultModeAutomatic, err)
 		return nil
 	}
@@ -113,11 +123,13 @@ func (s *CredentialService) unlockAutomaticLocked(ctx context.Context) error {
 		if isContextError(err) {
 			return err
 		}
+		degrade("unwrap_master_key", err)
 		s.status = s.statusForUnlock(CredentialVaultModeAutomatic, err)
 		return nil
 	}
 	defer clear(masterKey)
 	if closeErr != nil {
+		degrade("close_store", closeErr)
 		s.status = s.statusForUnlock(CredentialVaultModeAutomatic, closeErr)
 		return nil
 	}
@@ -126,6 +138,7 @@ func (s *CredentialService) unlockAutomaticLocked(ctx context.Context) error {
 		if isContextError(err) {
 			return err
 		}
+		degrade("open_vault", err)
 		s.status = s.statusForUnlock(CredentialVaultModeAutomatic, err)
 		return nil
 	}
@@ -134,6 +147,7 @@ func (s *CredentialService) unlockAutomaticLocked(ctx context.Context) error {
 		if isContextError(err) {
 			return err
 		}
+		degrade("verify_identity", err)
 		s.status = s.statusForUnlock(CredentialVaultModeAutomatic, err)
 		return nil
 	}

@@ -39,7 +39,8 @@ func openAgentSigner(ctx context.Context, publicKey []byte) (winioConn, ssh.Sign
 		}
 	}
 	_ = conn.Close()
-	return nil, nil, errors.New("SSH agent key is not loaded")
+
+	return nil, nil, ErrSSHAgentKeyMissing
 }
 
 type winioConn interface {

@@ -41,6 +41,10 @@ type RouteDraftInput struct {
 	CredentialID       string `json:"credentialId,omitempty"`
 
 	Protocol string `json:"protocol,omitempty"`
-	Kind     string `json:"kind,omitempty"`
-	Secret   string `json:"secret,omitempty"`
+
+	SSHHostKeyAlgorithms []string `json:"sshHostKeyAlgorithms,omitempty"`
+	SSHKeyExchanges      []string `json:"sshKeyExchanges,omitempty"`
+	SSHProxyCommand      string   `json:"sshProxyCommand,omitempty"`
+	Kind                 string   `json:"kind,omitempty"`
+	Secret               string   `json:"secret,omitempty"`
 }

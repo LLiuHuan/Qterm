@@ -140,8 +140,8 @@
 .qterm-shell.has-page-background:is(.terminal-theme-background-shell, .terminal-theme-background-derived) {
   --qt-theme-interactive: transparent;
   --qt-theme-control: var(--qt-theme-interactive);
-  --qt-theme-hover: var(--qt-theme-interactive);
-  --qt-theme-selected: var(--qt-theme-interactive);
+  --qt-theme-hover: color-mix(in srgb, var(--qt-text) 10%, transparent);
+  --qt-theme-selected: color-mix(in srgb, var(--qt-text) 16%, transparent);
   --qt-theme-tab: var(--qt-theme-interactive);
   --qt-theme-border: var(--qt-background-border);
   --qt-theme-divider: var(--qt-background-border);
@@ -150,8 +150,8 @@
 
 .qterm-shell.has-page-background.terminal-theme-background-terminal {
   --qt-theme-control: transparent;
-  --qt-theme-hover: transparent;
-  --qt-theme-selected: transparent;
+  --qt-theme-hover: color-mix(in srgb, var(--qt-text) 10%, transparent);
+  --qt-theme-selected: color-mix(in srgb, var(--qt-text) 16%, transparent);
   --qt-theme-border: var(--qt-background-border);
   --qt-theme-divider: var(--qt-background-border);
   --qt-theme-scrollbar: var(--qt-background-border);

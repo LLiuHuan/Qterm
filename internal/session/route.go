@@ -21,14 +21,16 @@ const maxRouteJumpDepth = 5
 
 type resolvedRoute struct {
 	proxy *sshclient.ProxySpec
-	hops  []sshclient.Hop
+
+	proxyCommand string
+	hops         []sshclient.Hop
 
 	hopHosts []model.Host
 	close    func()
 }
 
 func (r resolvedRoute) routed() bool {
-	return r.proxy != nil || len(r.hops) > 0
+	return r.proxy != nil || r.proxyCommand != "" || len(r.hops) > 0
 }
 
 func (r *resolvedRoute) release() {
@@ -75,7 +77,7 @@ func (c *Connector) resolveRouteWithProxyPassword(
 	if err != nil {
 		return resolvedRoute{}, err
 	}
-	route := resolvedRoute{proxy: proxy}
+	route := resolvedRoute{proxy: proxy, proxyCommand: strings.TrimSpace(host.SSHProxyCommand)}
 	if releaseProxy != nil {
 		route.close = releaseProxy
 	}
@@ -443,6 +445,9 @@ func hopTarget(host model.Host) sshclient.Target {
 		Username: host.Username,
 
 		Timeout: hostConnectTimeout(host),
+
+		HostKeyAlgorithms: host.SSHHostKeyAlgorithms,
+		KeyExchanges:      host.SSHKeyExchanges,
 	}
 }
 
@@ -508,4 +513,22 @@ func hopDisplayLabel(hop model.Host) string {
 		return name
 	}
 	return net.JoinHostPort(strings.TrimSpace(hop.Address), strconv.Itoa(hop.Port))
+}
+
+func (r resolvedRoute) routeFirstDialer() (sshclient.DialerFunc, string, error) {
+	if command := strings.TrimSpace(r.proxyCommand); command != "" {
+		dial, err := sshclient.NewProxyCommandDialer(sshclient.ProxyCommandSpec{Command: command})
+		if err != nil {
+			return nil, "session.proxy_command_invalid", err
+		}
+		return dial, "", nil
+	}
+	if r.proxy != nil {
+		dial, err := sshclient.NewProxyDialer(*r.proxy)
+		if err != nil {
+			return nil, "session.proxy_invalid", err
+		}
+		return dial, "", nil
+	}
+	return nil, "", nil
 }

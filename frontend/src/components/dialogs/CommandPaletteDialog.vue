@@ -27,6 +27,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:open': [open: boolean]
   select: [item: PaletteItem]
+
+  query: [value: string]
 }>()
 
 const { t } = useI18n()
@@ -65,8 +67,10 @@ watch(
   },
 )
 
-watch(query, () => {
+watch(query, (value) => {
   activeIndex.value = 0
+
+  emit('query', value)
 })
 
 const listRef = ref<HTMLElement | null>(null)

@@ -90,8 +90,9 @@
 }
 
 .host-icon-action {
-  width: 34px;
-  min-height: 34px;
+  width: var(--qt-control-height, 32px);
+  height: var(--qt-control-height, 32px);
+  min-height: var(--qt-control-height, 32px);
   aspect-ratio: 1;
   padding: 0;
   justify-content: center;
@@ -151,6 +152,78 @@
   border-color: var(--destructive, #dc2626) !important;
   color: var(--destructive, #dc2626) !important;
   background: rgb(220 38 38 / 6%);
+}
+
+.host-icon-group + .host-icon-group {
+  margin-top: 10px;
+}
+
+.host-icon-group-label {
+  padding: 0 5px 4px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  color: var(--qt-muted, var(--muted-foreground, #71717a));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-icon-search {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+
+  height: var(--qt-control-height, 32px);
+  min-height: var(--qt-control-height, 32px);
+  max-height: var(--qt-control-height, 32px);
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--qt-control-border, var(--border, #e4e4e7));
+  border-radius: var(--qt-control-radius, 6px);
+  background: var(--qt-panel, var(--popover, #ffffff));
+}
+
+.host-icon-search:focus-within {
+  border-color: var(--qt-focus, var(--ring, #2563eb));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus, var(--ring, #2563eb)) 16%, transparent);
+}
+
+.host-icon-search [data-slot='input'],
+.host-icon-search [data-slot='input']:focus,
+.host-icon-search [data-slot='input']:focus-visible {
+  width: 100%;
+
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+
+  padding-right: 26px;
+  padding-left: 30px;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--qt-text, var(--foreground, #18181b));
+}
+
+.host-icon-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  flex: none;
+  color: var(--qt-muted, var(--muted-foreground, #71717a));
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.host-icon-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
 }
 
 .qterm-segmented-tabs,

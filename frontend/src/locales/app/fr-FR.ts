@@ -100,6 +100,19 @@ export const appFr: Record<string, string> = {
   'application.window.closeToTray': 'Réduire dans la barre au lieu de quitter',
   'application.window.closeToTrayHelp':
     'Fermer la fenêtre principale ne quitte pas Qterm : l’application reste dans la barre de menus. Cliquez sur l’icône pour la restaurer.',
+  'application.window.globalShortcut.label': 'Raccourci global',
+  'application.window.globalShortcut.help':
+    'Amène Qterm au premier plan depuis toute app ; rétablit si la touche est prise.',
+  'application.window.globalShortcut.unbound': 'Non défini',
+  'application.window.globalShortcut.clear': 'Effacer le raccourci global',
+  'application.window.globalShortcut.error':
+    "Le raccourci {binding} n'a pas pu être enregistré (probablement utilisé par une autre application) ; la liaison précédente a été restaurée.",
+  'application.window.globalShortcut.rolledBack': 'Actif : {binding}',
+  'application.window.singleInstance.label': 'Instance unique',
+  'application.window.singleInstance.help':
+    "Relancer Qterm met la fenêtre existante au premier plan au lieu de démarrer un second processus. Redémarrez l'application pour appliquer.",
+  'application.window.singleInstance.helpDisabled':
+    "Si désactivé, chaque lancement crée un processus distinct (ils peuvent écrire dans la même base). Redémarrez l'application pour appliquer.",
   'application.window.rememberSize': 'Mémoriser la taille de la fenêtre',
   'application.window.rememberSizeHelp':
     "Restaure la taille et l'état agrandi de la dernière fermeture au prochain démarrage.",
@@ -158,10 +171,21 @@ export const appFr: Record<string, string> = {
   'about.update.bell.emptyNotes': "Cette version n'a pas de notes de version.",
   'about.debug.title': 'Journaux de débogage',
   'about.debug.description':
-    'Enregistrer localement des journaux de diagnostic détaillés pour le dépannage. Désactivé par défaut.',
+    'Les avertissements et les erreurs sont enregistrés par défaut. Passez à « Débogage » en local pendant un diagnostic pour capturer tous les niveaux.',
   'about.debug.desktopOnly': "Les journaux de débogage ne sont disponibles que dans l'application de bureau.",
-  'about.debug.enabled': 'Journaux de débogage activés.',
-  'about.debug.disabled': 'Journaux de débogage désactivés.',
+  'about.debug.mode.off': 'Désactivé',
+  'about.debug.mode.offHelp': "N'écrit rien : un problème ultérieur ne pourra plus être retracé.",
+  'about.debug.mode.normal': 'Normal (avertissements et erreurs)',
+  'about.debug.mode.normalHelp':
+    'Niveau par défaut : conserve les avertissements et les erreurs sur la durée, le fichier reste donc petit.',
+  'about.debug.mode.debug': 'Débogage (tous les niveaux)',
+  'about.debug.mode.debugHelp':
+    'À activer temporairement pendant un diagnostic : enregistre tous les niveaux, le fichier grossit donc plus vite.',
+  'about.debug.modeChanged': 'Niveau des journaux de débogage modifié.',
+  'about.debug.status.path': 'Fichier de journal',
+  'about.debug.status.size': 'Taille',
+  'about.debug.status.dropped': 'Abandons de file',
+  'about.debug.status.missing': "Le fichier de journal n'a pas encore été créé",
   'about.debug.actionFailure': "L'opération sur les journaux de débogage a échoué.",
   'about.debug.clear': 'Effacer le journal',
   'about.debug.clearSuccess': 'Journal de débogage effacé.',

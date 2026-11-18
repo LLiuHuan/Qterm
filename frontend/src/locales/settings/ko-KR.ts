@@ -4,6 +4,7 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.credentials.kind.privateKey': '개인 키',
   'settings.credentials.kind.privateKeyPassphrase': '개인 키 암호',
   'settings.credentials.kind.sshAgent': 'SSH Agent',
+  'settings.credentials.kind.userCertificate': '사용자 인증서',
   'settings.credentials.hostCount': '연결된 호스트 {count}개',
   'settings.credentials.hostList.title': '연결된 호스트',
   'settings.credentials.vaultLocked.title': '보관소가 잠겨 있습니다',
@@ -17,6 +18,7 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.credentials.validation.passwordRequired': '비밀번호를 입력하세요.',
   'settings.credentials.validation.privateKeyRequired': '개인 키를 선택하거나 붙여넣으세요.',
   'settings.credentials.validation.agentPublicKeyRequired': '유효한 SSH Agent 공개 키를 입력하세요.',
+  'settings.credentials.validation.certificateRequired': '사용자 인증서(*-cert.pub 내용)를 입력하세요.',
   'settings.credentials.toast.updated': '자격 증명을 업데이트했습니다',
   'settings.credentials.toast.created': '자격 증명을 만들었습니다',
   'settings.credentials.toast.deleted': '자격 증명을 삭제했습니다',
@@ -75,6 +77,7 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.credentials.action.createKey': '개인 키 자격 증명 만들기',
   'settings.credentials.action.importPrivateKey': '로컬 개인 키 가져오기',
   'settings.credentials.action.createAgent': 'SSH Agent 자격 증명 만들기',
+  'settings.credentials.action.createCertificate': '사용자 인증서 자격 증명 만들기',
   'settings.credentials.action.quickCreate': '자격 증명 추가',
   'settings.credentials.action.copyPublicKey': '공개 키 복사',
   'settings.credentials.action.copyInstallCommand': '설치 명령 복사',
@@ -106,6 +109,13 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.credentials.field.agentPublicKeyPlaceholder': 'ssh-ed25519 또는 ssh-rsa 공개 키를 붙여넣으세요',
   'settings.credentials.field.agentPublicKeyHelp':
     '시스템 SSH Agent와 일치시키기 위해 공개 키 자체만 저장하며, 개인 키는 저장하지 않습니다.',
+
+  'settings.credentials.field.agentSecurityKeyHelp':
+    'FIDO2 보안 키(sk-ssh-ed25519@openssh.com / sk-ecdsa-sha2-nistp256@openssh.com)도 지원합니다. 먼저 ssh-add로 시스템 SSH 에이전트에 키를 로드하고 연결할 때 기기를 터치하세요.',
+  'settings.credentials.field.certificate': '사용자 인증서',
+  'settings.credentials.field.certificatePlaceholder': 'ssh-ed25519-cert-v01@openssh.com ... 인증서를 붙여넣기',
+  'settings.credentials.field.certificateHelp': 'CA가 서명한 사용자 인증서(*-cert.pub 파일)이며 공개 키가 아닙니다.',
+  'settings.credentials.field.certificateKeyHelp': '이 인증서의 개인 키입니다. 일치 여부를 검증합니다.',
   'settings.credentials.field.optional': '(선택)',
   'settings.credentials.field.passwordPlaceholder': '로그인 비밀번호 입력',
   'settings.credentials.field.privateKeyPlaceholder': '개인 키를 붙여넣거나 위의 버튼으로 로컬 파일을 선택하세요',
@@ -381,6 +391,8 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.shortcuts.group.navigationDescription': '분할 레이아웃과 사이드바 표시.',
   'settings.shortcuts.group.remote': '원격 파일',
   'settings.shortcuts.group.remoteDescription': '원격 파일 편집 시 저장 동작.',
+  'settings.shortcuts.group.global': '전역',
+  'settings.shortcuts.group.globalDescription': '어느 앱에서나 동작하는 운영체제 수준의 단축키.',
   'settings.shortcuts.binding.unbound': '지정되지 않음',
   'settings.shortcuts.group.count': '{count}',
   'settings.shortcuts.action.nextTab': '다음 탭',
@@ -412,6 +424,12 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.shortcuts.action.disconnectSession': '연결 끊기',
   'settings.shortcuts.action.disconnectSessionDescription': '현재 세션의 연결을 끊으며, 탭은 그대로 유지됩니다.',
   'settings.shortcuts.action.focusNextPane': '분할 창 간에 포커스 이동',
+  'settings.shortcuts.action.increaseTerminalFontSize': '터미널 글꼴 확대',
+  'settings.shortcuts.action.increaseTerminalFontSizeDescription':
+    '터미널 글꼴을 한 단계 키웁니다. Ctrl/Cmd + 휠 위와 같은 동작입니다.',
+  'settings.shortcuts.action.decreaseTerminalFontSize': '터미널 글꼴 축소',
+  'settings.shortcuts.action.decreaseTerminalFontSizeDescription':
+    '터미널 글꼴을 한 단계 줄입니다. Ctrl/Cmd + 휠 아래와 같은 동작입니다.',
   'settings.shortcuts.action.focusNextPaneDescription':
     '창 배치 순서대로 다음 분할 창으로 포커스를 옮깁니다. 분할 상태에서만 사용할 수 있습니다.',
   'settings.shortcuts.action.closePane': '현재 분할 창 닫기',
@@ -586,12 +604,17 @@ export const settingsAssetsKo: Record<string, string> = {
   'settings.shortcuts.error.switchTabNumber': '탭을 전환하려면 보조 키와 숫자 1에서 9를 함께 사용하세요.',
   'settings.shortcuts.error.conflict': "이 단축키는 이미 '{name}'에 지정되어 있습니다.",
   'settings.shortcuts.recording.hint': '기록 중입니다. 키 조합을 누르세요. Esc를 누르면 취소됩니다.',
-  'settings.shortcuts.recording.tokenHint':
-    "'보조 키 + {token}'에 있는 일반 키 중 아무거나 누르면 됩니다. 이 키들은 같은 보조 키를 공유하므로 보조 키 부분만 기록됩니다. Esc를 누르면 취소됩니다.",
+  'settings.shortcuts.recording.tokenHint': "'{token}'의 키 중 아무거나 가능하며 보조 키만 기록됩니다. Esc 취소.",
   'settings.shortcuts.recording.active': '기록 중',
   'settings.shortcuts.recording.start': '단축키 기록',
+  'settings.shortcuts.fixedHint': '고정되어 있으며 휠 확대/축소와 공유되므로 변경할 수 없습니다.',
   'settings.shortcuts.action.reset': "'{name}'의 단축키를 기본값으로 초기화",
   'settings.shortcuts.action.resetTitle': '기본값으로 초기화',
+
+  'settings.shortcuts.action.disable': "'{name}' 단축키 사용 안 함",
+  'settings.shortcuts.action.disableTitle': '단축키 사용 안 함',
+  'settings.shortcuts.action.enable': "'{name}' 단축키 사용",
+  'settings.shortcuts.action.enableTitle': '단축키 사용',
   'settings.shortcuts.binding.aria': '{name}: {binding}',
   'settings.shortcuts.conflict.duplicate':
     "'{names}'와(과) 충돌합니다. 두 동작이 같은 조합을 사용하므로 이 동작은 사용 중지되었습니다. 둘 중 하나를 다시 지정하세요.",

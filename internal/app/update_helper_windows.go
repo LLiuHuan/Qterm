@@ -21,17 +21,32 @@ func applyUpdatePlan(plan update.UpdatePlan) error {
 	if plan.Pid > 0 {
 		waitForProcessExit(plan.Pid, helperWaitLimit)
 	}
+	helperLogger.log("INFO", "helper.apply.extract_start", "archive", plan.Archive, "target", plan.Target)
 	if err := update.ApplyStagedArchive(plan.Archive, plan.Target); err != nil {
+
+		helperLogger.log("ERROR", "helper.apply.extract_failed", "archive", plan.Archive, "target", plan.Target, "error", err)
 		reportHelperFailure("安装更新失败", "无法用新版本替换当前程序：\n"+plan.Target+"\n\n请手动下载安装包。")
 		return err
 	}
+	helperLogger.log("INFO", "helper.apply.extract_done", "target", plan.Target)
 
-	_ = os.Remove(plan.Archive)
-	_ = os.Remove(plan.Archive + ".part")
+	if err := os.Remove(plan.Archive); err != nil && !os.IsNotExist(err) {
+		helperLogger.log("WARN", "helper.apply.cleanup_failed", "path", plan.Archive, "error", err)
+	}
+	if err := os.Remove(plan.Archive + ".part"); err != nil && !os.IsNotExist(err) {
+		helperLogger.log("WARN", "helper.apply.cleanup_failed", "path", plan.Archive+".part", "error", err)
+	}
 
-	_ = update.RecordPendingUpdate(plan.Target)
+	if err := update.RecordPendingUpdate(plan.Target); err != nil {
 
+		helperLogger.log("WARN", "helper.apply.pending_marker_failed", "target", plan.Target, "error", err)
+	} else {
+		helperLogger.log("INFO", "helper.apply.pending_marker_recorded", "target", plan.Target)
+	}
+
+	helperLogger.log("INFO", "helper.relaunch.start", "target", plan.Target)
 	if err := relaunchTarget(plan.Target); err != nil {
+		helperLogger.log("ERROR", "helper.relaunch.failed", "target", plan.Target, "error", err)
 		reportHelperFailure("更新已完成，但启动失败", "新版本已经替换到位，请手动打开：\n"+plan.Target)
 		return err
 	}
@@ -41,17 +56,34 @@ func applyUpdatePlan(plan update.UpdatePlan) error {
 func waitForProcessExit(pid int, limit time.Duration) {
 	handle, err := windows.OpenProcess(windows.SYNCHRONIZE|windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 	if err != nil {
+		helperLogger.log("INFO", "helper.wait.skip", "pid", pid, "reason", "open_process", "error", err)
 		return
 	}
 	defer windows.CloseHandle(handle)
-	_, _ = windows.WaitForSingleObject(handle, uint32(limit/time.Millisecond))
+	started := time.Now()
+	event, _ := windows.WaitForSingleObject(handle, uint32(limit/time.Millisecond))
+	elapsed := time.Since(started)
+
+	status := "signaled"
+	if event == uint32(windows.WAIT_TIMEOUT) {
+		status = "timeout"
+	}
+	helperLogger.log("INFO", "helper.wait.process_exit", "pid", pid, "status", status, "elapsed_ms", elapsed.Milliseconds())
 }
 
 func relaunchTarget(target string) error {
-	if err := relaunchTargetAsUser(target); err == nil {
+	asUserErr := relaunchTargetAsUser(target)
+	if asUserErr == nil {
+		helperLogger.log("INFO", "helper.relaunch.launched", "target", target, "method", "create_process_as_user")
 		return nil
 	}
-	return relaunchViaShell(target)
+
+	helperLogger.log("WARN", "helper.relaunch.fallback", "target", target, "method", "explorer_shell", "error", asUserErr)
+	if err := relaunchViaShell(target); err != nil {
+		return err
+	}
+	helperLogger.log("INFO", "helper.relaunch.launched", "target", target, "method", "explorer_shell")
+	return nil
 }
 
 func relaunchTargetAsUser(target string) error {

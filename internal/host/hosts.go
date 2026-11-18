@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -65,6 +66,9 @@ func (s *HostService) CreateHost(input model.HostInput) (model.Host, error) {
 	clear(password)
 	clear(proxyPassword)
 	if err != nil {
+
+		slog.Error("host create failed", "event", "host.create.failed",
+			"host_id", host.ID, "error", err, "error_key", hostSaveErrorKey(err))
 		if errors.Is(err, model.ErrCredentialVaultLocked) {
 			return model.Host{}, errno.New(errno.CodePermissionDenied, "host.password_unavailable", "")
 		}
@@ -122,6 +126,9 @@ func (s *HostService) UpdateHost(id string, input model.HostInput) (model.Host, 
 			if errors.Is(readErr, storage.ErrNotFound) {
 				return model.Host{}, errno.New(errno.CodeNotFound, "host.not_found", "")
 			}
+
+			slog.Error("host read before update failed", "event", "host.read.failed",
+				"host_id", id, "stage", "update", "error", readErr)
 			return model.Host{}, errno.New(errno.CodeStoreFailed, "host.read_failed", "")
 		}
 		if existing.ProxyPasswordConfigured && stringValue(host.ProxyUsername) == "" {
@@ -151,6 +158,8 @@ func (s *HostService) UpdateHost(id string, input model.HostInput) (model.Host, 
 	clear(password)
 	clear(proxyPassword)
 	if err != nil {
+		slog.Error("host update failed", "event", "host.update.failed",
+			"host_id", id, "error", err, "error_key", hostSaveErrorKey(err))
 		if errors.Is(err, storage.ErrNotFound) {
 			return model.Host{}, errno.New(errno.CodeNotFound, "host.not_found", "")
 		}
@@ -196,6 +205,8 @@ func (s *HostService) DuplicateHost(id, name string) (model.Host, error) {
 
 	duplicated, err := s.store.DuplicateHost(context.Background(), id, newHostID, name)
 	if err != nil {
+		slog.Error("host duplicate failed", "event", "host.duplicate.failed",
+			"host_id", id, "error", err, "error_key", hostSaveErrorKey(err))
 		if errors.Is(err, storage.ErrNotFound) {
 			return model.Host{}, errno.New(errno.CodeNotFound, "host.not_found", "")
 		}
@@ -221,6 +232,8 @@ func (s *HostService) DeleteHost(id string) error {
 
 	referenceCount, err := s.store.CountHostsByJumpHostID(context.Background(), id)
 	if err != nil {
+		slog.Error("host delete reference check failed", "event", "host.delete.failed",
+			"host_id", id, "stage", "reference_check", "error", err)
 		return errno.New(errno.CodeStoreFailed, "host.read_failed", "")
 	}
 	if referenceCount > 0 {
@@ -238,6 +251,8 @@ func (s *HostService) DeleteHost(id string) error {
 		if errors.Is(err, storage.ErrNotFound) {
 			return errno.New(errno.CodeNotFound, "host.not_found", "")
 		}
+		slog.Error("host delete failed", "event", "host.delete.failed",
+			"host_id", id, "stage", "delete", "error", err)
 		return errno.New(errno.CodeStoreFailed, "host.delete_failed", "")
 	}
 	return nil
@@ -253,6 +268,9 @@ func (s *HostService) ReorderHost(id, groupID, targetID, position string) error 
 		if errors.Is(err, storage.ErrNotFound) {
 			return errno.New(errno.CodeNotFound, "host.target_not_found", "")
 		}
+
+		slog.Warn("host reorder failed", "event", "host.reorder.failed",
+			"host_id", strings.TrimSpace(id), "error", err)
 		return errno.New(errno.CodeStoreFailed, "host.reorder_failed", "")
 	}
 	return nil
@@ -268,6 +286,8 @@ func (s *HostService) MoveHost(id, groupID string) error {
 		if errors.Is(err, storage.ErrNotFound) {
 			return errno.New(errno.CodeNotFound, "host.target_not_found", "")
 		}
+		slog.Warn("host move failed", "event", "host.move.failed",
+			"host_id", strings.TrimSpace(id), "error", err)
 		return errno.New(errno.CodeStoreFailed, "host.move_failed", "")
 	}
 	return nil
@@ -315,7 +335,13 @@ func (s *HostService) RememberHostPassword(ctx context.Context, id string, passw
 	if s.store == nil {
 		return ErrHostServiceNotReady
 	}
-	return s.store.RememberHostPassword(ctx, id, password)
+	if err := s.store.RememberHostPassword(ctx, id, password); err != nil {
+
+		slog.Warn("remember host password failed", "event", "host.password.remember_failed",
+			"host_id", id, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (s *HostService) RememberHostCredential(ctx context.Context, id, credentialID string) error {
@@ -348,4 +374,14 @@ func (s *HostService) setDetectedHostIcon(ctx context.Context, id string, icon s
 		return ErrHostServiceNotReady
 	}
 	return s.store.SetHostIcon(ctx, id, icon)
+}
+
+func hostSaveErrorKey(err error) string {
+	switch {
+	case errors.Is(err, storage.ErrNotFound):
+		return "host.not_found"
+	case errors.Is(err, model.ErrCredentialVaultLocked):
+		return "host.password_unavailable"
+	}
+	return "host.save_failed"
 }

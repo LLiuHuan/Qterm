@@ -40,6 +40,8 @@ const (
 	KindPrivateKey
 	KindPrivateKeyPassphrase
 	KindSSHAgent
+
+	KindUserCertificate
 )
 
 type Cipher struct {

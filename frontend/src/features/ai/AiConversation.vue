@@ -60,6 +60,7 @@ import {
   type AIApprovalMode,
   type AIExecutionChannel,
 } from '../../services/aiApproval'
+import { applyCustomPrompt, loadAIContextSettings } from '../../services/aiContext'
 import { translateErrorKey } from '../../services/errors'
 import { recordAudit } from '../../services/aiAudit'
 import { clearAILaunch, useAILaunch } from '../../services/aiAgentLaunch'
@@ -2011,6 +2012,8 @@ async function send(preset?: unknown, reuseUser = false): Promise<void> {
   scrollToLatest('auto')
   try {
     if (!currentRequest()) return
+
+    const contextSettings = await loadAIContextSettings()
     const session = await startChatStream(
       {
         providerId: target.id,
@@ -2021,7 +2024,10 @@ async function send(preset?: unknown, reuseUser = false): Promise<void> {
         messages: [
           {
             role: 'system',
-            content: `${t('shell.aiChat.systemPrompt')}\n\n${t('shell.aiChat.structuredFormat')}`,
+            content: applyCustomPrompt(
+              `${t('shell.aiChat.systemPrompt')}\n\n${t('shell.aiChat.structuredFormat')}`,
+              contextSettings.customPrompt,
+            ),
           },
           ...requestHistory,
         ],
@@ -2131,7 +2137,8 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <div class="ms-auto flex shrink-0 items-center gap-1">
+
+      <div class="ms-auto flex shrink-0 items-center">
         <IconButton
           class="size-7! min-h-7!"
           :label="t('shell.aiChat.history')"
@@ -2507,7 +2514,7 @@ async function finalizeStream(target: AIProvider, replyIndex: number, assistantM
                 class="group/footer w-full px-1"
                 :class="message.role === 'user' ? 'justify-end' : 'justify-start'"
               >
-                <div class="invisible flex flex-nowrap items-center gap-1 group-hover/footer:visible">
+                <div class="invisible flex flex-nowrap items-center group-hover/footer:visible">
                   <IconButton
                     class="size-7! min-h-7!"
                     :label="t('shell.aiChat.copyMessage')"

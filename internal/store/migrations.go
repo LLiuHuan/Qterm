@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"strconv"
 	"strings"
 )
@@ -26,14 +27,30 @@ func runMigrations(ctx context.Context, store *Store) error {
 
 	var current int
 	if err := store.db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&current); err != nil {
+		slog.Error("schema version read failed",
+			"event", "store.migration.failed",
+			"stage", "read_version",
+			"error", err)
 		return fmt.Errorf("read schema version: %w", err)
 	}
 	if current > len(entries) {
+
+		slog.Error("schema version is newer than application",
+			"event", "store.migration.failed",
+			"stage", "version_mismatch",
+			"from", current,
+			"to", len(entries),
+			"error", ErrSchemaTooNew)
 		return fmt.Errorf("schema version %d exceeds supported version %d: %w", current, len(entries), ErrSchemaTooNew)
 	}
 
 	tx, err := store.db.BeginTx(ctx, nil)
 	if err != nil {
+		slog.Error("migration transaction begin failed",
+			"event", "store.migration.failed",
+			"stage", "begin",
+			"from", current,
+			"error", err)
 		return fmt.Errorf("begin migration transaction: %w", err)
 	}
 
@@ -65,6 +82,12 @@ func runMigrations(ctx context.Context, store *Store) error {
 			}
 		}
 		if _, err := tx.ExecContext(ctx, string(migration)); err != nil {
+
+			slog.Error("migration apply failed",
+				"event", "store.migration.failed",
+				"stage", "apply",
+				"version", version,
+				"error", err)
 			return fmt.Errorf("apply migration %q: %w", entry.Name(), err)
 		}
 		if version == 40 {
@@ -74,12 +97,31 @@ func runMigrations(ctx context.Context, store *Store) error {
 		}
 		pragma := fmt.Sprintf("PRAGMA user_version = %d", version)
 		if _, err := tx.ExecContext(ctx, pragma); err != nil {
+			slog.Error("migration version record failed",
+				"event", "store.migration.failed",
+				"stage", "record",
+				"version", version,
+				"error", err)
 			return fmt.Errorf("record migration %q: %w", entry.Name(), err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
+		slog.Error("migration commit failed",
+			"event", "store.migration.failed",
+			"stage", "commit",
+			"from", current,
+			"to", len(entries),
+			"error", err)
 		return fmt.Errorf("commit migrations: %w", err)
+	}
+	if current < len(entries) {
+
+		slog.Info("database schema migrated",
+			"event", "store.migration.applied",
+			"from", current,
+			"to", len(entries),
+			"count", len(entries)-current)
 	}
 	return nil
 }

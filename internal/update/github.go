@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,8 +52,10 @@ func (s *Service) fetchLatestRelease(ctx context.Context) (*releasePayload, erro
 	if err != nil {
 
 		if ctxErr := ctx.Err(); ctxErr != nil {
+			slog.Warn("update release request cancelled", "event", "update.github.cancelled", "status", 0)
 			return nil, checkFailed("cancelled")
 		}
+		slog.Warn("update release request failed", "event", "update.github.request_failed", "error", err)
 		return nil, checkFailed("network")
 	}
 	defer func() { _ = response.Body.Close() }()
@@ -60,26 +63,48 @@ func (s *Service) fetchLatestRelease(ctx context.Context) (*releasePayload, erro
 	switch response.StatusCode {
 	case http.StatusOK:
 	case http.StatusNotFound:
+
+		slog.Warn("update release not found",
+			"event", "update.github.release_not_found",
+			"status", response.StatusCode,
+			"repository", s.repository,
+		)
 		return nil, noRelease()
 	case http.StatusForbidden, http.StatusTooManyRequests:
 
 		if reset := rateLimitReset(response); reset != "" {
+			slog.Warn("update release request rate limited",
+				"event", "update.github.rate_limited",
+				"status", response.StatusCode,
+				"reset_at", reset,
+			)
 			return nil, rateLimited(reset)
 		}
+		slog.Warn("update release request rate limited",
+			"event", "update.github.rate_limited",
+			"status", response.StatusCode,
+		)
 		return nil, rateLimited("HTTP " + strconv.Itoa(response.StatusCode))
 	default:
+		slog.Warn("update release request rejected",
+			"event", "update.github.unexpected_status",
+			"status", response.StatusCode,
+		)
 		return nil, checkFailed("HTTP " + strconv.Itoa(response.StatusCode))
 	}
 
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxMetadataBytes))
 	if err != nil {
+		slog.Warn("update release body read failed", "event", "update.github.read_failed", "error", err)
 		return nil, checkFailed("read")
 	}
 	var payload releasePayload
 	if err := json.Unmarshal(body, &payload); err != nil {
+		slog.Warn("update release body decode failed", "event", "update.github.decode_failed", "error", err)
 		return nil, checkFailed("decode")
 	}
 	if payload.TagName == "" {
+		slog.Warn("update release has empty tag", "event", "update.github.tag_missing")
 		return nil, noRelease()
 	}
 	if len(payload.Body) > maxNotesBytes {

@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +17,12 @@ import (
 )
 
 func (s *Service) launchReplacer(ctx context.Context, stagedPath, executable string) error {
-	if err := verifyTargetWritable(executable); err == nil {
+	writableErr := verifyTargetWritable(executable)
+	if writableErr == nil {
+		slog.Info("update target writable, replacing in place",
+			"event", "update.replace.in_place",
+			"target", executable,
+		)
 		if err := applyStagedExecutable(stagedPath, executable); err != nil {
 			return err
 		}
@@ -28,6 +34,13 @@ func (s *Service) launchReplacer(ctx context.Context, stagedPath, executable str
 			_ = os.RemoveAll(dir)
 		}
 		return nil
+	} else {
+
+		slog.Info("update target not writable, need elevation",
+			"event", "update.replace.needs_elevation",
+			"target", executable,
+			"error", writableErr,
+		)
 	}
 
 	return launchElevatedHelper(stagedPath, executable)
@@ -65,16 +78,30 @@ func cleanupStaleUpdateFiles(executable string) {
 func launchElevatedHelper(stagedPath, executable string) error {
 	dir, err := helperWorkDir()
 	if err != nil {
+		slog.Warn("update helper work dir unavailable",
+			"event", "update.elevate.workdir_failed",
+			"error", err,
+		)
 		return installFailed("elevation-staging")
 	}
 	archive := filepath.Join(dir, "qterm-update.zip")
 	if err := copyFile(stagedPath, archive); err != nil {
+		slog.Warn("update helper archive staging failed",
+			"event", "update.elevate.staging_failed",
+			"archive", archive,
+			"error", err,
+		)
 		return installFailed("elevation-staging")
 	}
 	planPath := filepath.Join(dir, "update-plan.json")
 	plan, err := writeElevatedPlan(planPath, archive, executable)
 	if err != nil {
 		_ = os.Remove(archive)
+		slog.Warn("update helper plan write failed",
+			"event", "update.elevate.plan_failed",
+			"plan", planPath,
+			"error", err,
+		)
 		return installFailed("elevation-staging")
 	}
 
@@ -82,8 +109,19 @@ func launchElevatedHelper(stagedPath, executable string) error {
 	if err != nil {
 		_ = os.Remove(archive)
 		RemoveUpdatePlan(planPath)
+		slog.Warn("update helper executable path unavailable",
+			"event", "update.elevate.executable_failed",
+			"error", err,
+		)
 		return installFailed("elevation-spawn")
 	}
+
+	slog.Info("update helper launch requested",
+		"event", "update.elevate.start",
+		"plan", planPath,
+		"archive", archive,
+		"target", executable,
+	)
 	parameters := UpdateHelperFlagPrefix + quoteArg(planPath) + " " + planNoncePrefix + plan.Nonce
 	if err := runElevated(self, parameters); err != nil {
 
@@ -91,10 +129,25 @@ func launchElevatedHelper(stagedPath, executable string) error {
 		RemoveUpdatePlan(planPath)
 
 		if code, ok := err.(syscall.Errno); ok && code == errnoCancelled {
+			slog.Warn("update elevation cancelled by user",
+				"event", "update.elevate.cancelled",
+				"target", executable,
+				"error_key", keyInstallFailed,
+			)
 			return installFailed("elevation-cancelled")
 		}
+		slog.Error("update elevation spawn failed",
+			"event", "update.elevate.spawn_failed",
+			"target", executable,
+			"error", err,
+		)
 		return installFailed("elevation-spawn")
 	}
+	slog.Info("update helper launched",
+		"event", "update.elevate.launched",
+		"plan", planPath,
+		"target", executable,
+	)
 
 	if dir := filepath.Dir(stagedPath); dir != "" {
 		_ = os.RemoveAll(dir)

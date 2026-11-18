@@ -61,6 +61,8 @@ const props = withDefaults(
 
     closeToTray?: boolean
 
+    singleInstance?: boolean
+
     restoreOpenSessions?: boolean
 
     quitConfirm?: boolean
@@ -83,6 +85,7 @@ const props = withDefaults(
     recordingDirectory: '',
     recordingDirectoryEffective: '',
     sftpDragFolderUploadMode: 'normal',
+    singleInstance: true,
   },
 )
 const { t } = useI18n()
@@ -104,6 +107,7 @@ const emit = defineEmits<{
   'update:recordingDirectory': [value: string]
   'update:windowRememberSize': [value: boolean]
   'update:closeToTray': [value: boolean]
+  'update:singleInstance': [value: boolean]
   'update:restoreOpenSessions': [value: boolean]
   'update:quitConfirm': [value: boolean]
   'update:settingsInWindow': [value: boolean]
@@ -344,6 +348,19 @@ function updateDragFolderUploadMode(value: string): void {
         <QtermSwitch
           :model-value="props.closeToTray ?? true"
           @update:model-value="emit('update:closeToTray', $event)"
+        />
+      </QtermSettingsRow>
+      <QtermSettingsRow
+        :label="t('application.window.singleInstance.label')"
+        :description="
+          (props.singleInstance ?? true)
+            ? t('application.window.singleInstance.help')
+            : t('application.window.singleInstance.helpDisabled')
+        "
+      >
+        <QtermSwitch
+          :model-value="props.singleInstance ?? true"
+          @update:model-value="emit('update:singleInstance', $event)"
         />
       </QtermSettingsRow>
       <QtermSettingsRow

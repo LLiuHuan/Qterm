@@ -1,13 +1,13 @@
 package diagnostics
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -18,8 +18,40 @@ const (
 	maxLogBytes   = 8 * 1024 * 1024
 )
 
+type Mode string
+
+const (
+	ModeOff    Mode = "off"
+	ModeNormal Mode = "normal"
+	ModeDebug  Mode = "debug"
+)
+
+func ParseMode(value string) (Mode, bool) {
+	mode := Mode(strings.ToLower(strings.TrimSpace(value)))
+	switch mode {
+	case ModeOff, ModeNormal, ModeDebug:
+		return mode, true
+	default:
+		return "", false
+	}
+}
+
+func validMode(mode Mode) bool {
+	return mode == ModeOff || mode == ModeNormal || mode == ModeDebug
+}
+
 type persistedState struct {
-	Enabled bool `json:"enabled"`
+	Mode    string `json:"mode,omitempty"`
+	Enabled *bool  `json:"enabled,omitempty"`
+}
+
+type Status struct {
+	Mode       Mode
+	Path       string
+	SizeBytes  int64
+	LimitBytes int64
+	Dropped    uint64
+	Present    bool
 }
 
 type Manager struct {
@@ -27,34 +59,53 @@ type Manager struct {
 	directory string
 	logPath   string
 	statePath string
-	enabled   bool
+	mode      Mode
 	closed    bool
 	file      *os.File
 }
 
 func NewManager(root string) (*Manager, error) {
 	directory := filepath.Join(root, "logs")
+	logPath := filepath.Join(directory, logFilename)
+	if abs, err := filepath.Abs(logPath); err == nil {
+		logPath = abs
+	}
 	manager := &Manager{
 		directory: directory,
-		logPath:   filepath.Join(directory, logFilename),
+		logPath:   logPath,
 		statePath: filepath.Join(directory, stateFilename),
+		mode:      ModeNormal,
 	}
-	data, err := os.ReadFile(manager.statePath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return nil, err
+
+	if mode, err := manager.loadMode(); err == nil {
+		manager.mode = mode
 	}
-	if len(data) > 0 {
-		var state persistedState
-		if json.Unmarshal(data, &state) == nil {
-			manager.enabled = state.Enabled
-		}
-	}
-	if manager.enabled {
-		if err := manager.openLocked(); err != nil {
-			return nil, err
-		}
+	if manager.mode != ModeOff {
+
+		_ = manager.openLocked()
 	}
 	return manager, nil
+}
+
+func (m *Manager) loadMode() (Mode, error) {
+	data, err := os.ReadFile(m.statePath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return ModeNormal, nil
+		}
+		return "", err
+	}
+	var state persistedState
+	if json.Unmarshal(data, &state) != nil {
+		return ModeNormal, nil
+	}
+	if mode, ok := ParseMode(state.Mode); ok {
+		return mode, nil
+	}
+	if state.Enabled != nil && *state.Enabled {
+		return ModeDebug, nil
+	}
+	return ModeNormal, nil
 }
 
 func (m *Manager) Install() {
@@ -73,41 +124,54 @@ func (m *Manager) Install() {
 	slog.SetDefault(slog.New(async))
 }
 
-func (m *Manager) Enabled() bool {
+func (m *Manager) Mode() Mode {
 	if m == nil {
-		return false
+		return ModeOff
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.enabled
+	return m.mode
 }
 
-func (m *Manager) SetEnabled(enabled bool) error {
+func (m *Manager) Enabled() bool {
+	return m.Mode() != ModeOff
+}
+
+func (m *Manager) SetMode(mode Mode) error {
 	if m == nil {
 		return errors.New("调试日志未配置")
+	}
+	if !validMode(mode) {
+		return errors.New("未知的调试日志档位")
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.closed {
 		return errors.New("调试日志已经关闭")
 	}
-	if enabled == m.enabled {
+	if mode == m.mode {
+
+		if mode != ModeOff && m.file == nil {
+			return m.openLocked()
+		}
 		return nil
 	}
-	if enabled {
+	openedHere := false
+	if mode != ModeOff && m.file == nil {
 		if err := m.openLocked(); err != nil {
 			return err
 		}
+		openedHere = true
 	}
-	if err := m.persistLocked(enabled); err != nil {
-		if enabled && m.file != nil {
+	if err := m.persistLocked(mode); err != nil {
+		if openedHere && m.file != nil {
 			_ = m.file.Close()
 			m.file = nil
 		}
 		return err
 	}
-	m.enabled = enabled
-	if !enabled && m.file != nil {
+	m.mode = mode
+	if mode == ModeOff && m.file != nil {
 		err := m.file.Close()
 		m.file = nil
 		return err
@@ -118,7 +182,7 @@ func (m *Manager) SetEnabled(enabled bool) error {
 func (m *Manager) Write(data []byte) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if !m.enabled || m.closed {
+	if m.mode == ModeOff || m.closed {
 		return len(data), nil
 	}
 	if m.file == nil {
@@ -184,7 +248,7 @@ func (m *Manager) Clear() error {
 	if err := os.WriteFile(m.logPath, nil, 0o600); err != nil {
 		return err
 	}
-	if m.enabled {
+	if m.mode != ModeOff {
 		return m.openLocked()
 	}
 	return nil
@@ -196,6 +260,25 @@ func (m *Manager) Export(target string) error {
 		return err
 	}
 	return os.WriteFile(target, []byte(data), 0o600)
+}
+
+func (m *Manager) Status() Status {
+	if m == nil {
+		return Status{Mode: ModeOff, LimitBytes: maxLogBytes}
+	}
+	m.mu.Lock()
+	mode := m.mode
+	path := m.logPath
+	m.mu.Unlock()
+	status := Status{Mode: mode, Path: path, LimitBytes: maxLogBytes}
+	if info, err := os.Stat(path); err == nil {
+		status.Present = true
+		status.SizeBytes = info.Size()
+	}
+	if installedHandler != nil {
+		status.Dropped = installedHandler.Dropped()
+	}
+	return status
 }
 
 func (m *Manager) Close() error {
@@ -229,56 +312,13 @@ func (m *Manager) openLocked() error {
 	return nil
 }
 
-func (m *Manager) persistLocked(enabled bool) error {
+func (m *Manager) persistLocked(mode Mode) error {
 	if err := os.MkdirAll(m.directory, 0o700); err != nil {
 		return err
 	}
-	data, err := json.Marshal(persistedState{Enabled: enabled})
+	data, err := json.Marshal(persistedState{Mode: string(mode)})
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(m.statePath, data, 0o600)
-}
-
-type switchHandler struct {
-	base    slog.Handler
-	file    slog.Handler
-	manager *Manager
-}
-
-func (h *switchHandler) Enabled(ctx context.Context, level slog.Level) bool {
-
-	if h.base != nil && h.base.Enabled(ctx, level) {
-		return true
-	}
-	return h.manager.Enabled() && h.file.Enabled(ctx, level)
-}
-
-func (h *switchHandler) Handle(ctx context.Context, record slog.Record) error {
-	var firstErr error
-	if h.base != nil && h.base.Enabled(ctx, record.Level) {
-		firstErr = h.base.Handle(ctx, record)
-	}
-	if h.manager.Enabled() && h.file.Enabled(ctx, record.Level) {
-		if err := h.file.Handle(ctx, record); err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-	return firstErr
-}
-
-func (h *switchHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	next := &switchHandler{file: h.file.WithAttrs(attrs), manager: h.manager}
-	if h.base != nil {
-		next.base = h.base.WithAttrs(attrs)
-	}
-	return next
-}
-
-func (h *switchHandler) WithGroup(name string) slog.Handler {
-	next := &switchHandler{file: h.file.WithGroup(name), manager: h.manager}
-	if h.base != nil {
-		next.base = h.base.WithGroup(name)
-	}
-	return next
 }

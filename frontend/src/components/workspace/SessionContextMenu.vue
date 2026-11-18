@@ -124,7 +124,11 @@ const caps = computed(() => ({
         <ContextMenuItem v-if="caps.closeTab" @select="emit('close')"
           ><X :size="14" />{{ t('shell.sessionMenu.closeTab') }}
           <ContextMenuShortcut>
-            <ShortcutKeycaps :tokens="closeTabTokens" :label="closeTabTokens.join(' + ')" /> </ContextMenuShortcut
+            <ShortcutKeycaps
+              :tokens="closeTabTokens"
+              :label="closeTabTokens.join(' + ')"
+              compact
+            /> </ContextMenuShortcut
         ></ContextMenuItem>
         <ContextMenuSeparator v-if="caps.closeTab && caps.closeScope" />
 

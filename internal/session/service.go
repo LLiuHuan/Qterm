@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -176,6 +177,9 @@ func (s *Service) Start(ctx context.Context) error {
 	}
 	verifier, err := sshclient.NewHostKeyVerifier(userKnownHosts, readOnly...)
 	if err != nil {
+
+		slog.Error("session host key verifier init failed", "event", "session.verifier.failed",
+			"known_hosts", userKnownHosts, "error", err)
 		return errno.New(errno.CodeStoreFailed, "session.verifier_failed", "")
 	}
 	s.verifier = verifier
@@ -308,6 +312,9 @@ func (s *Service) Close() error {
 		err := manager.Shutdown(sessionCtx)
 		cancelSessions()
 		if err != nil {
+
+			slog.Warn("session shutdown timed out", "event", "session.shutdown.timeout",
+				"timeout_ms", (5 * time.Second).Milliseconds(), "error", err)
 			return errno.New(errno.CodeSessionClosed, "session.close_timeout", "")
 		}
 		if recordingErr != nil {

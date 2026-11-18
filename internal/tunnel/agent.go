@@ -7,7 +7,11 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-var ErrSSHAgentUnavailable = errors.New("SSH agent is unavailable")
+var (
+	ErrSSHAgentUnavailable = errors.New("SSH agent is unavailable")
+
+	ErrSSHAgentKeyMissing = errors.New("SSH agent key is not loaded")
+)
 
 func (c *Connector) ConnectSSHAgent(ctx context.Context, target Target, publicKey []byte) (*Connection, error) {
 	return c.ConnectSSHAgentAuthMethods(ctx, target, publicKey, nil, false)

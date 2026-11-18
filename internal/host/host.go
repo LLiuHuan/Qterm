@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -81,6 +82,8 @@ func (s *HostService) Start(ctx context.Context) error {
 		if keyErr != nil {
 			if errors.Is(keyErr, security.ErrKeyringUnavailable) || errors.Is(keyErr, security.ErrAuthentication) || errors.Is(keyErr, security.ErrKeyNotFound) {
 
+				slog.Warn("host storage starts without keyring key", "event", "host.start.keyring_unavailable",
+					"stage", keyringFailureStage(keyErr), "error", keyErr)
 				return nil
 			}
 			return fmt.Errorf("load local qterm encryption key: %w", keyErr)
@@ -114,7 +117,11 @@ func (s *HostService) reconcileSessionHistoryOnce(ctx context.Context, store *st
 		return
 	}
 	s.sessionHistoryReconciled = true
-	_, _ = store.CloseStaleSessionHistory(ctx, time.Now())
+
+	if _, err := store.CloseStaleSessionHistory(ctx, time.Now()); err != nil {
+		slog.Warn("stale session history reconcile failed", "event", "host.session_history.reconcile_failed",
+			"error", err)
+	}
 }
 
 func (s *HostService) Close() error {
@@ -126,6 +133,7 @@ func (s *HostService) Close() error {
 	err := s.store.Close()
 	s.store = nil
 	if err != nil {
+		slog.Error("host storage close failed", "event", "host.storage.close_failed", "error", err)
 		return fmt.Errorf("close host storage: %w", err)
 	}
 	return nil
@@ -143,6 +151,8 @@ func (s *HostService) Lock() error {
 	err := s.store.Close()
 	s.store = nil
 	if err != nil {
+
+		slog.Error("host storage lock failed", "event", "host.storage.lock_failed", "error", err)
 		return fmt.Errorf("lock host storage: %w", err)
 	}
 	return nil
@@ -156,6 +166,9 @@ func (s *HostService) ListHosts() ([]model.Host, error) {
 	}
 	hosts, err := s.store.ListHosts(context.Background())
 	if err != nil {
+
+		slog.Error("host list failed", "event", "host.list.failed", "error", err,
+			"error_key", "host.list_failed")
 		return nil, errno.New(errno.CodeStoreFailed, "host.list_failed", "")
 	}
 	return hosts, nil
@@ -169,6 +182,8 @@ func (s *HostService) ListGroups() ([]model.Group, error) {
 	}
 	groups, err := s.store.ListGroups(context.Background())
 	if err != nil {
+		slog.Error("group list failed", "event", "host.groups.failed", "error", err,
+			"error_key", "host.groups_failed")
 		return nil, errno.New(errno.CodeStoreFailed, "host.groups_failed", "")
 	}
 	return groups, nil
@@ -180,4 +195,16 @@ func randomID(prefix string) (string, error) {
 		return "", fmt.Errorf("generate random ID: %w", err)
 	}
 	return prefix + "_" + hex.EncodeToString(value[:]), nil
+}
+
+func keyringFailureStage(err error) string {
+	switch {
+	case errors.Is(err, security.ErrKeyringUnavailable):
+		return "keyring_unavailable"
+	case errors.Is(err, security.ErrAuthentication):
+		return "keyring_denied"
+	case errors.Is(err, security.ErrKeyNotFound):
+		return "key_not_found"
+	}
+	return "unknown"
 }

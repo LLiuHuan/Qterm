@@ -224,6 +224,113 @@ export const hostIconPickerOptions = builtinHostIcons.filter(
   (item) => item.value === 'linux' || item.src !== linuxFallback,
 )
 
+export type HostIconCategory = 'os' | 'nas' | 'network' | 'cloud' | 'virt' | 'other'
+
+export const hostIconCategoryOrder: readonly HostIconCategory[] = ['os', 'nas', 'network', 'cloud', 'virt', 'other']
+
+const hostIconCategoryValues: Record<Exclude<HostIconCategory, 'other'>, readonly string[]> = {
+  os: [
+    'aix',
+    'alinux',
+    'alma-linux',
+    'alpine-linux',
+    'amazon-linux',
+    'amigaos',
+    'android',
+    'anolis',
+    'arch-linux',
+    'armbian',
+    'centos',
+    'debian',
+    'deepin',
+    'dragonfly-bsd',
+    'elementary',
+    'euleros',
+    'fedora',
+    'freebsd',
+    'freertos',
+    'fuchsia',
+    'gentoo',
+    'haiku',
+    'harmonyos',
+    'illumos',
+    'kaios',
+    'kali-linux',
+    'kylin',
+    'linux',
+    'linux-mint',
+    'macos',
+    'manjaro',
+    'neokylin',
+    'netbsd',
+    'nixos',
+    'openbsd',
+    'opencloudos',
+    'openeuler',
+    'opensuse',
+    'oracle-linux',
+    'orange-pi',
+    'parrot-security',
+    'pop-os',
+    'raspberry-pi',
+    'reactos',
+    'red-hat',
+    'rhel',
+    'rocky-linux',
+    'slackware',
+    'smartisan',
+    'steamos',
+    'tencentos',
+    'ubuntu',
+    'unix',
+    'uos',
+    'void-linux',
+    'windows',
+    'windows-7',
+    'windows-10',
+    'windows-11',
+    'zephyr',
+  ],
+  nas: ['emby', 'fnos', 'qnap', 'synology', 'truenas', 'truenas-core', 'ugreen-nas', 'unraid', 'zspace'],
+  network: ['ikuai', 'mikrotik', 'openwrt', 'opnsense', 'pfsense'],
+  cloud: [
+    'aliyun',
+    'aws',
+    'china-mobile',
+    'china-telecom',
+    'china-unicom',
+    'cloudcone',
+    'cloudflare',
+    'ctyun',
+    'gcore',
+    'google-cloud',
+    'inspur-cloud',
+    'openstack',
+    'tencent-cloud',
+    'ucloud',
+    'vultr',
+    'zenlayer',
+  ],
+  virt: ['kubernetes', 'proxmox', 'virtualbox', 'vmware-workstation'],
+}
+
+const hostIconCategoryByValue = new Map<string, HostIconCategory>()
+for (const [category, values] of Object.entries(hostIconCategoryValues)) {
+  for (const value of values) hostIconCategoryByValue.set(value, category as HostIconCategory)
+}
+
+export function hostIconCategoryOf(value: string): HostIconCategory {
+  return hostIconCategoryByValue.get(value) ?? 'other'
+}
+
+export const hostIconPickerGroups: readonly { category: HostIconCategory; icons: readonly BuiltinHostIcon[] }[] =
+  hostIconCategoryOrder
+    .map((category) => ({
+      category,
+      icons: hostIconPickerOptions.filter((item) => hostIconCategoryOf(item.value) === category),
+    }))
+    .filter((group) => group.icons.length > 0)
+
 export function resolveBuiltinHostIcon(value: string) {
   const direct = builtinHostIcons.find((item) => item.value === value)
   if (direct) return direct

@@ -1,3 +1,24 @@
+export interface AICommandRule {
+  id: string
+  pattern: string
+  action: string
+  note: string
+}
+
+export interface AICommandRuleInput {
+  pattern: string
+  action: string
+  note: string
+}
+
+export interface AIContextSettings {
+  customPrompt: string
+
+  includeHostNote: boolean
+
+  includeSnippetIndex: boolean
+}
+
 export interface AcceleratorInfo {
   index: number
   name: string
@@ -51,6 +72,8 @@ export enum CredentialKind {
   CredentialKindPrivateKey = 'privateKey',
   CredentialKindPrivateKeyPassphrase = 'privateKeyPassphrase',
   CredentialKindSSHAgent = 'sshAgent',
+
+  CredentialKindUserCertificate = 'userCertificate',
 }
 
 export interface CredentialPromptRule {
@@ -419,6 +442,10 @@ export interface Host {
   proxyHost?: string | null
   proxyPort?: number | null
   proxyUsername?: string | null
+
+  sshHostKeyAlgorithms?: string[] | null
+  sshKeyExchanges?: string[] | null
+  sshProxyCommand?: string
 }
 
 export interface HostEnvironmentVariable {
@@ -528,6 +555,11 @@ export interface HostInput {
 
   proxyPassword?: string
   clearProxyPassword?: boolean
+
+  sshHostKeyAlgorithms?: string[] | null
+  sshKeyExchanges?: string[] | null
+
+  sshProxyCommand?: string
 }
 
 export interface HostKeyChallenge {
@@ -571,6 +603,12 @@ export interface KnownHostEntry {
   line: number
 
   editable: boolean
+}
+
+export interface LaunchIntent {
+  kind: string
+
+  target: string
 }
 
 export interface LocalEdit {
@@ -927,6 +965,10 @@ export interface RouteDraftInput {
 
   protocol?: string
 
+  sshHostKeyAlgorithms?: string[] | null
+  sshKeyExchanges?: string[] | null
+  sshProxyCommand?: string
+
   kind?: string
   secret?: string
 }
@@ -998,6 +1040,16 @@ export enum SFTPTransferState {
   SFTPTransferCompleted = 'completed',
   SFTPTransferFailed = 'failed',
   SFTPTransferCanceled = 'canceled',
+}
+
+export interface SSHHandshakeAlgorithms {
+  hostKeyAlgorithms: string[] | null
+
+  deprecatedHostKeyAlgorithms: string[] | null
+
+  keyExchanges: string[] | null
+
+  deprecatedKeyExchanges: string[] | null
 }
 
 export interface ServiceDetail {

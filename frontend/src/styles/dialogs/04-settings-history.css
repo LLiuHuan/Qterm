@@ -102,6 +102,10 @@
   flex-direction: column;
 }
 
+.settings-main-body.is-inner-scroll [data-slot='scroll-area-scrollbar'][data-orientation='vertical'] {
+  right: -14px !important;
+}
+
 .settings-history-panel > .settings-history-head-area,
 .settings-history-panel > .settings-history-toolbar,
 .settings-history-panel > .settings-history-pagination {

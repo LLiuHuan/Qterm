@@ -98,6 +98,18 @@ export const appRu: Record<string, string> = {
   'application.window.closeToTray': 'Сворачивать в трей при закрытии',
   'application.window.closeToTrayHelp':
     'Закрытие главного окна не завершает Qterm: приложение остаётся в трее. Нажмите значок в трее, чтобы вернуть окно.',
+  'application.window.globalShortcut.label': 'Глобальная горячая клавиша',
+  'application.window.globalShortcut.help': 'Выводит Qterm вперёд из любого приложения; при занятой клавише — откат.',
+  'application.window.globalShortcut.unbound': 'Не задана',
+  'application.window.globalShortcut.clear': 'Сбросить глобальную горячую клавишу',
+  'application.window.globalShortcut.error':
+    'Не удалось зарегистрировать комбинацию {binding} (вероятно, она занята другим приложением); предыдущая привязка восстановлена.',
+  'application.window.globalShortcut.rolledBack': 'Действует: {binding}',
+  'application.window.singleInstance.label': 'Один экземпляр',
+  'application.window.singleInstance.help':
+    'Повторный запуск Qterm не создаёт новый процесс, а выводит существующее окно на передний план. Изменения вступают в силу после перезапуска.',
+  'application.window.singleInstance.helpDisabled':
+    'Если отключено, каждый запуск создаёт отдельный процесс (они могут писать в одну базу данных). Изменения вступают в силу после перезапуска.',
   'application.window.rememberSize': 'Запоминать размер окна',
   'application.window.rememberSizeHelp':
     'При следующем запуске восстанавливать размер окна и состояние развёртывания, которые были при закрытии.',
@@ -155,10 +167,21 @@ export const appRu: Record<string, string> = {
   'about.update.bell.emptyNotes': 'В этом выпуске нет описания изменений.',
   'about.debug.title': 'Журнал отладки',
   'about.debug.description':
-    'Записывает подробную диагностику локально во время поиска проблемы. По умолчанию отключено.',
+    'По умолчанию записываются предупреждения и ошибки. Чтобы собрать все уровни, на время разбора проблемы локально включите «Отладку».',
   'about.debug.desktopOnly': 'Журнал отладки доступен только в настольном приложении.',
-  'about.debug.enabled': 'Журнал отладки включён.',
-  'about.debug.disabled': 'Журнал отладки отключён.',
+  'about.debug.mode.off': 'Выключено',
+  'about.debug.mode.offHelp': 'Ничего не записывается: потом проблему будет не восстановить.',
+  'about.debug.mode.normal': 'Обычный (предупреждения и ошибки)',
+  'about.debug.mode.normalHelp':
+    'Уровень по умолчанию: предупреждения и ошибки копятся долго, поэтому файл остаётся небольшим.',
+  'about.debug.mode.debug': 'Отладка (все уровни)',
+  'about.debug.mode.debugHelp':
+    'Включайте временно на время разбора проблемы: пишутся все уровни, поэтому файл растёт быстрее.',
+  'about.debug.modeChanged': 'Уровень журнала отладки изменён.',
+  'about.debug.status.path': 'Файл журнала',
+  'about.debug.status.size': 'Размер',
+  'about.debug.status.dropped': 'Отброшено из очереди',
+  'about.debug.status.missing': 'Файл журнала ещё не создан',
   'about.debug.actionFailure': 'Не удалось выполнить операцию с журналом отладки.',
   'about.debug.clear': 'Очистить журнал',
   'about.debug.clearSuccess': 'Журнал отладки очищен.',

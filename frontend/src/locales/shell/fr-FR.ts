@@ -355,7 +355,66 @@ export const shellUiFr: Record<string, string> = {
   'shell.adhoc.error.empty': 'Saisissez une adresse pour vous connecter.',
   'shell.adhoc.error.invalid': 'Format d’adresse invalide ; suivez l’exemple.',
   'shell.adhoc.error.username': 'SSH requiert un nom d’utilisateur ; utilisez utilisateur@hôte.',
+  'shell.aiContext.title': 'Contexte IA',
+  'shell.aiContext.description':
+    "Indiquez à l'IA ce qu'elle ne voit pas : votre environnement et vos habitudes, la note de cet hôte et les commandes déjà enregistrées.",
+  'shell.aiContext.customPromptLabel': 'Invite personnalisée',
+  'shell.aiContext.customPromptHelp':
+    "Ajoutée après l'invite système intégrée pour préciser contraintes, habitudes et environnement de l'hôte (distribution, shell, outils habituels). Vide : rien n'est ajouté.",
+  'shell.aiContext.customPromptPlaceholder':
+    'Ex. : la cible est Debian 12 avec bash ; privilégier systemctl ; ne pas lancer apt upgrade.',
+  'shell.aiContext.hostNoteLabel': "Inclure la note de l'hôte",
+  'shell.aiContext.hostNoteHelp':
+    "Une fois activé, l'utilisation de l'IA dans un terminal d'hôte envoie la note de l'hôte actuel au service IA configuré à titre de référence.",
+  'shell.aiContext.snippetIndexLabel': 'Inclure les commandes enregistrées',
+  'shell.aiContext.snippetIndexHelp':
+    "Envoie vos extraits enregistrés (nom et commande) comme référence pour que l'IA les réutilise. Les commandes limitées à certains hôtes ne s'appliquent qu'à ceux-ci.",
+  'shell.aiContext.save': 'Enregistrer',
+  'shell.aiContext.saved': 'Enregistré',
+  'shell.aiContext.saveFailed': "Échec de l'enregistrement du contexte IA.",
+  'shell.aiRules.title': 'Règles de protection des commandes',
+  'shell.aiRules.description':
+    'Vérifie par expression régulière les commandes que l’IA veut exécuter. Ces règles priment sur le mode d’approbation ci-dessus et sur « ne plus demander pour cette exécution ».',
+  'shell.aiRules.matchingHint':
+    'Les motifs ne sont pas ancrés : une correspondance n’importe où dans la commande suffit. Ajoutez ^ et $ pour exiger la ligne entière (ex. ^rm\\s+-rf\\s+/$).',
+  'shell.aiRules.loading': 'Chargement…',
+  'shell.aiRules.empty': 'Aucune règle pour le moment. Essayez par exemple de bloquer rm\\s+-rf.',
+  'shell.aiRules.emptyTitle': 'Aucune règle de protection pour le moment',
+  'shell.aiRules.create': 'Ajouter une règle',
+  'shell.aiRules.editTitle': 'Modifier la règle',
+  'shell.aiRules.createTitle': 'Ajouter une règle',
+  'shell.aiRules.dialogHint':
+    'Si une règle correspond : Demander = toujours demander une approbation ; Bloquer = refuser cette commande, l’IA essaiera autrement.',
+  'shell.aiRules.import': 'Importer',
+  'shell.aiRules.export': 'Exporter',
+  'shell.aiRules.edit': 'Modifier',
+  'shell.aiRules.remove': 'Supprimer',
+  'shell.aiRules.cancel': 'Annuler',
+  'shell.aiRules.save': 'Enregistrer',
+  'shell.aiRules.action.confirm': 'Demander',
+  'shell.aiRules.action.deny': 'Bloquer',
+  'shell.aiRules.field.pattern': 'Motif',
+  'shell.aiRules.field.patternHelp':
+    'Expression régulière ; les références arrière et les assertions de contexte ne sont pas prises en charge.',
+  'shell.aiRules.field.action': 'Action',
+  'shell.aiRules.field.note': 'Note',
+  'shell.aiRules.error.generic': 'L’opération a échoué. Veuillez réessayer.',
+  'shell.aiRules.error.invalidPattern': 'Expression régulière invalide.',
+  'shell.aiRules.error.tooMany': 'La limite de règles est atteinte. Supprimez-en d’abord.',
   'shell.adhoc.toolUnavailable': 'Indisponible pour les connexions temporaires',
+  'shell.launchIntent.title': 'Ouvrir une connexion externe',
+  'shell.launchIntent.description':
+    'Un lien demande à Qterm d’ouvrir une connexion. Vérifiez la cible avant de vous connecter.',
+  'shell.launchIntent.warning':
+    'Un lien peut venir de n’importe quelle page ou message. Ne continuez que si vous voulez vraiment vous connecter à cette machine.',
+  'shell.launchIntent.tooMany': 'Trop de liens externes en attente ; les demandes supplémentaires ont été ignorées',
+  'shell.launchIntent.error.empty': 'Le lien ne contient aucune cible exploitable.',
+  'shell.launchIntent.error.unsupported-scheme':
+    'Ce type de lien n’est pas pris en charge. Seuls les liens qterm, ssh et telnet peuvent être ouverts.',
+  'shell.launchIntent.error.unsupported-verb': 'Lien qterm non reconnu.',
+  'shell.launchIntent.error.password-in-url':
+    'Par sécurité, le mot de passe d’un lien n’est pas lu. Utilisez un lien sans mot de passe.',
+  'shell.launchIntent.error.invalid': 'Le lien est mal formé et aucun hôte n’a pu être extrait.',
   'shell.toolbar.sftp': 'SFTP',
   'shell.toolbar.newWindow': 'Nouvelle fenêtre',
   'shell.toolbar.global': 'Outils globaux',
@@ -680,6 +739,7 @@ export const shellUiFr: Record<string, string> = {
   'shell.palette.hosts': 'Hôtes',
   'shell.palette.settings': 'Paramètres',
   'shell.palette.actions': 'Commandes',
+  'shell.palette.connectTo': 'Se connecter à {target}',
   'shell.palette.newLocalTerminal': 'Nouveau terminal local',
   'shell.palette.openSettingsAction': 'Ouvrir les paramètres',
   'shell.palette.toggleOutputPause': 'Suspendre / reprendre la sortie du terminal',
@@ -1287,6 +1347,7 @@ export const shellUiFr: Record<string, string> = {
   'shell.credential.privateKey': 'Clé privée',
   'shell.credential.privateKeyPassphrase': 'Phrase secrète de la clé privée',
   'shell.credential.sshAgent': 'Agent SSH',
+  'shell.credential.userCertificate': 'Certificat utilisateur',
   'shell.hostEditor.optional': '(facultatif)',
   'shell.hostEditor.usernamePlaceholderRdp': 'Par exemple : Administrator',
   'shell.hostEditor.usernamePlaceholderVnc': 'Facultatif (Apple RA2 uniquement)',
@@ -1316,6 +1377,9 @@ export const shellUiFr: Record<string, string> = {
     'Atteindre la cible via un autre hôte SSH enregistré ; la cible voit le bastion comme source.',
   'shell.hostEditor.connectionProxyHint':
     "Se connecter d'abord au proxy, qui rejoint ensuite la cible ; indiquez un nom d'utilisateur et un mot de passe de proxy, ou laissez les deux vides pour un proxy sans authentification.",
+  'shell.hostEditor.proxyCommandMode': 'Commande locale',
+  'shell.hostEditor.connectionProxyCommandHint':
+    'Utiliser un programme local (ssh / nc / aws / kubectl …) dont l’entrée/sortie standard devient la connexion vers la cible. %h est l’hôte, %p le port.',
   'shell.hostEditor.jumpHost': 'Hôte bastion',
   'shell.hostEditor.jumpHostPlaceholder': 'Sélectionner un hôte SSH comme bastion',
   'shell.hostEditor.jumpHostEmpty':
@@ -1520,6 +1584,16 @@ export const shellUiFr: Record<string, string> = {
   'shell.hostIcon.remove': 'Retirer l’icône',
   'shell.hostIcon.importDisabled': 'Les icônes personnalisées seront disponibles dans une version ultérieure',
   'shell.hostIcon.import': 'Importer une icône',
+  'shell.hostIcon.search': 'Rechercher des icônes d’hôte',
+  'shell.hostIcon.searchPlaceholder': 'Rechercher une icône',
+  'shell.hostIcon.clearSearch': 'Effacer la recherche',
+  'shell.hostIcon.noMatch': 'Aucune icône correspondante',
+  'shell.hostIcon.category.os': "Systèmes d'exploitation",
+  'shell.hostIcon.category.network': 'Équipements réseau',
+  'shell.hostIcon.category.nas': 'NAS et stockage',
+  'shell.hostIcon.category.cloud': 'Services cloud',
+  'shell.hostIcon.category.virt': 'Virtualisation et conteneurs',
+  'shell.hostIcon.category.other': 'Autres',
   'shell.hostIcon.removeTitle': 'Supprimer l’icône de l’hôte',
   'shell.hostIcon.removeMessage': 'Voulez-vous vraiment supprimer l’icône de cet hôte ?',
   'shell.hostIcon.removeConfirm': 'Supprimer',
@@ -1855,6 +1929,8 @@ export const shellUiFr: Record<string, string> = {
   'shell.error.portRange': 'Le port doit être un entier compris entre 1 et 65535.',
   'shell.error.proxyHostRequired': 'Renseignez l’adresse du proxy.',
   'shell.error.proxyPortRange': 'Le port du proxy doit être un entier compris entre 1 et 65535.',
+  'shell.error.proxyCommandProxyConflict':
+    'ProxyCommand et un proxy (SOCKS5/HTTP) ne peuvent pas être utilisés ensemble : les deux établissent le premier saut.',
   'shell.error.passwordRequired': 'Saisissez le mot de passe de connexion.',
   'shell.error.authenticationFailed': 'Échec de l’authentification SSH.',
   'shell.error.authenticationChallenge':
@@ -1966,6 +2042,30 @@ export const shellUiFr: Record<string, string> = {
   'shell.otp.fillCode': 'Insérer le code',
   'shell.otp.generateError': 'Impossible de générer le code. Vérifiez le stockage des identifiants.',
 
+  'shell.hostEditor.sshHandshake.title': 'Poignée de main SSH et ProxyCommand',
+  'shell.hostEditor.sshHandshake.description':
+    'Assouplir ou restreindre les algorithmes de négociation pour les appareils anciens, ou faire passer le premier saut par une commande locale. Par défaut, la liste intégrée est utilisée.',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithms': 'Algorithmes de clé d’hôte',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithmsHelp':
+    'Laissez vide pour utiliser la liste par défaut ; dès que ce champ est rempli, il **remplace** entièrement les valeurs par défaut et seuls les algorithmes listés sont proposés.',
+  'shell.hostEditor.sshHandshake.keyExchanges': 'Algorithmes d’échange de clés',
+  'shell.hostEditor.sshHandshake.keyExchangesHelp':
+    'Laissez vide pour utiliser la liste par défaut ; à remplir uniquement si un appareil ancien exige par exemple group1-sha1.',
+  'shell.hostEditor.sshHandshake.deprecatedHint':
+    'Les algorithmes marqués « obsolète » ont des faiblesses connues. Ne les utilisez que si l’appareil distant ne prend rien de mieux en charge.',
+  'shell.hostEditor.sshHandshake.addAlgorithm': 'Ajouter un algorithme…',
+  'shell.hostEditor.sshHandshake.resetAlgorithms': 'Valeurs par défaut',
+  'shell.hostEditor.sshHandshake.proxyCommand': 'ProxyCommand',
+  'shell.hostEditor.sshHandshake.proxyCommandPlaceholder': 'ex. : ssh -W %h:%p bastion.example.com',
+  'shell.hostEditor.sshHandshake.proxyCommandHelp':
+    'L’entrée/sortie standard de cette commande sert de connexion vers la cible. %h et %p sont remplacés par l’adresse et le port ; incompatible avec un proxy (SOCKS5/HTTP).',
+  'shell.hostEditor.sshHandshake.proxyCommandAdvancedHint':
+    'S’il s’agit seulement de passer par un autre hôte SSH enregistré, utilisez « Hôte intermédiaire ». ProxyCommand sert aux canaux que SSH ne peut pas exprimer : AWS SSM, Kubernetes, Cloudflare Tunnel.',
+  'shell.hostEditor.sshHandshake.deprecatedTag': 'obsolète',
+  'shell.hostEditor.sshHandshake.defaultGroup': 'Activés par défaut',
+  'shell.hostEditor.sshHandshake.deprecatedGroup': 'Obsolètes (faiblesses connues)',
+  'shell.hostEditor.sshHandshake.usingDefaults': 'Liste d’algorithmes intégrée utilisée',
+  'shell.hostEditor.sshHandshake.removeAlgorithm': 'Retirer {name}',
   'shell.otp.search': 'Rechercher un émetteur ou un compte',
   'shell.otp.scan': 'Lire un code QR',
   'shell.otp.scanHint': 'Choisissez ou collez une image QR ici. Vérifiez le résultat avant de l’enregistrer.',

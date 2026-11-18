@@ -87,6 +87,15 @@ export interface AdHocSessionInput {
   password: string
 }
 
+export interface DebugLogStatus {
+  mode: string
+  path: string
+  sizeBytes: number
+  limitBytes: number
+  dropped: number
+  present: boolean
+}
+
 export interface HostImportSourceInfo {
   id: string
 

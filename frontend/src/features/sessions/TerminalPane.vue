@@ -82,6 +82,7 @@ import {
 } from '../../services/terminal'
 import { selectZmodemUpload, selectZmodemDestination } from '../../services/zmodem-files'
 import { ZmodemManager, type ZmodemDirection, type ZmodemProgress } from '../../services/zmodem'
+import { TrzszManager } from '../../services/trzsz'
 import alibabaCloudIcon from '../../assets/app-icons/alibaba-cloud.svg'
 import baiduIcon from '../../assets/app-icons/baidu.svg'
 import deeplIcon from '../../assets/app-icons/deepl.svg'
@@ -362,6 +363,8 @@ const searchInput = ref<InstanceType<typeof QtermInput> | null>(null)
 let restoreMenuFocus = true
 
 const zmodemActive = ref(false)
+
+const trzszActive = ref(false)
 let terminal: Terminal | null = null
 
 let fitAddon: FitAddon | null = null
@@ -923,6 +926,7 @@ function isSensitivePrompt(screenLine: string): boolean {
 }
 let channel: TerminalChannel | null = null
 let zmodemManager: ZmodemManager | null = null
+let trzszManager: TrzszManager | null = null
 let connectedToken = ''
 
 let connectedSessionID = ''
@@ -1399,61 +1403,69 @@ function handleTerminalWheelZoom(event: WheelEvent): void {
   if (!event.ctrlKey && !event.metaKey) return
   event.preventDefault()
 
-  requestTerminalFontStep(event.deltaY)
+  event.stopPropagation()
+  requestTerminalFontStep(event.deltaY, event.deltaMode)
 }
 
-function requestTerminalFontStep(deltaY: number): void {
-  fontZoomPendingDelta += deltaY
+function handleBrowserGestureZoom(event: Event): void {
+  event.preventDefault()
+}
+
+function requestTerminalFontStep(deltaY: number, deltaMode = 0): void {
+  if (!Number.isFinite(deltaY) || deltaY === 0) return
+
+  const pixels =
+    deltaMode === WheelEvent.DOM_DELTA_LINE
+      ? deltaY * FONT_ZOOM_LINE_PIXELS
+      : deltaMode === WheelEvent.DOM_DELTA_PAGE
+        ? deltaY * FONT_ZOOM_PAGE_PIXELS
+        : deltaY
+  if (pixels === 0) return
+  fontZoomPendingDelta += pixels
   restartFontZoomGestureWindow()
-  if (fontZoomTimer !== null) return
-  fontZoomTimer = window.setTimeout(flushFontZoomStep, FONT_ZOOM_STEP_INTERVAL_MS)
+  if (fontZoomFrame !== null) return
+  fontZoomFrame = window.requestAnimationFrame(flushFontZoomStep)
 }
 
 function flushFontZoomStep(): void {
-  fontZoomTimer = null
+  fontZoomFrame = null
   const accumulated = fontZoomPendingDelta
   fontZoomPendingDelta = 0
-
-  if (Math.abs(accumulated) < FONT_ZOOM_DELTA_PER_STEP) {
+  const steps = Math.trunc(accumulated / FONT_ZOOM_DELTA_PER_STEP)
+  if (steps === 0) {
     fontZoomPendingDelta = accumulated
     return
   }
-  if (fontZoomStepsInGesture >= FONT_ZOOM_MAX_STEPS_PER_GESTURE) return
 
-  const step = accumulated > 0 ? -1 : 1
+  fontZoomPendingDelta = accumulated - steps * FONT_ZOOM_DELTA_PER_STEP
+  const remaining = Math.max(0, FONT_ZOOM_MAX_STEPS_PER_GESTURE - fontZoomStepsInGesture)
+  if (remaining === 0) return
+  const applied = Math.abs(steps) > remaining ? Math.sign(steps) * remaining : steps
+  fontZoomStepsInGesture += Math.abs(applied)
+  applyFontZoomSteps(-applied)
+}
 
-  fontZoomPendingDelta =
-    Math.abs(accumulated) >= FONT_ZOOM_DELTA_PER_STEP * 2.5 ? 0 : accumulated - step * FONT_ZOOM_DELTA_PER_STEP
-  fontZoomStepsInGesture += 1
-  showFontZoomHint(step)
-  emit('fontSizeStep', step)
+function applyFontZoomSteps(steps: number): void {
+  if (steps === 0) return
+  const current = Math.round(props.fontSize)
+  const next = Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, current + steps))
+  if (next === current) return
+  emit('fontSizeStep', next - current)
 }
 
 function restartFontZoomGestureWindow(): void {
   if (fontZoomIdleTimer !== null) window.clearTimeout(fontZoomIdleTimer)
   fontZoomIdleTimer = window.setTimeout(() => {
     fontZoomIdleTimer = null
-    fontZoomStepsInGesture = 0
     fontZoomPendingDelta = 0
+    fontZoomStepsInGesture = 0
   }, FONT_ZOOM_GESTURE_IDLE_MS)
-}
-
-function showFontZoomHint(delta: number): void {
-  const next = Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, Math.round(props.fontSize) + delta))
-  const percent = Math.round((next / FONT_ZOOM_REFERENCE_SIZE) * 100)
-  fontZoomHint.value = `${next}px · ${percent}%`
-  if (fontZoomHintTimer !== null) window.clearTimeout(fontZoomHintTimer)
-  fontZoomHintTimer = window.setTimeout(() => {
-    fontZoomHintTimer = null
-    fontZoomHint.value = ''
-  }, 900)
 }
 
 function stepTerminalFontSizeByKey(step: -1 | 1): void {
   const current = Math.round(props.fontSize)
   const next = Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, current + step))
   if (next === current) return
-  showFontZoomHint(step)
   emit('fontSizeStep', step)
 }
 
@@ -1500,21 +1512,26 @@ function currentSelection(): string {
 
 const translateGateway = createTranslateGateway()
 
-const FONT_ZOOM_STEP_INTERVAL_MS = 40
-const FONT_ZOOM_GESTURE_IDLE_MS = 320
-const FONT_ZOOM_MAX_STEPS_PER_GESTURE = 12
-
 const FONT_ZOOM_DELTA_PER_STEP = 40
+const FONT_ZOOM_LINE_PIXELS = 40
+const FONT_ZOOM_PAGE_PIXELS = 400
+const FONT_ZOOM_GESTURE_IDLE_MS = 240
 
-const FONT_ZOOM_REFERENCE_SIZE = 13
+const FONT_ZOOM_MAX_STEPS_PER_GESTURE = 24
 
-let fontZoomTimer: number | null = null
+const BROWSER_GESTURE_EVENTS = ['gesturestart', 'gesturechange', 'gestureend'] as const
+
+let fontZoomFrame: number | null = null
 let fontZoomIdleTimer: number | null = null
 let fontZoomPendingDelta = 0
 let fontZoomStepsInGesture = 0
 
-const fontZoomHint = ref('')
-let fontZoomHintTimer: number | null = null
+let lastPresentedFontFamily = ''
+let lastPresentedFontWeight = 0
+
+let fontApplyRunning = false
+
+let fontApplyQueued = false
 
 const paneRoot = ref<HTMLElement | null>(null)
 const pendingPaste = ref<string | null>(null)
@@ -2229,6 +2246,14 @@ function zmodemSender(data: Uint8Array): Promise<void> {
   return channel?.sendBinary(data) ?? Promise.reject(new Error(t('shell.terminal.channelFailed')))
 }
 
+function routeTerminalOutput(data: Uint8Array): void {
+  if (zmodemManager) {
+    zmodemManager.consume(data)
+    return
+  }
+  zmodemToTerminal(data)
+}
+
 function zmodemToTerminal(data: Uint8Array): void {
   credentialOutputTail = (credentialOutputTail + credentialOutputDecoder.decode(data, { stream: true })).slice(
     -CREDENTIAL_OUTPUT_TAIL_LIMIT,
@@ -2372,6 +2397,21 @@ function connectIfReady(): void {
     onOffer: onZmodemOffer,
   })
 
+  trzszManager = new TrzszManager(
+    {
+      sendToServer: (data) => {
+        void channel?.sendBinary(data)
+      },
+      writeToTerminal: routeTerminalOutput,
+      columns: () => terminal?.cols ?? columns,
+    },
+    {
+      onState: (state) => {
+        trzszActive.value = state !== 'idle'
+      },
+    },
+  )
+
   channel = connectTerminalChannel(boundSessionID, props.streamToken, columns, rows, {
     onReady() {
       if (generation !== channelGeneration) return
@@ -2401,10 +2441,10 @@ function connectIfReady(): void {
         armPresentationWatchdog()
       }
 
-      if (zmodemManager) {
-        zmodemManager.consume(data)
+      if (trzszManager) {
+        trzszManager.consume(data)
       } else {
-        zmodemToTerminal(data)
+        routeTerminalOutput(data)
       }
 
       if (terminal) {
@@ -3142,7 +3182,6 @@ onMounted(async () => {
 
   terminal.attachCustomWheelEventHandler((event) => {
     if (!event.ctrlKey && !event.metaKey) return true
-    requestTerminalFontStep(event.deltaY < 0 ? 1 : -1)
     return false
   })
   openTerminalWithDomFontMetrics(terminal, element, {
@@ -3185,6 +3224,11 @@ onMounted(async () => {
   dataSubscription = subscribeTerminalInputSource(terminal, (data, local) => {
     if (!local && channel?.sendLocalInput) {
       channel.sendInput(data)
+      return
+    }
+
+    if (trzszActive.value) {
+      trzszManager?.consumeInput(data)
       return
     }
 
@@ -3366,6 +3410,10 @@ onMounted(async () => {
   paneRoot.value?.addEventListener('paste', handleNativePaste, true)
 
   paneRoot.value?.addEventListener('wheel', handleTerminalWheelZoom, { passive: false, capture: true })
+
+  for (const gestureEvent of BROWSER_GESTURE_EVENTS) {
+    window.addEventListener(gestureEvent, handleBrowserGestureZoom, { passive: false, capture: true })
+  }
   window.addEventListener('qterm:command-history-changed', loadCompletionHistory)
   void loadCompletionHistory()
 
@@ -3592,26 +3640,50 @@ watch(
   { deep: true },
 )
 
+function scheduleFontApply(): void {
+  if (fontApplyRunning) {
+    fontApplyQueued = true
+    return
+  }
+  fontApplyRunning = true
+  void (async () => {
+    try {
+      do {
+        fontApplyQueued = false
+        try {
+          await applyFontWhenReady()
+        } finally {
+          fontPresentationReady.value = true
+        }
+      } while (fontApplyQueued)
+    } finally {
+      fontApplyRunning = false
+    }
+  })()
+}
+
 watch(
   () => [props.fontSize, props.fontWeight, props.lineHeight, props.fontFamily] as const,
   () => {
     if (!terminal) return
-    fontPresentationReady.value = false
-    armPresentationWatchdog()
+
+    const onlyMetricsChanged =
+      fontPresentationReady.value &&
+      props.fontFamily === lastPresentedFontFamily &&
+      props.fontWeight === lastPresentedFontWeight
+    if (!onlyMetricsChanged) {
+      fontPresentationReady.value = false
+      armPresentationWatchdog()
+    }
+    lastPresentedFontFamily = props.fontFamily
+    lastPresentedFontWeight = props.fontWeight
 
     if (!initialLayoutReady) {
       webglActivationReady.value = false
       return
     }
     firstOutputFontCorrectionPending = false
-
-    void (async () => {
-      try {
-        await applyFontWhenReady()
-      } finally {
-        fontPresentationReady.value = true
-      }
-    })()
+    scheduleFontApply()
   },
 )
 
@@ -3661,6 +3733,7 @@ onBeforeUnmount(() => {
   clearShellTabSubmitTimer()
   zmodemManager?.reset()
   zmodemManager = null
+  trzszManager = null
   if (zmodemCancelHandler) window.removeEventListener('qterm:zmodem-cancel', zmodemCancelHandler)
   if (localFileDropHandler) window.removeEventListener('qterm:local-file-drop', localFileDropHandler)
   window.removeEventListener('qterm:layout-resize-end', handleLayoutResizeEnd)
@@ -3670,11 +3743,17 @@ onBeforeUnmount(() => {
   window.removeEventListener('qterm:toggle-terminal-pause', handleOutputPauseShortcut)
   paneRoot.value?.removeEventListener('paste', handleNativePaste, true)
   paneRoot.value?.removeEventListener('wheel', handleTerminalWheelZoom, true)
+  for (const gestureEvent of BROWSER_GESTURE_EVENTS) {
+    window.removeEventListener(gestureEvent, handleBrowserGestureZoom, true)
+  }
   clearCredentialInputState()
   resizeObserver?.disconnect()
-  if (fontZoomTimer !== null) window.clearTimeout(fontZoomTimer)
+  if (fontZoomFrame !== null) window.cancelAnimationFrame(fontZoomFrame)
+  fontZoomFrame = null
   if (fontZoomIdleTimer !== null) window.clearTimeout(fontZoomIdleTimer)
-  if (fontZoomHintTimer !== null) window.clearTimeout(fontZoomHintTimer)
+  fontZoomIdleTimer = null
+  fontZoomPendingDelta = 0
+  fontZoomStepsInGesture = 0
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('focus', refreshAfterWindowResume)
   document.removeEventListener('visibilitychange', handleVisibilityResume)
@@ -3739,15 +3818,6 @@ onBeforeUnmount(() => {
         @keydown.capture="handleKeydown"
         @contextmenu.capture="handleContextMenu"
       >
-        <div
-          v-if="fontZoomHint"
-          class="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-md border border-qt-border bg-qt-panel px-2 py-1 font-mono text-xs tabular-nums text-qt-text shadow-sm"
-          role="status"
-          aria-live="polite"
-          data-font-zoom-hint
-        >
-          {{ fontZoomHint }}
-        </div>
         <p class="sr-only terminal-accessible-description">
           <template v-if="props.kind === 'local'">{{
             t('shell.terminal.localDescription', { status: accessibleStatus })
@@ -4046,6 +4116,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('copy')"
             :label="menuShortcutLabel('copy')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
       <ContextMenuItem
@@ -4060,6 +4131,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('paste')"
             :label="menuShortcutLabel('paste')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
       <ContextMenuItem :disabled="!selectedText || !canPaste" @select="pasteSelection"
@@ -4108,6 +4180,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('clear')"
             :label="menuShortcutLabel('clear')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
 
@@ -4122,6 +4195,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('search')"
             :label="menuShortcutLabel('search')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
       <ContextMenuItem v-if="props.kind === 'ssh' && sessionReady" @select="emit('openSftp')"
@@ -4166,6 +4240,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('splitRight')"
             :label="menuShortcutLabel('splitRight')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
       <ContextMenuItem @select="emit('requestSplit', props.sessionId, 'bottom')"
@@ -4174,6 +4249,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('splitBottom')"
             :label="menuShortcutLabel('splitBottom')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
       <ContextMenuSeparator />
@@ -4183,6 +4259,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('reconnect')"
             :label="menuShortcutLabel('reconnect')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
       <ContextMenuItem
@@ -4193,6 +4270,7 @@ onBeforeUnmount(() => {
           <ShortcutKeycaps
             :tokens="menuShortcutTokens('disconnect')"
             :label="menuShortcutLabel('disconnect')"
+            compact
           /> </ContextMenuShortcut
       ></ContextMenuItem>
       <ContextMenuSeparator />

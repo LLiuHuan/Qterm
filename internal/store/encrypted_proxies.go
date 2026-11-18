@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"changeme/internal/model"
@@ -170,6 +171,11 @@ func (s *Store) openProxyPassword(id string, payload []byte) (string, error) {
 	}
 	plaintext, err := s.codec.Open("proxy", id, payload)
 	if err != nil {
+
+		slog.Error("proxy payload decrypt failed",
+			"event", "store.proxy.decrypt_failed",
+			"kind", "proxy",
+			"error", err)
 		return "", fmt.Errorf("decrypt proxy payload: %w", err)
 	}
 	defer clear(plaintext)

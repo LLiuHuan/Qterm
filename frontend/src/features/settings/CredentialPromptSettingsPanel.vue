@@ -259,7 +259,7 @@ watch(searchQuery, () => {
       :description="t('settings.credentialPrompt.empty.matching')"
     />
     <ScrollArea v-else type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
-      <div class="pr-2 pb-1">
+      <div class="pr-px pb-1">
         <ul class="m-0 flex list-none flex-col gap-2 p-0">
           <li
             v-for="rule in visibleRules"
@@ -284,23 +284,20 @@ watch(searchQuery, () => {
                 :aria-label="t(rule.enabled ? 'settings.credentialPrompt.disable' : 'settings.credentialPrompt.enable')"
                 @update:model-value="(value) => void toggleEnabled(rule, value)"
               />
-              <QtermButton
-                variant="ghost"
-                size="icon-sm"
-                type="button"
-                :aria-label="t('settings.credentialPrompt.edit')"
-                @click="startEdit(rule)"
-              >
-                <Pencil :size="14" aria-hidden="true" />
-              </QtermButton>
-              <IconButton
-                danger
-                size="icon-sm"
-                :label="t('settings.credentialPrompt.remove')"
-                @click="requestRemove(rule)"
-              >
-                <Trash2 :size="14" aria-hidden="true" />
-              </IconButton>
+
+              <span class="inline-flex items-center">
+                <IconButton size="icon-sm" :label="t('settings.credentialPrompt.edit')" @click="startEdit(rule)">
+                  <Pencil :size="14" aria-hidden="true" />
+                </IconButton>
+                <IconButton
+                  danger
+                  size="icon-sm"
+                  :label="t('settings.credentialPrompt.remove')"
+                  @click="requestRemove(rule)"
+                >
+                  <Trash2 :size="14" aria-hidden="true" />
+                </IconButton>
+              </span>
             </span>
           </li>
         </ul>

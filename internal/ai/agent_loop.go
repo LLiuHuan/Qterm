@@ -125,6 +125,8 @@ type Runner struct {
 	debugLog          AgentDebugFunc
 
 	draftObserver func(runID string)
+
+	commandRules func() []CompiledCommandRule
 }
 
 func NewRunner(manager *Manager, service *Service, executor Executor, options ...RunnerOption) *Runner {
@@ -152,6 +154,12 @@ func NewRunner(manager *Manager, service *Service, executor Executor, options ..
 func WithDraftObserver(observer func(runID string)) RunnerOption {
 	return func(runner *Runner) {
 		runner.draftObserver = observer
+	}
+}
+
+func WithCommandRules(rules func() []CompiledCommandRule) RunnerOption {
+	return func(runner *Runner) {
+		runner.commandRules = rules
 	}
 }
 
@@ -197,8 +205,11 @@ func (r *Runner) Run(ctx context.Context, runID string) (AgentSnapshot, error) {
 	sessionKind := r.manager.sessionKindFor(runID)
 	messages := make([]AgentMessage, 0, len(history)+2)
 	messages = append(messages, AgentMessage{
-		Role:    "system",
-		Content: AgentSystemPrompt(!native, sessionKind, r.manager.targetLabelFor(runID)),
+		Role: "system",
+		Content: appendCustomPrompt(
+			AgentSystemPrompt(!native, sessionKind, r.manager.targetLabelFor(runID)),
+			r.manager.customPromptFor(runID),
+		),
 	})
 	if scope := r.manager.hostScopeFor(runID); len(scope) > 0 {
 
@@ -206,6 +217,10 @@ func (r *Runner) Run(ctx context.Context, runID string) (AgentSnapshot, error) {
 			Role:    "system",
 			Content: "The user selected these hosts for this task: " + strings.Join(scope, ", ") + ". Use only these host_id values.",
 		})
+	}
+
+	for _, message := range extraContextMessages(r.manager.hostNoteFor(runID), r.manager.snippetIndexFor(runID)) {
+		messages = append(messages, message)
 	}
 	if contextText := r.manager.contextFor(runID); contextText != "" {
 
@@ -660,7 +675,39 @@ func (r *Runner) Run(ctx context.Context, runID string) (AgentSnapshot, error) {
 			}
 		}
 
+		var ruleMatch CommandRuleMatch
+		if r.commandRules != nil {
+			ruleMatch = MatchCommandRules(action.Command, r.commandRules())
+		}
+		if ruleMatch.Matched && ruleMatch.Action == CommandRuleDeny {
+
+			reason := DescribeCommandRuleDenial(ruleMatch)
+			step, beginErr := r.manager.BeginStep(runID, StepSpec{
+				CallID:  callID,
+				Kind:    StepKindCommand,
+				Title:   action.Description,
+				Command: action.Command,
+			})
+			if beginErr != nil {
+				return r.finishRunError(ctx, runID, beginErr)
+			}
+			if _, failErr := r.manager.FailStep(runID, step.ID, StepResult{}, msgAgentBlocked, reason); failErr != nil {
+				return r.finishRunError(ctx, runID, failErr)
+			}
+			r.debug(runID, "command.rule", fmt.Sprintf("step=%d action=deny rule=%s", step.Index, ruleMatch.RuleID))
+			messages = append(messages, r.observationMessages(native, turn, callID, action.Kind, reason, nil)...)
+			continue
+		}
+
 		needsApproval, risk, riskReason := RequiresApproval(approval, action.Command, action.Risk, action.RiskReason)
+		if ruleMatch.Matched && ruleMatch.Action == CommandRuleConfirm {
+
+			needsApproval = true
+			if note := strings.TrimSpace(ruleMatch.Note); note != "" {
+				riskReason = note
+			}
+			r.debug(runID, "command.rule", fmt.Sprintf("action=confirm rule=%s", ruleMatch.RuleID))
+		}
 		step, beginErr := r.manager.BeginStep(runID, StepSpec{
 			CallID:  callID,
 			Kind:    StepKindCommand,
@@ -1002,7 +1049,12 @@ func (r *Runner) requestFallbackTurn(ctx context.Context, runID string, provider
 	r.manager.RecordContext(runID, breakdown)
 	request := ChatRequest{
 		Provider: provider,
-		Messages: toFallbackMessages(messages, r.manager.sessionKindFor(runID), r.manager.targetLabelFor(runID)),
+		Messages: toFallbackMessages(
+			messages,
+			r.manager.sessionKindFor(runID),
+			r.manager.targetLabelFor(runID),
+			r.manager.customPromptFor(runID),
+		),
 		JSONMode: true,
 		Context:  breakdown,
 	}
@@ -1033,7 +1085,7 @@ func (r *Runner) streamFallback(ctx context.Context, request ChatRequest) (strin
 	return content.String(), nil
 }
 
-func toFallbackMessages(messages []AgentMessage, sessionKind, targetLabel string) []Message {
+func toFallbackMessages(messages []AgentMessage, sessionKind, targetLabel, customPrompt string) []Message {
 	converted := make([]Message, 0, len(messages)+2)
 	appendMessage := func(role, content string) {
 		if content == "" {
@@ -1046,7 +1098,7 @@ func toFallbackMessages(messages []AgentMessage, sessionKind, targetLabel string
 		}
 		converted = append(converted, Message{Role: role, Content: content})
 	}
-	appendMessage("system", AgentSystemPrompt(true, sessionKind, targetLabel))
+	appendMessage("system", appendCustomPrompt(AgentSystemPrompt(true, sessionKind, targetLabel), customPrompt))
 	for index, message := range messages {
 		if index == 0 && message.Role == "system" {
 

@@ -14,6 +14,9 @@ export {
 } from './models.js'
 
 export type {
+  AICommandRule,
+  AICommandRuleInput,
+  AIContextSettings,
   AcceleratorInfo,
   AcceleratorSnapshot,
   CommandHistory,
@@ -45,6 +48,7 @@ export type {
   HostKeyChallenge,
   HostKeyPending,
   KnownHostEntry,
+  LaunchIntent,
   LocalEdit,
   NetworkResource,
   OTPCode,
@@ -74,6 +78,7 @@ export type {
   RouteTestResult,
   SFTPFavoritePath,
   SFTPTransfer,
+  SSHHandshakeAlgorithms,
   ServiceDetail,
   ServiceInfo,
   ServiceLog,

@@ -276,12 +276,16 @@ button:disabled {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--qt-focus, var(--ring)) 24%, transparent);
 }
 
-[data-slot='code-block-content'] {
-  scrollbar-color: var(--qt-theme-scrollbar, var(--qt-border)) transparent;
+[data-slot='code-block-content'],
+[data-qt-thin-scrollbar] {
+  --qt-scrollbar-thumb: var(--qt-theme-scrollbar, var(--qt-border));
+  --qt-scrollbar-thumb-hover: color-mix(in srgb, var(--qt-theme-scrollbar, var(--qt-border)) 62%, var(--qt-text));
+  scrollbar-color: var(--qt-scrollbar-thumb) transparent;
   scrollbar-width: thin;
 }
 
-[data-slot='code-block-content']::-webkit-scrollbar {
+[data-slot='code-block-content']::-webkit-scrollbar,
+[data-qt-thin-scrollbar]::-webkit-scrollbar {
   width: 8px;
   height: 8px;
   background: transparent;
@@ -289,18 +293,31 @@ button:disabled {
 
 [data-slot='code-block-content']::-webkit-scrollbar-track,
 [data-slot='code-block-content']::-webkit-scrollbar-track-piece,
-[data-slot='code-block-content']::-webkit-scrollbar-corner {
+[data-slot='code-block-content']::-webkit-scrollbar-corner,
+[data-qt-thin-scrollbar]::-webkit-scrollbar-track,
+[data-qt-thin-scrollbar]::-webkit-scrollbar-track-piece,
+[data-qt-thin-scrollbar]::-webkit-scrollbar-corner {
   background: transparent !important;
 }
 
-[data-slot='code-block-content']::-webkit-scrollbar-thumb {
+[data-slot='code-block-content']::-webkit-scrollbar-thumb,
+[data-qt-thin-scrollbar]::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: var(--qt-theme-scrollbar, var(--qt-border));
+  background: var(--qt-scrollbar-thumb);
   background-clip: padding-box;
 }
 
-[data-slot='code-block-content']::-webkit-scrollbar-thumb:hover {
-  background: var(--qt-text);
+[data-slot='code-block-content']::-webkit-scrollbar-thumb:hover,
+[data-qt-thin-scrollbar]::-webkit-scrollbar-thumb:hover {
+  background: var(--qt-scrollbar-thumb-hover);
   background-clip: padding-box;
+}
+
+[data-slot='scroll-area-thumb'] {
+  transition: background-color 0.15s ease;
+}
+
+[data-slot='scroll-area-thumb']:hover {
+  background-color: color-mix(in srgb, var(--qt-theme-scrollbar, var(--qt-border)) 62%, var(--qt-text)) !important;
 }

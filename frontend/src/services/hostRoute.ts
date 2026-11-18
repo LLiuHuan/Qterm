@@ -34,6 +34,10 @@ export interface RouteDraftInputView {
   proxyUsername?: string
   proxyPassword?: string
   clearProxyPassword?: boolean
+
+  sshHostKeyAlgorithms?: string[]
+  sshKeyExchanges?: string[]
+  sshProxyCommand?: string
   credentialId?: string
   kind?: string
   secret?: string
@@ -87,6 +91,9 @@ export async function testRouteDraft(input: RouteDraftInputView): Promise<RouteT
     proxyUsername: input.proxyUsername || '',
     proxyPassword: input.proxyPassword || '',
     clearProxyPassword: input.clearProxyPassword === true,
+    sshHostKeyAlgorithms: input.sshHostKeyAlgorithms ?? [],
+    sshKeyExchanges: input.sshKeyExchanges ?? [],
+    sshProxyCommand: input.sshProxyCommand || '',
     credentialId: input.credentialId || '',
     kind: input.kind || '',
     secret: input.secret || '',

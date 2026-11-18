@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -734,6 +735,15 @@ func (s *helperSession) recordTerminalError(err error) {
 	if certificateErr := s.CertificateError(); certificateErr != nil {
 		err = certificateErr
 	}
+	if !alreadyClosed {
+
+		s.mu.Lock()
+		engine, exitCode, reason, frames := s.engine, s.exitCode, s.exitReason, s.frames
+		s.mu.Unlock()
+		slog.Error("remote desktop helper exited", "event", "rdp.helper.exited",
+			"engine", string(engine), "exit_code", exitCode, "reason", reason,
+			"frames", frames, "stderr_bytes", len(s.HelperStderr()))
+	}
 	s.recordError(err)
 }
 
@@ -920,6 +930,12 @@ func (s *helperSession) waitForProcessExit(timeout time.Duration) {
 	select {
 	case <-done:
 	case <-time.After(timeout):
+
+		s.mu.Lock()
+		engine := s.engine
+		s.mu.Unlock()
+		slog.Warn("remote desktop helper kill on timeout", "event", "rdp.helper.kill_timeout",
+			"engine", string(engine), "timeout_ms", timeout.Milliseconds())
 		_ = s.cmd.Process.Kill()
 
 		select {

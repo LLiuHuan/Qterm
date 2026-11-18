@@ -102,7 +102,7 @@ onMounted(() => void load())
 
 <template>
   <section class="flex h-full min-h-0 flex-col gap-4" :aria-label="t('settings.knownHosts.title')">
-    <div class="flex min-w-0 items-center gap-2 pr-2">
+    <div class="flex min-w-0 items-center gap-2 pr-px">
       <ShieldCheck :size="16" class="shrink-0 text-qt-muted" aria-hidden="true" />
       <h3 class="m-0 shrink-0 text-sm font-medium">{{ t('settings.knownHosts.title') }}</h3>
       <span
@@ -117,7 +117,7 @@ onMounted(() => void load())
       }}</span>
     </div>
 
-    <div class="flex items-center gap-2 pr-2">
+    <div class="flex items-center gap-2 pr-px">
       <QtermSearchField
         v-model="query"
         class="min-w-0 flex-1"
@@ -153,7 +153,7 @@ onMounted(() => void load())
       class="flex-1"
     />
     <ScrollArea v-else-if="visibleEntries.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
-      <div class="flex flex-col gap-2 pr-2">
+      <div class="flex flex-col gap-2 pr-px">
         <article
           v-for="entry in visibleEntries"
           :key="`${entry.source}:${entry.line}`"
@@ -182,7 +182,8 @@ onMounted(() => void load())
               <template v-if="entry.comment"> · {{ entry.comment }}</template>
             </span>
           </div>
-          <div class="settings-library-row-actions flex shrink-0 items-center gap-1">
+
+          <div class="settings-library-row-actions flex shrink-0 items-center">
             <IconButton
               v-if="entry.sha256Fingerprint"
               :label="t('settings.knownHosts.copy')"

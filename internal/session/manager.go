@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"sync"
@@ -594,7 +595,10 @@ func (m *SessionManager) sweepOrphanSessions() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), orphanCloseTimeout)
 
-		_ = m.closeWithReason(ctx, sessionID, model.SessionCloseReasonOrphanTimeout)
+		if err := m.closeWithReason(ctx, sessionID, model.SessionCloseReasonOrphanTimeout); err != nil {
+			slog.Warn("orphan session close failed", "event", "session.orphan.close_failed",
+				"session_id", sessionID, "error", err)
+		}
 		cancel()
 	}
 }
@@ -606,9 +610,15 @@ func (m *SessionManager) run(worker *managedSession) {
 	snapshot := worker.current()
 	connector := worker.connector
 	if connector == nil {
+
+		slog.Error("session started without connector", "event", "session.connect.failed",
+			"session_id", snapshot.ID, "host_id", snapshot.HostID,
+			"protocol", string(snapshot.Kind), "stage", "connect",
+			"error_key", "session.connection_failed")
 		worker.fail(m.now())
 		return
 	}
+	connectStart := m.now()
 	connection, err := connector.Connect(
 		worker.ctx,
 		snapshot.ID,
@@ -624,10 +634,21 @@ func (m *SessionManager) run(worker *managedSession) {
 			worker.pause(pending.State, m.now()) {
 			return
 		}
+
+		errorKey := SessionConnectionFailureKey(err)
+		slog.Error("session connect failed", "event", "session.connect.failed",
+			"session_id", snapshot.ID, "host_id", snapshot.HostID,
+			"protocol", string(snapshot.Kind), "stage", connectStageForErrorKey(errorKey),
+			"error_key", errorKey, "duration_ms", m.now().Sub(connectStart).Milliseconds(),
+			"error", err)
 		worker.finishConnectError(m.now())
 		return
 	}
 	if connection == nil {
+		slog.Error("session connector returned no connection", "event", "session.connect.failed",
+			"session_id", snapshot.ID, "host_id", snapshot.HostID,
+			"protocol", string(snapshot.Kind), "stage", "connect",
+			"error_key", "session.connection_failed")
 		worker.fail(m.now())
 		return
 	}
@@ -637,6 +658,11 @@ func (m *SessionManager) run(worker *managedSession) {
 		worker.closeNormally(m.now(), model.SessionCloseReasonError)
 		return
 	}
+
+	slog.Info("session connected", "event", "session.connect.ready",
+		"session_id", snapshot.ID, "host_id", snapshot.HostID,
+		"protocol", string(snapshot.Kind), "purpose", string(snapshot.Purpose),
+		"duration_ms", m.now().Sub(connectStart).Milliseconds())
 	defer worker.closeConnection()
 	if measurable, ok := connection.(latencyCapableConnection); ok {
 		latencyEnabled := true
@@ -665,9 +691,16 @@ func (m *SessionManager) run(worker *managedSession) {
 	}
 	if err == nil {
 
+		slog.Info("session ended by remote", "event", "session.stream.ended",
+			"session_id", snapshot.ID, "host_id", snapshot.HostID,
+			"protocol", string(snapshot.Kind), "close_reason", model.SessionCloseReasonRemoteEOF)
 		worker.closeNormally(m.now(), model.SessionCloseReasonRemoteEOF)
 		return
 	}
+
+	slog.Warn("session stream failed", "event", "session.stream.failed",
+		"session_id", snapshot.ID, "host_id", snapshot.HostID,
+		"protocol", string(snapshot.Kind), "error", err)
 	worker.fail(m.now())
 }
 
@@ -692,6 +725,26 @@ func (s *managedSession) monitorLatency(ctx context.Context, connection latencyC
 		case <-ticker.C:
 		}
 	}
+}
+
+func connectStageForErrorKey(errorKey string) string {
+	switch {
+	case strings.HasPrefix(errorKey, "session.proxy_"):
+		return "proxy"
+	case strings.HasPrefix(errorKey, "session.jump_"):
+		return "jump"
+	case errorKey == "session.auth_failed", errorKey == "credential.locked":
+		return "auth"
+	case errorKey == "session.handshake_failed", errorKey == "session.hostkey_changed":
+		return "handshake"
+	case errorKey == "session.host_unreachable",
+		errorKey == "session.network_failed",
+		errorKey == "session.connection_invalid",
+		errorKey == "session.telnet_unreachable",
+		errorKey == "session.timeout":
+		return "dial"
+	}
+	return "connect"
 }
 
 func (m *SessionManager) lookup(ctx context.Context, id string) (*managedSession, error) {

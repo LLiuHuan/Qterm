@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,6 +23,11 @@ const (
 func (s *Service) downloadAsset(ctx context.Context, release *Release) (string, error) {
 	dir := filepath.Join(s.tempRoot, "qterm-update", sanitizeSegment(release.Tag))
 	if err := os.MkdirAll(dir, 0o700); err != nil {
+		slog.Warn("update staging directory create failed",
+			"event", "update.download.mkdir_failed",
+			"dir", dir,
+			"error", err,
+		)
 		return "", downloadFailed("mkdir")
 	}
 	target := filepath.Join(dir, release.Asset.Name)
@@ -35,11 +41,17 @@ func (s *Service) downloadAsset(ctx context.Context, release *Release) (string, 
 	}
 	expected, found := checksumFor(sums, release.Asset.Name)
 	if !found {
+		slog.Warn("update checksum missing for asset",
+			"event", "update.download.checksum_missing",
+			"asset", release.Asset.Name,
+			"version", release.Version,
+		)
 		return "", checksumMissing()
 	}
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, release.Asset.URL, nil)
 	if err != nil {
+		slog.Warn("update download request invalid", "event", "update.download.request_invalid", "asset", release.Asset.Name)
 		return "", downloadFailed("request")
 	}
 	request.Header.Set("User-Agent", "Qterm-Updater")
@@ -48,10 +60,20 @@ func (s *Service) downloadAsset(ctx context.Context, release *Release) (string, 
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
+		slog.Warn("update download request failed",
+			"event", "update.download.request_failed",
+			"asset", release.Asset.Name,
+			"error", err,
+		)
 		return "", downloadFailed("network")
 	}
 	if response.StatusCode != http.StatusOK {
 		_ = response.Body.Close()
+		slog.Warn("update download rejected",
+			"event", "update.download.bad_status",
+			"asset", release.Asset.Name,
+			"status", response.StatusCode,
+		)
 		return "", downloadFailed("HTTP " + strconv.Itoa(response.StatusCode))
 	}
 
@@ -81,26 +103,59 @@ func (s *Service) downloadAsset(ctx context.Context, release *Release) (string, 
 			return "", ctx.Err()
 		}
 		if body.Stalled() {
+
+			slog.Warn("update download stalled",
+				"event", "update.download.stalled",
+				"asset", release.Asset.Name,
+				"bytes", written,
+			)
 			return "", downloadFailed("stalled")
 		}
+		slog.Warn("update download copy failed",
+			"event", "update.download.copy_failed",
+			"asset", release.Asset.Name,
+			"bytes", written,
+			"error", copyErr,
+		)
 		return "", downloadFailed("copy")
 	}
 	if closeErr != nil {
 		_ = os.Remove(partial)
+		slog.Warn("update download close failed",
+			"event", "update.download.close_failed",
+			"asset", release.Asset.Name,
+			"error", closeErr,
+		)
 		return "", downloadFailed("close")
 	}
 	if writer.total > 0 && written != writer.total {
 		_ = os.Remove(partial)
+		slog.Warn("update download truncated",
+			"event", "update.download.truncated",
+			"asset", release.Asset.Name,
+			"bytes", written,
+			"total", writer.total,
+		)
 		return "", downloadFailed("truncated")
 	}
 
 	actual := hex.EncodeToString(hasher.Sum(nil))
 	if !strings.EqualFold(actual, expected) {
 		_ = os.Remove(partial)
+		slog.Warn("update download checksum mismatch",
+			"event", "update.download.checksum_mismatch",
+			"asset", release.Asset.Name,
+			"bytes", written,
+		)
 		return "", checksumMismatch()
 	}
 	if err := os.Rename(partial, target); err != nil {
 		_ = os.Remove(partial)
+		slog.Warn("update download rename failed",
+			"event", "update.download.rename_failed",
+			"target", target,
+			"error", err,
+		)
 		return "", downloadFailed("rename")
 	}
 	return target, nil
@@ -112,9 +167,11 @@ func (s *Service) fetchChecksums(ctx context.Context) (string, error) {
 	signatureURL := s.signatureURL
 	s.mu.Unlock()
 	if checksumURL == "" {
+		slog.Warn("update checksum asset missing", "event", "update.signature.checksum_asset_missing")
 		return "", checksumMissing()
 	}
 	if signatureURL == "" {
+		slog.Warn("update signature asset missing", "event", "update.signature.asset_missing")
 		return "", signatureMissing()
 	}
 	sums, err := s.fetchText(ctx, checksumURL, maxChecksumBytes, checksumMissing)
@@ -126,6 +183,13 @@ func (s *Service) fetchChecksums(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if err := VerifyChecksumsSignature([]byte(sums), []byte(signature)); err != nil {
+
+		key, detail := errorFields(err)
+		slog.Error("update checksums signature rejected",
+			"event", "update.signature.rejected",
+			"error_key", key,
+			"detail", detail,
+		)
 		return "", err
 	}
 	return sums, nil
@@ -207,6 +271,8 @@ type progressWriter struct {
 	total    int64
 	written  int64
 	lastEmit time.Time
+
+	lastLog int64
 }
 
 func (w *progressWriter) Write(buffer []byte) (int, error) {
@@ -217,7 +283,30 @@ func (w *progressWriter) Write(buffer []byte) (int, error) {
 		w.lastEmit = now
 		w.report()
 	}
+	w.logProgress()
 	return written, err
+}
+
+func (w *progressWriter) logProgress() {
+	step := int64(1 << 20)
+	if w.total > 0 && w.total/10 > step {
+		step = w.total / 10
+	}
+	if w.written-w.lastLog < step && w.written != w.total {
+		return
+	}
+	w.lastLog = w.written
+	percent := 0
+	if w.total > 0 {
+		percent = int(w.written * 100 / w.total)
+	}
+	slog.Debug("update download progress",
+		"event", "update.download.progress",
+		"asset", w.release.Asset.Name,
+		"bytes", w.written,
+		"total", w.total,
+		"percent", percent,
+	)
 }
 
 func (w *progressWriter) report() {

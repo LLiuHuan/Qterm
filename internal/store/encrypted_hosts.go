@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -267,6 +268,11 @@ func (s *Store) openHostPayload(id string, payload []byte, host *model.Host) err
 	}
 	plaintext, err := s.codec.Open("host", id, payload)
 	if err != nil {
+
+		slog.Error("host payload decrypt failed",
+			"event", "store.host.decrypt_failed",
+			"kind", "host",
+			"error", err)
 		return fmt.Errorf("decrypt host payload: %w", err)
 	}
 	defer clear(plaintext)
@@ -347,6 +353,11 @@ func (s *Store) openHostPasswords(id string, payload []byte) (string, string, er
 	}
 	plaintext, err := s.codec.Open("host", id, payload)
 	if err != nil {
+
+		slog.Error("host password decrypt failed",
+			"event", "store.host.decrypt_failed",
+			"kind", "host_password",
+			"error", err)
 		return "", "", fmt.Errorf("decrypt host password: %w", err)
 	}
 	defer clear(plaintext)
