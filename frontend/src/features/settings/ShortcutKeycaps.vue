@@ -1,9 +1,22 @@
 <script setup lang="ts">
-defineProps<{
-  tokens: readonly string[]
+import { computed } from 'vue'
 
-  label?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    tokens: readonly string[]
+
+    label?: string
+
+    compact?: boolean
+  }>(),
+  { label: '', compact: false },
+)
+
+const keycapSizeClass = computed(() =>
+  props.compact
+    ? 'h-5 min-w-[20px] px-[4px] pt-px text-[11px] leading-none'
+    : 'h-6 min-w-[26px] px-[6px] pt-px text-xs leading-none',
+)
 </script>
 
 <template>
@@ -14,7 +27,15 @@ defineProps<{
     :aria-hidden="label ? undefined : 'true'"
   >
     <template v-for="(token, index) in tokens" :key="`${token}-${index}`">
-      <kbd class="text-[10px] leading-4 text-foreground">{{ token }}</kbd>
+      <kbd
+        :class="[
+          'inline-flex items-center justify-center rounded-[4px] border border-solid border-qt-border bg-qt-subtle font-mono text-qt-text',
+          keycapSizeClass,
+        ]"
+        >{{ token }}</kbd
+      >
+
+      <span v-if="index < tokens.length - 1" class="pt-px text-xs leading-none text-qt-muted">+</span>
     </template>
   </span>
 </template>

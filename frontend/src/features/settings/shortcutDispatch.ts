@@ -32,6 +32,10 @@ export interface ShortcutCapabilities {
   reconnectSession(): void
   disconnectSession(): void
 
+  increaseTerminalFontSize(): void
+
+  decreaseTerminalFontSize(): void
+
   commandPalette(): void
 
   togglePaneMaximize(): void
@@ -53,6 +57,9 @@ const ACTIONS_WITHOUT_ACTIVE_TAB: ReadonlySet<ShortcutAction> = new Set<Shortcut
   'toggleSidebar',
 
   'remoteFileSave',
+
+  'increaseTerminalFontSize',
+  'decreaseTerminalFontSize',
 ])
 
 export function shortcutNeedsActiveTab(action: ShortcutAction): boolean {
@@ -73,6 +80,8 @@ export function createShortcutDispatch(capabilities: ShortcutCapabilities): Shor
     pasteTerminal: () => capabilities.pasteTerminal(),
     reconnectSession: () => capabilities.reconnectSession(),
     disconnectSession: () => capabilities.disconnectSession(),
+    increaseTerminalFontSize: () => capabilities.increaseTerminalFontSize(),
+    decreaseTerminalFontSize: () => capabilities.decreaseTerminalFontSize(),
     commandPalette: () => capabilities.commandPalette(),
     togglePaneMaximize: () => capabilities.togglePaneMaximize(),
     focusNextPane: (event) => capabilities.focusNextPane(paneFocusDirection(event)),

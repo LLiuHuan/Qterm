@@ -1,6 +1,7 @@
 import { connectThemeSync, themeSnapshot } from '../../services/themeSync'
 import { connectSettingsSync, type SettingsChangedPayload } from '../../services/settingsSync'
 import { createFontGateway, type TerminalFontFamily } from '../../services/fonts'
+import { PREFERENCE_KEYS, hasPendingWrite } from '../../services/preferences'
 import { whenWailsRuntime } from '../../services/runtime'
 import { fontScriptVariant, fontVariantBaseName, preferredFontVariant } from './useTerminalFontFamilies'
 import { useI18n } from '@/locales'
@@ -22,6 +23,7 @@ import {
 } from './settingsStore'
 import {
   DEFAULT_SHORTCUTS,
+  FIXED_SHORTCUT_ACTIONS,
   loadShortcuts,
   loadShortcutsFromPreferences,
   saveShortcuts,
@@ -229,6 +231,8 @@ export function useSettingsState() {
 
   function setShortcut(action: ShortcutAction, binding: string): void {
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_SHORTCUTS, action)) return
+
+    if (FIXED_SHORTCUT_ACTIONS.has(action)) return
     shortcuts[action] = binding
   }
 
@@ -241,6 +245,8 @@ export function useSettingsState() {
     void payload
 
     if (disposed) return
+
+    if (hasPendingWrite(PREFERENCE_KEYS.settings) || hasPendingWrite(PREFERENCE_KEYS.shortcuts)) return
     applyingRemote = true
     try {
       Object.assign(settings, await loadSettingsFromPreferences())

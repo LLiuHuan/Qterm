@@ -217,6 +217,12 @@ export interface StartInput {
 
   ContextText: string
 
+  customPrompt?: string
+
+  hostNote?: string
+
+  snippetIndex?: string[] | null
+
   ExecutionChannel: string
 
   MaxSteps: number

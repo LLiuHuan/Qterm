@@ -42,6 +42,8 @@ var (
 	auditSecretPair      = regexp.MustCompile(`(?i)((?:password|passwd|token|secret|api[_-]?key)\s*[=:]\s*)(\S+)`)
 
 	auditAttachedPassword = regexp.MustCompile(`(\s-p)([^\s/][^\s]{2,})`)
+
+	noteSecretPair = regexp.MustCompile(`(?i)((?:password|passwd|passphrase|token|secret|密码|口令)\s*[:=：]\s*)(\S+)`)
 )
 
 func redactAgentCommand(command string) string {

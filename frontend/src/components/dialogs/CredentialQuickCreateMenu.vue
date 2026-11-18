@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileKey, Fingerprint, KeyRound, LockKeyhole, Plus } from '@lucide/vue'
+import { BadgeCheck, FileKey, Fingerprint, KeyRound, LockKeyhole, Plus } from '@lucide/vue'
 import { IconButton } from '../common'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../common/overlay-controls'
 import { useI18n } from '@/locales'
@@ -7,7 +7,7 @@ import { useI18n } from '@/locales'
 const props = withDefaults(defineProps<{ disabled?: boolean }>(), { disabled: false })
 
 const emit = defineEmits<{
-  create: [kind: 'password' | 'privateKey' | 'sshAgent', keyMode?: 'generate' | 'upload' | 'manual']
+  create: [kind: 'password' | 'privateKey' | 'sshAgent' | 'userCertificate', keyMode?: 'generate' | 'upload' | 'manual']
 }>()
 
 const { t } = useI18n()
@@ -41,6 +41,10 @@ const { t } = useI18n()
       <DropdownMenuItem :disabled="props.disabled" @select="emit('create', 'sshAgent')">
         <Fingerprint :size="14" aria-hidden="true" />
         {{ t('settings.credentials.action.createAgent') }}
+      </DropdownMenuItem>
+      <DropdownMenuItem :disabled="props.disabled" @select="emit('create', 'userCertificate')">
+        <BadgeCheck :size="14" aria-hidden="true" />
+        {{ t('settings.credentials.action.createCertificate') }}
       </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>

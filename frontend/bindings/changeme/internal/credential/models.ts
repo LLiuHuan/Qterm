@@ -125,6 +125,7 @@ export interface RevealedCredential {
   passphrase?: string
   username?: string
   publicKey?: string
+  certificate?: string
 }
 
 export interface SetAutoUnlockInput {

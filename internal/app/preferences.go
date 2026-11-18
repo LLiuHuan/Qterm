@@ -94,6 +94,8 @@ func (s *Service) SetPreference(ctx context.Context, key, value string) error {
 				return publicError(err)
 			}
 		}
+
+		s.applySettingsFromPreference(value)
 	}
 
 	if app := application.Get(); app != nil {

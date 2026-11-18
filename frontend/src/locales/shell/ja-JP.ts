@@ -342,7 +342,64 @@ export const shellUiJa: Record<string, string> = {
   'shell.adhoc.error.empty': '接続先を入力してください。',
   'shell.adhoc.error.invalid': 'アドレスの形式が正しくありません。例に従ってください。',
   'shell.adhoc.error.username': 'SSH にはユーザー名が必要です。「user@host」の形式で入力してください。',
+  'shell.aiContext.title': 'AI コンテキスト',
+  'shell.aiContext.description': 'AI から見えない情報を伝えます：環境と習慣、このホストのメモ、保存済みのコマンド。',
+  'shell.aiContext.customPromptLabel': 'カスタムプロンプト',
+  'shell.aiContext.customPromptHelp':
+    '組み込みの system プロンプトの後に追加し、制約・習慣・ホスト環境（ディストリビューション、shell、常用ツールなど）を補います。空欄なら追加しません。',
+  'shell.aiContext.customPromptPlaceholder':
+    '例：対象は Debian 12 で bash。systemctl を優先し、apt upgrade は使わない。',
+  'shell.aiContext.hostNoteLabel': 'ホストメモを含める',
+  'shell.aiContext.hostNoteHelp':
+    '有効にすると、ホストターミナルで AI を使うとき現在のホストメモを参考情報として設定中の AI サービスへ送信します。',
+  'shell.aiContext.snippetIndexLabel': '保存済みコマンドを含める',
+  'shell.aiContext.snippetIndexHelp':
+    '保存したスニペット（名前とコマンド）を参考として送り、AI が既存のコマンドを再利用できるようにします。ホスト限定のコマンドはそのホストでのみ有効です。',
+  'shell.aiContext.save': '保存',
+  'shell.aiContext.saved': '保存しました',
+  'shell.aiContext.saveFailed': 'AI コンテキスト設定の保存に失敗しました。',
+  'shell.aiRules.title': 'コマンド保護ルール',
+  'shell.aiRules.description':
+    'AI が実行しようとするコマンドを正規表現で照合します。上の承認モードや「この実行では確認しない」より優先されます。',
+  'shell.aiRules.matchingHint':
+    'パターンは非アンカー照合です（コマンド内のどこかに一致すればヒット）。行全体に一致させたい場合は ^ と $ を付けてください（例: ^rm\\s+-rf\\s+/$）。',
+  'shell.aiRules.loading': '読み込み中…',
+  'shell.aiRules.empty': 'ルールはまだありません。例えば rm\\s+-rf を「ブロック」にしてみてください。',
+  'shell.aiRules.emptyTitle': 'コマンド保護ルールがまだありません',
+  'shell.aiRules.create': 'ルールを追加',
+  'shell.aiRules.editTitle': 'ルールを編集',
+  'shell.aiRules.createTitle': 'ルールを追加',
+  'shell.aiRules.dialogHint':
+    '一致した場合: 確認 = 必ず承認を求める / ブロック = このコマンドを拒否し、AI は別の方法を試します。',
+  'shell.aiRules.import': 'インポート',
+  'shell.aiRules.export': 'エクスポート',
+  'shell.aiRules.edit': '編集',
+  'shell.aiRules.remove': '削除',
+  'shell.aiRules.cancel': 'キャンセル',
+  'shell.aiRules.save': '保存',
+  'shell.aiRules.action.confirm': '確認する',
+  'shell.aiRules.action.deny': 'ブロック',
+  'shell.aiRules.field.pattern': 'パターン',
+  'shell.aiRules.field.patternHelp': '正規表現です。後方参照と先読み・後読みには対応していません。',
+  'shell.aiRules.field.action': '処理',
+  'shell.aiRules.field.note': 'メモ',
+  'shell.aiRules.error.generic': '操作に失敗しました。もう一度お試しください。',
+  'shell.aiRules.error.invalidPattern': '正規表現が正しくありません。',
+  'shell.aiRules.error.tooMany': 'ルール数の上限に達しました。先にいくつか削除してください。',
   'shell.adhoc.toolUnavailable': '一時接続では利用できません',
+  'shell.launchIntent.title': '外部接続を開く',
+  'shell.launchIntent.description':
+    'リンクから Qterm で接続を開く要求があります。接続先を確認してから接続してください。',
+  'shell.launchIntent.warning':
+    'リンクは任意のページやメッセージから届きます。本当にこのマシンへ接続する場合のみ続行してください。',
+  'shell.launchIntent.tooMany': '確認待ちの外部リンクが多すぎます。余分な要求は無視しました',
+  'shell.launchIntent.error.empty': 'リンクに使用できる接続先がありません。',
+  'shell.launchIntent.error.unsupported-scheme':
+    'このリンク形式には対応していません。開けるのは qterm、ssh、telnet のリンクのみです。',
+  'shell.launchIntent.error.unsupported-verb': '不明な qterm リンクです。',
+  'shell.launchIntent.error.password-in-url':
+    '安全のためリンク内のパスワードは読み取りません。パスワードを含まないリンクを使用してください。',
+  'shell.launchIntent.error.invalid': 'リンクの形式が正しくないため、ホストを解析できません。',
   'shell.toolbar.sftp': 'SFTP',
   'shell.toolbar.newWindow': '新しいウィンドウ',
   'shell.toolbar.global': 'グローバルツール',
@@ -667,6 +724,7 @@ export const shellUiJa: Record<string, string> = {
   'shell.palette.hosts': 'ホスト',
   'shell.palette.settings': '設定',
   'shell.palette.actions': 'コマンド',
+  'shell.palette.connectTo': '{target} に接続',
   'shell.palette.newLocalTerminal': '新しいローカルターミナル',
   'shell.palette.openSettingsAction': '設定を開く',
   'shell.palette.toggleOutputPause': 'ターミナル出力の一時停止 / 再開',
@@ -1269,6 +1327,7 @@ export const shellUiJa: Record<string, string> = {
   'shell.credential.privateKey': '秘密鍵',
   'shell.credential.privateKeyPassphrase': '秘密鍵のパスフレーズ',
   'shell.credential.sshAgent': 'SSH エージェント',
+  'shell.credential.userCertificate': 'ユーザー証明書',
   'shell.hostEditor.optional': '（任意）',
   'shell.hostEditor.usernamePlaceholderRdp': '例：Administrator',
   'shell.hostEditor.usernamePlaceholderVnc': '空欄可（Apple RA2 のみ）',
@@ -1297,6 +1356,9 @@ export const shellUiJa: Record<string, string> = {
     '保存済みの別の SSH ホストを経由して接続します。接続元として見えるのは踏み台ホストです。',
   'shell.hostEditor.connectionProxyHint':
     '先にプロキシへ接続し、プロキシから対象へ接続します。プロキシのユーザー名とパスワードを入力するか、両方空欄にして認証なしで使用できます。',
+  'shell.hostEditor.proxyCommandMode': 'ローカルコマンド',
+  'shell.hostEditor.connectionProxyCommandHint':
+    'ローカルのプログラム（ssh / nc / aws / kubectl など）の標準入出力を対象への接続として使います。%h がホスト、%p がポートです。',
   'shell.hostEditor.jumpHost': '踏み台ホスト',
   'shell.hostEditor.jumpHostPlaceholder': '踏み台にする SSH ホストを選択',
   'shell.hostEditor.jumpHostEmpty':
@@ -1489,6 +1551,16 @@ export const shellUiJa: Record<string, string> = {
   'shell.hostIcon.remove': 'アイコンを削除',
   'shell.hostIcon.importDisabled': 'カスタムアイコンは今後のバージョンで利用できます',
   'shell.hostIcon.import': 'アイコンをインポート',
+  'shell.hostIcon.search': 'ホストアイコンを検索',
+  'shell.hostIcon.searchPlaceholder': 'アイコンを検索',
+  'shell.hostIcon.clearSearch': '検索をクリア',
+  'shell.hostIcon.noMatch': '一致するアイコンがありません',
+  'shell.hostIcon.category.os': 'オペレーティングシステム',
+  'shell.hostIcon.category.network': 'ネットワーク機器',
+  'shell.hostIcon.category.nas': 'NAS とストレージ',
+  'shell.hostIcon.category.cloud': 'クラウドサービス',
+  'shell.hostIcon.category.virt': '仮想化とコンテナ',
+  'shell.hostIcon.category.other': 'その他',
   'shell.hostIcon.removeTitle': 'ホストアイコンを削除',
   'shell.hostIcon.removeMessage': '現在のホストアイコンを削除しますか？',
   'shell.hostIcon.removeConfirm': '削除',
@@ -1822,6 +1894,8 @@ export const shellUiJa: Record<string, string> = {
   'shell.error.portRange': 'ポートは 1～65535 の範囲の整数で指定してください。',
   'shell.error.proxyHostRequired': 'プロキシのアドレスを入力してください。',
   'shell.error.proxyPortRange': 'プロキシのポートは 1～65535 の範囲の整数で指定してください。',
+  'shell.error.proxyCommandProxyConflict':
+    'ProxyCommand とプロキシ（SOCKS5/HTTP）は同時に使用できません。どちらも最初の区間の接続を確立するための設定です。',
   'shell.error.passwordRequired': 'ログインパスワードを入力してください。',
   'shell.error.authenticationFailed': 'SSH 認証に失敗しました。',
   'shell.error.authenticationChallenge': 'SSH 認証リクエストを取得できませんでした。再試行するか、再接続してください。',
@@ -1928,6 +2002,30 @@ export const shellUiJa: Record<string, string> = {
   'shell.otp.fillCode': 'コードを入力',
   'shell.otp.generateError': 'コードを生成できません。認証情報ストレージを確認してください。',
 
+  'shell.hostEditor.sshHandshake.title': 'SSH ハンドシェイクと ProxyCommand',
+  'shell.hostEditor.sshHandshake.description':
+    '旧式デバイス向けにネゴシエーションアルゴリズムを緩和・制限したり、ローカルコマンドで最初の区間をトンネルしたりします。既定では内蔵の一覧を使用します。',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithms': 'ホスト鍵アルゴリズム',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithmsHelp':
+    '空欄なら既定の一覧を使用します。入力すると既定の一覧を**丸ごと置き換え**、ここに列挙したアルゴリズムだけを使います。',
+  'shell.hostEditor.sshHandshake.keyExchanges': '鍵交換アルゴリズム',
+  'shell.hostEditor.sshHandshake.keyExchangesHelp':
+    '空欄なら既定の一覧を使用します。group1-sha1 などを要求する旧式デバイスの場合のみ入力してください。',
+  'shell.hostEditor.sshHandshake.deprecatedHint':
+    '「非推奨」のアルゴリズムには既知の弱点があります。相手側がより安全な方式に対応していない場合のみ使用してください。',
+  'shell.hostEditor.sshHandshake.addAlgorithm': 'アルゴリズムを追加…',
+  'shell.hostEditor.sshHandshake.resetAlgorithms': '既定に戻す',
+  'shell.hostEditor.sshHandshake.proxyCommand': 'ProxyCommand',
+  'shell.hostEditor.sshHandshake.proxyCommandPlaceholder': '例: ssh -W %h:%p bastion.example.com',
+  'shell.hostEditor.sshHandshake.proxyCommandHelp':
+    'このコマンドの標準入出力を対象への接続として使います。%h と %p はアドレスとポートに置換されます。プロキシ（SOCKS5/HTTP）とは併用できません。',
+  'shell.hostEditor.sshHandshake.proxyCommandAdvancedHint':
+    '保存済みの SSH ホストを経由するだけなら「踏み台」を使ってください。ProxyCommand は AWS SSM、Kubernetes、Cloudflare Tunnel など SSH では表現できない経路向けです。',
+  'shell.hostEditor.sshHandshake.deprecatedTag': '非推奨',
+  'shell.hostEditor.sshHandshake.defaultGroup': '既定で有効',
+  'shell.hostEditor.sshHandshake.deprecatedGroup': '非推奨（既知の弱点あり）',
+  'shell.hostEditor.sshHandshake.usingDefaults': '内蔵の既定アルゴリズム一覧を使用中',
+  'shell.hostEditor.sshHandshake.removeAlgorithm': '{name} を削除',
   'shell.otp.search': '発行元またはアカウントを検索',
   'shell.otp.scan': 'QR コードを読み取る',
   'shell.otp.scanHint': 'QR 画像を選択または貼り付け、内容を確認して保存してください。',

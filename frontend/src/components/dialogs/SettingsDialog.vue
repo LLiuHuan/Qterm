@@ -179,6 +179,14 @@ const props = withDefaults(
 
     closeToTray?: boolean
 
+    globalShortcut?: string
+
+    globalShortcutEffective?: string
+
+    globalShortcutError?: string
+
+    singleInstance?: boolean
+
     restoreOpenSessions?: boolean
 
     quitConfirm?: boolean
@@ -218,6 +226,10 @@ const props = withDefaults(
     closeOnEscape: false,
     page: false,
     settingsInWindow: true,
+    globalShortcut: '',
+    globalShortcutEffective: '',
+    globalShortcutError: '',
+    singleInstance: true,
     autoCopySelection: false,
     copyFeedback: true,
     showLatency: true,
@@ -394,6 +406,8 @@ const emit = defineEmits<{
   'update:x11AuthorityFile': [value: string]
   'update:windowRememberSize': [value: boolean]
   'update:closeToTray': [value: boolean]
+  'update:globalShortcut': [value: string]
+  'update:singleInstance': [value: boolean]
   'update:restoreOpenSessions': [value: boolean]
   'update:quitConfirm': [value: boolean]
   'update:settingsInWindow': [value: boolean]
@@ -471,9 +485,16 @@ const activeCategory = computed(() => {
 })
 
 const innerScrollLayout = computed(() =>
-  ['credentials', 'proxies', 'portForwards', 'credentialPrompt', 'snippets', 'history', 'recordings'].includes(
-    props.category,
-  ),
+  [
+    'credentials',
+    'proxies',
+    'portForwards',
+    'credentialPrompt',
+    'snippets',
+    'history',
+    'recordings',
+    'knownHosts',
+  ].includes(props.category),
 )
 
 const mainScroll = ref<{
@@ -694,6 +715,8 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
                 :x11-authority-file="props.x11AuthorityFile"
                 :window-remember-size="props.windowRememberSize"
                 :close-to-tray="props.closeToTray ?? true"
+                :single-instance="props.singleInstance ?? true"
+                @update:single-instance="emit('update:singleInstance', $event)"
                 :restore-open-sessions="props.restoreOpenSessions ?? true"
                 :quit-confirm="props.quitConfirm ?? true"
                 @update:quit-confirm="emit('update:quitConfirm', $event)"
@@ -802,7 +825,11 @@ function restoreDialogFocusAfterEscape(event: KeyboardEvent): void {
               <ShortcutsSettingsPanel
                 v-else-if="props.category === 'shortcuts'"
                 :shortcuts="props.shortcuts"
+                :global-shortcut="props.globalShortcut ?? ''"
+                :global-shortcut-effective="props.globalShortcutEffective ?? ''"
+                :global-shortcut-error="props.globalShortcutError ?? ''"
                 @update:shortcut="(action, binding) => emit('update:shortcut', action, binding)"
+                @update:global-shortcut="emit('update:globalShortcut', $event)"
               />
               <AboutSettingsPanel
                 v-else-if="props.category === 'about'"

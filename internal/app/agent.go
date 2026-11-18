@@ -48,6 +48,15 @@ func (s *Service) AIAgentStart(ctx context.Context, input ai.StartInput) (ai.Age
 			s.agentLog("", "start.kind", kindErr.Error())
 		}
 	}
+
+	if settings, settingsErr := s.loadAIContextSettings(ctx); settingsErr == nil {
+		input.CustomPrompt = settings.CustomPrompt
+		if settings.IncludeHostNote || settings.IncludeSnippetIndex {
+			hostNote, snippetIndex := s.aiRunContext(ctx, settings, input.SessionID)
+			input.HostNote = hostNote
+			input.SnippetIndex = snippetIndex
+		}
+	}
 	s.agentLog("", "start.request", fmt.Sprintf(
 		"provider=%s type=%s model=%s mode=%s channel=%s kind=%s session=%s promptBytes=%d history=%d",
 		input.ProviderID, input.ProviderType, input.Model, input.ApprovalMode,
@@ -64,6 +73,8 @@ func (s *Service) AIAgentStart(ctx context.Context, input ai.StartInput) (ai.Age
 	}
 
 	options = append(options, ai.WithDraftObserver(s.emitAgentDraft))
+
+	options = append(options, ai.WithCommandRules(s.compiledAICommandRules))
 	runner := ai.NewRunner(s.agents, s.ai, sessionAgentExecutor{
 		sessions:     s.sessions,
 		hosts:        s.hosts,

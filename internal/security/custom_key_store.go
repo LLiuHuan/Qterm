@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -57,6 +58,11 @@ func (s *CustomKeyStore) Load(ctx context.Context, customKey []byte) ([]byte, er
 	dek, err := UnwrapDEKWithCustomKey(envelope, customKey)
 	if err != nil {
 		clear(dek)
+
+		slog.Warn("custom key unwrap failed",
+			"event", "security.custom_key.unlock_failed",
+			"backend", "custom",
+			"error", err)
 		return nil, err
 	}
 	if err := checkContext(ctx); err != nil {
@@ -177,6 +183,12 @@ func (s *CustomKeyStore) Rotate(ctx context.Context, currentKey, newKey []byte) 
 	clear(envelope)
 	if err != nil {
 		clear(dek)
+
+		slog.Warn("custom key rotate failed",
+			"event", "security.custom_key.rotate_failed",
+			"backend", "custom",
+			"stage", "unwrap",
+			"error", err)
 		return err
 	}
 	defer clear(dek)

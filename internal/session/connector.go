@@ -438,6 +438,9 @@ func (c *Connector) Connect(
 		Username: host.Username,
 
 		Timeout: hostConnectTimeout(host),
+
+		HostKeyAlgorithms: host.SSHHostKeyAlgorithms,
+		KeyExchanges:      host.SSHKeyExchanges,
 	}
 	hopInfo := &hopState{}
 	callback := func(hostname string, remote net.Addr, key xssh.PublicKey) error {
@@ -571,7 +574,8 @@ func (c *Connector) Connect(
 				if kind != model.CredentialKindPassword &&
 					kind != model.CredentialKindPrivateKey &&
 					kind != model.CredentialKindPrivateKeyPassphrase &&
-					kind != model.CredentialKindSSHAgent {
+					kind != model.CredentialKindSSHAgent &&
+					kind != model.CredentialKindUserCertificate {
 					return errno.New(errno.CodeInvalidArg, "session.invalid_authentication", "")
 				}
 				var connectErr error
@@ -733,6 +737,9 @@ func (c *Connector) installAuxiliaryProvisioner(connection SessionConnection, ho
 		Username: host.Username,
 
 		Timeout: hostConnectTimeout(host),
+
+		HostKeyAlgorithms: host.SSHHostKeyAlgorithms,
+		KeyExchanges:      host.SSHKeyExchanges,
 	})
 	hostID := host.ID
 	credentialID := host.CredentialID
@@ -818,6 +825,35 @@ func auxiliaryAuthMethod(kind model.CredentialKind, secret []byte) (xssh.AuthMet
 			return nil, errno.New(errno.CodeInvalidArg, "session.credential_unsupported", "")
 		}
 		return xssh.PublicKeys(signer), nil
+	case model.CredentialKindUserCertificate:
+		payload, decodeErr := model.DecodeUserCertificatePayload(secret)
+		if decodeErr != nil {
+			return nil, errno.New(errno.CodeInvalidArg, "session.credential_unsupported", "")
+		}
+		privateKey := []byte(payload.PrivateKey)
+		passphrase := []byte(payload.Passphrase)
+		defer clear(privateKey)
+		defer clear(passphrase)
+		var signer xssh.Signer
+		var err error
+		if len(passphrase) == 0 {
+			signer, err = xssh.ParsePrivateKey(privateKey)
+		} else {
+			signer, err = xssh.ParsePrivateKeyWithPassphrase(privateKey, passphrase)
+		}
+		if err != nil {
+			return nil, errno.New(errno.CodeInvalidArg, "session.credential_unsupported", "")
+		}
+		certificate, err := model.ParseUserCertificate(payload.Certificate)
+		if err != nil {
+			return nil, errno.New(errno.CodeInvalidArg, "session.credential_unsupported", "")
+		}
+
+		certSigner, err := xssh.NewCertSigner(certificate, signer)
+		if err != nil {
+			return nil, errno.New(errno.CodeInvalidArg, "session.credential_unsupported", "")
+		}
+		return xssh.PublicKeys(certSigner), nil
 	default:
 		return nil, errno.New(errno.CodeInvalidArg, "session.credential_unsupported", "")
 	}
@@ -1206,11 +1242,10 @@ func (c *Connector) probeRouteHostKeys(
 ) ([]*sshclient.HostKeyError, error) {
 	verify := c.verifier.Verify
 	probe := sshclient.NewConnector(verify)
-	if route.proxy != nil {
-		dial, dialErr := sshclient.NewProxyDialer(*route.proxy)
-		if dialErr != nil {
-			return nil, errno.New(errno.CodeInvalidArg, "session.proxy_invalid", "")
-		}
+
+	if dial, errKey, dialErr := route.routeFirstDialer(); dialErr != nil {
+		return nil, errno.New(errno.CodeInvalidArg, errKey, "")
+	} else if dial != nil {
 		probe = sshclient.NewConnectorWithDialer(verify, dial)
 	}
 	challenges := make([]*sshclient.HostKeyError, 0, len(route.hops)+1)
@@ -1317,12 +1352,10 @@ func (d *productionSessionDialer) ConnectRouteWithAuth(
 		return nil, err
 	}
 	connector := d.connector
-	if route.proxy != nil {
-		dial, dialErr := sshclient.NewProxyDialer(*route.proxy)
-		if dialErr != nil {
-			return nil, errno.New(errno.CodeInvalidArg, "session.proxy_invalid", "")
-		}
 
+	if dial, errKey, dialErr := route.routeFirstDialer(); dialErr != nil {
+		return nil, errno.New(errno.CodeInvalidArg, errKey, "")
+	} else if dial != nil {
 		connector = sshclient.NewConnectorWithDialer(d.hostKey, dial)
 	}
 
@@ -1412,10 +1445,11 @@ func (c *productionSessionConnection) AuxiliaryDialer() sshclient.DialerFunc {
 			return dial
 		}
 	}
-	if c.route == nil || c.route.proxy == nil {
+	if c.route == nil {
 		return nil
 	}
-	dial, err := sshclient.NewProxyDialer(*c.route.proxy)
+
+	dial, _, err := c.route.routeFirstDialer()
 	if err != nil {
 
 		return nil

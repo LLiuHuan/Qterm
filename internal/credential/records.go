@@ -44,6 +44,17 @@ func (s *CredentialService) CreateCredential(
 	if s == nil {
 		return model.Credential{}, ErrCredentialServiceNotReady
 	}
+	var certificatePayload []byte
+	if input.Kind == model.CredentialKindUserCertificate {
+
+		payload, certificate, err := prepareUserCertificateSecret(input.PublicKey, input.Secret, input.Passphrase)
+		if err != nil {
+			return model.Credential{}, err
+		}
+		certificatePayload = payload
+		input.PublicKey = certificate
+		input.Username = ""
+	}
 	if input.Kind == model.CredentialKindPrivateKey || input.Kind == model.CredentialKindPrivateKeyPassphrase {
 		key, publicKey, err := normalizePrivateKey(input.Secret, input.Passphrase)
 		if err != nil {
@@ -54,9 +65,13 @@ func (s *CredentialService) CreateCredential(
 		input.PublicKey = publicKey
 		input.Username = ""
 	}
-	secret, err := credentialSecret(input.Kind, input.Secret, input.Passphrase)
-	if err != nil {
-		return model.Credential{}, err
+	secret := certificatePayload
+	if secret == nil {
+		prepared, err := credentialSecret(input.Kind, input.Secret, input.Passphrase)
+		if err != nil {
+			return model.Credential{}, err
+		}
+		secret = prepared
 	}
 	defer clear(secret)
 	s.mu.RLock()
@@ -105,6 +120,17 @@ func (s *CredentialService) ReplaceCredentialSecret(
 	if s == nil {
 		return model.Credential{}, ErrCredentialServiceNotReady
 	}
+	var certificatePayload []byte
+	if input.Kind == model.CredentialKindUserCertificate {
+
+		payload, certificate, err := prepareUserCertificateSecret(input.PublicKey, input.Secret, input.Passphrase)
+		if err != nil {
+			return model.Credential{}, err
+		}
+		certificatePayload = payload
+		input.PublicKey = certificate
+		input.Username = ""
+	}
 	if input.Kind == model.CredentialKindPrivateKey || input.Kind == model.CredentialKindPrivateKeyPassphrase {
 		key, publicKey, err := normalizePrivateKey(input.Secret, input.Passphrase)
 		if err != nil {
@@ -115,9 +141,13 @@ func (s *CredentialService) ReplaceCredentialSecret(
 		input.PublicKey = publicKey
 		input.Username = ""
 	}
-	secret, err := credentialSecret(input.Kind, input.Secret, input.Passphrase)
-	if err != nil {
-		return model.Credential{}, err
+	secret := certificatePayload
+	if secret == nil {
+		prepared, err := credentialSecret(input.Kind, input.Secret, input.Passphrase)
+		if err != nil {
+			return model.Credential{}, err
+		}
+		secret = prepared
 	}
 	defer clear(secret)
 	s.mu.RLock()
@@ -134,6 +164,10 @@ func (s *CredentialService) ReplaceCredentialSecret(
 }
 
 func credentialSecret(kind model.CredentialKind, secret, passphrase string) ([]byte, error) {
+	if kind == model.CredentialKindUserCertificate {
+
+		return nil, ErrInvalidCredentialSecret
+	}
 	if kind == model.CredentialKindSSHAgent {
 		canonical, err := normalizeAgentPublicKey(secret)
 		if err != nil {
@@ -349,11 +383,12 @@ func credentialServiceError(action string, err error) error {
 }
 
 type RevealedCredential struct {
-	Kind       model.CredentialKind `json:"kind"`
-	Secret     string               `json:"secret"`
-	Passphrase string               `json:"passphrase,omitempty"`
-	Username   string               `json:"username,omitempty"`
-	PublicKey  string               `json:"publicKey,omitempty"`
+	Kind        model.CredentialKind `json:"kind"`
+	Secret      string               `json:"secret"`
+	Passphrase  string               `json:"passphrase,omitempty"`
+	Username    string               `json:"username,omitempty"`
+	PublicKey   string               `json:"publicKey,omitempty"`
+	Certificate string               `json:"certificate,omitempty"`
 }
 
 func (s *CredentialService) RevealCredential(ctx context.Context, id string) (RevealedCredential, error) {
@@ -398,6 +433,16 @@ func (s *CredentialService) RevealCredential(ctx context.Context, id string) (Re
 			defer clear(passphrase)
 			revealed.Secret = string(privateKey)
 			revealed.Passphrase = string(passphrase)
+			return nil
+		}
+		if kind == model.CredentialKindUserCertificate {
+			payload, decodeErr := model.DecodeUserCertificatePayload(value)
+			if decodeErr != nil {
+				return decodeErr
+			}
+			revealed.Certificate = payload.Certificate
+			revealed.Secret = payload.PrivateKey
+			revealed.Passphrase = payload.Passphrase
 			return nil
 		}
 		revealed.Secret = string(value)

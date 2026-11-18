@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -45,16 +46,29 @@ func OpenWithCodec(ctx context.Context, path string, codec EncryptedPayloadCodec
 		return nil, errors.New("database path is empty")
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+
+		slog.Error("database directory create failed",
+			"event", "store.open.directory_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("create database directory: %w", err)
 	}
 	if runtime.GOOS != "windows" {
 		if err := os.Chmod(filepath.Dir(path), 0o700); err != nil {
+			slog.Error("database directory permission restrict failed",
+				"event", "store.open.directory_failed",
+				"path", filepath.Base(path),
+				"error", err)
 			return nil, fmt.Errorf("restrict database directory permissions: %w", err)
 		}
 	}
 
 	connector, err := sqlite.NewConnector(sqlitedsn.Build(path, sqlitedsn.Options{ForeignKeys: true}))
 	if err != nil {
+		slog.Error("database connector create failed",
+			"event", "store.open.connector_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("create SQLite connector: %w", err)
 	}
 	db := sql.OpenDB(connector)
@@ -69,10 +83,19 @@ func OpenWithCodec(ctx context.Context, path string, codec EncryptedPayloadCodec
 	}()
 
 	if err := db.PingContext(ctx); err != nil {
+
+		slog.Error("database connect failed",
+			"event", "store.open.connect_failed",
+			"path", filepath.Base(path),
+			"error", err)
 		return nil, fmt.Errorf("connect SQLite database: %w", err)
 	}
 	if runtime.GOOS != "windows" {
 		if err := os.Chmod(path, 0o600); err != nil {
+			slog.Error("database permission restrict failed",
+				"event", "store.open.protect_failed",
+				"path", filepath.Base(path),
+				"error", err)
 			return nil, fmt.Errorf("restrict database permissions: %w", err)
 		}
 	}

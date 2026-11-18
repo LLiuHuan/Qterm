@@ -4,6 +4,7 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.credentials.kind.privateKey': 'Закрытый ключ',
   'settings.credentials.kind.privateKeyPassphrase': 'Парольная фраза ключа',
   'settings.credentials.kind.sshAgent': 'SSH Agent',
+  'settings.credentials.kind.userCertificate': 'Пользовательский сертификат',
   'settings.credentials.hostCount': 'Связанные хосты: {count}',
   'settings.credentials.hostList.title': 'Связанные хосты',
   'settings.credentials.vaultLocked.title': 'Хранилище заблокировано',
@@ -17,6 +18,8 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.credentials.validation.passwordRequired': 'Введите пароль.',
   'settings.credentials.validation.privateKeyRequired': 'Выберите или вставьте закрытый ключ.',
   'settings.credentials.validation.agentPublicKeyRequired': 'Введите корректный открытый ключ SSH Agent.',
+  'settings.credentials.validation.certificateRequired':
+    'Введите пользовательский сертификат (содержимое файла *-cert.pub).',
   'settings.credentials.toast.updated': 'Учётные данные обновлены',
   'settings.credentials.toast.created': 'Учётные данные созданы',
   'settings.credentials.toast.deleted': 'Учётные данные удалены',
@@ -75,6 +78,7 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.credentials.action.createKey': 'Создать учётные данные с закрытым ключом',
   'settings.credentials.action.importPrivateKey': 'Импортировать локальный закрытый ключ',
   'settings.credentials.action.createAgent': 'Создать учётные данные SSH Agent',
+  'settings.credentials.action.createCertificate': 'Создать учётные данные сертификата',
   'settings.credentials.action.quickCreate': 'Добавить учётные данные',
   'settings.credentials.action.copyPublicKey': 'Скопировать открытый ключ',
   'settings.credentials.action.copyInstallCommand': 'Скопировать команду установки',
@@ -106,6 +110,15 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.credentials.field.agentPublicKeyPlaceholder': 'Вставьте открытый ключ ssh-ed25519 или ssh-rsa',
   'settings.credentials.field.agentPublicKeyHelp':
     'Сохраняется только сам открытый ключ — он нужен для сопоставления с системным SSH Agent; закрытый ключ не сохраняется.',
+
+  'settings.credentials.field.agentSecurityKeyHelp':
+    'Поддерживаются ключи безопасности FIDO2 (sk-ssh-ed25519@openssh.com / sk-ecdsa-sha2-nistp256@openssh.com): сначала загрузите ключ в системный SSH-агент через ssh-add, затем коснитесь устройства при подключении.',
+  'settings.credentials.field.certificate': 'Пользовательский сертификат',
+  'settings.credentials.field.certificatePlaceholder': 'Вставьте сертификат ssh-ed25519-cert-v01@openssh.com ...',
+  'settings.credentials.field.certificateHelp':
+    'Сертификат, подписанный CA (файл *-cert.pub), а не обычный открытый ключ.',
+  'settings.credentials.field.certificateKeyHelp':
+    'Закрытый ключ для этого сертификата; приложение проверит соответствие.',
   'settings.credentials.field.optional': '(необязательно)',
   'settings.credentials.field.passwordPlaceholder': 'Введите пароль для входа',
   'settings.credentials.field.privateKeyPlaceholder': 'Вставьте закрытый ключ или выберите локальный файл кнопкой выше',
@@ -389,6 +402,8 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.shortcuts.group.navigationDescription': 'Раскладка разделённых панелей и видимость боковой панели.',
   'settings.shortcuts.group.remote': 'Удалённые файлы',
   'settings.shortcuts.group.remoteDescription': 'Сохранение при редактировании удалённых файлов.',
+  'settings.shortcuts.group.global': 'Глобальные',
+  'settings.shortcuts.group.globalDescription': 'Системные сочетания, срабатывающие из любого приложения.',
   'settings.shortcuts.binding.unbound': 'Не назначено',
   'settings.shortcuts.group.count': '{count}',
   'settings.shortcuts.action.nextTab': 'Следующая вкладка',
@@ -422,6 +437,12 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.shortcuts.action.disconnectSession': 'Отключить',
   'settings.shortcuts.action.disconnectSessionDescription':
     'Разорвать соединение текущей сессии; вкладка остаётся открытой.',
+  'settings.shortcuts.action.increaseTerminalFontSize': 'Увеличить шрифт терминала',
+  'settings.shortcuts.action.increaseTerminalFontSizeDescription':
+    'Увеличивает шрифт терминала на шаг, как Ctrl/Cmd + колесо вверх.',
+  'settings.shortcuts.action.decreaseTerminalFontSize': 'Уменьшить шрифт терминала',
+  'settings.shortcuts.action.decreaseTerminalFontSizeDescription':
+    'Уменьшает шрифт терминала на шаг, как Ctrl/Cmd + колесо вниз.',
   'settings.shortcuts.action.focusNextPane': 'Переместить фокус между панелями',
   'settings.shortcuts.action.focusNextPaneDescription':
     'Перевести фокус на следующую панель в порядке раскладки; доступно только в режиме разделённых панелей.',
@@ -600,11 +621,17 @@ export const settingsAssetsRu: Record<string, string> = {
   'settings.shortcuts.error.conflict': 'Это сочетание клавиш уже назначено: «{name}».',
   'settings.shortcuts.recording.hint': 'Идёт запись. Нажмите сочетание клавиш; для отмены нажмите Esc.',
   'settings.shortcuts.recording.tokenHint':
-    'Нажмите любую из основных клавиш в паре «модификатор + {token}»: они используют один и тот же модификатор, поэтому записывается только модификатор. Для отмены нажмите Esc.',
+    'Любая клавиша из «{token}»; записываются только модификаторы. Esc — отмена.',
   'settings.shortcuts.recording.active': 'Запись…',
   'settings.shortcuts.recording.start': 'Записать сочетание клавиш',
+  'settings.shortcuts.fixedHint': 'Фиксировано, общее с масштабированием колесом, изменить нельзя.',
   'settings.shortcuts.action.reset': 'Восстановить сочетание клавиш по умолчанию для «{name}»',
   'settings.shortcuts.action.resetTitle': 'Восстановить по умолчанию',
+
+  'settings.shortcuts.action.disable': 'Отключить сочетание клавиш для «{name}»',
+  'settings.shortcuts.action.disableTitle': 'Отключить сочетание',
+  'settings.shortcuts.action.enable': 'Включить сочетание клавиш для «{name}»',
+  'settings.shortcuts.action.enableTitle': 'Включить сочетание',
   'settings.shortcuts.binding.aria': '{name}: {binding}',
   'settings.shortcuts.conflict.duplicate':
     'Конфликт с «{names}»: оба действия используют одно и то же сочетание, поэтому это действие отключено. Назначьте другое сочетание одному из них.',

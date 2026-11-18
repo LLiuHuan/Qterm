@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -181,6 +182,10 @@ func (m *CredentialManager) UseSecret(
 	stored, err := m.repository.Read(ctx, id)
 	if err != nil {
 		clear(stored.Value)
+
+		slog.Error("credential secret read failed",
+			"event", "credential.secret.read_failed",
+			"error", err)
 		return fmt.Errorf("read credential for use: %w", err)
 	}
 	defer clear(stored.Value)

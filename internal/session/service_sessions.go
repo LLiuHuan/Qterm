@@ -6,6 +6,7 @@ import (
 	sshclient "changeme/internal/tunnel"
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 )
 
@@ -29,6 +30,8 @@ func (s *Service) OpenSession(ctx context.Context, hostID string) (OpenSessionRe
 	}
 	token, err := s.issueStreamToken(manager, session.ID)
 	if err != nil {
+		slog.Warn("session stream token issue failed", "event", "session.token.issue_failed",
+			"session_id", session.ID, "stage", "terminal", "error", err)
 		closeSessionAfterToken(manager, session.ID)
 		return OpenSessionResult{}, errno.New(errno.CodeUnknown, "session.token_failed", "")
 	}
@@ -142,6 +145,8 @@ func (s *Service) OpenLocalSession(
 	}
 	token, err := s.issueStreamToken(manager, session.ID)
 	if err != nil {
+		slog.Warn("session stream token issue failed", "event", "session.token.issue_failed",
+			"session_id", session.ID, "stage", "terminal", "error", err)
 		closeSessionAfterToken(manager, session.ID)
 		return OpenSessionResult{}, errno.New(errno.CodeUnknown, "session.token_failed", "")
 	}
@@ -178,6 +183,9 @@ func (s *Service) RebindSession(ctx context.Context, id string) (OpenSessionResu
 	}
 	token, err := s.issueStreamToken(manager, id)
 	if err != nil {
+
+		slog.Warn("session stream token issue failed", "event", "session.token.issue_failed",
+			"session_id", id, "stage", "rebind", "error", err)
 		return OpenSessionResult{}, errno.New(errno.CodeUnknown, "session.token_failed", "")
 	}
 	return OpenSessionResult{Session: snapshot, StreamToken: token}, nil
@@ -386,6 +394,8 @@ func (s *Service) TrustSessionHostKey(
 	}
 	token, err := s.issueStreamToken(manager, session.ID)
 	if err != nil {
+		slog.Warn("session stream token issue failed", "event", "session.token.issue_failed",
+			"session_id", session.ID, "stage", "terminal", "error", err)
 		closeSessionAfterToken(manager, session.ID)
 		return OpenSessionResult{}, errno.New(errno.CodeUnknown, "session.token_failed", "")
 	}

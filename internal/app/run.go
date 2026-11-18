@@ -124,6 +124,10 @@ func Run(assets embed.FS) error {
 
 	service.adhoc = adhocRegistry
 
+	singleInstance := newSingleInstanceOptions(configDir, func() { service.focusWorkspaceWindow() }, func(args []string) {
+		service.acceptLaunchIntents(parseLaunchIntentArgs(args))
+	})
+
 	app := application.New(application.Options{
 		Name:         "Qterm",
 		Description:  "A cross-platform SSH workspace",
@@ -136,6 +140,8 @@ func Run(assets embed.FS) error {
 		Services:   []application.Service{application.NewService(service)},
 
 		Assets: application.AssetOptions{Handler: application.AssetFileServerFS(assets)},
+
+		SingleInstance: singleInstance,
 
 		Mac: application.MacOptions{ApplicationShouldTerminateAfterLastWindowClosed: false},
 	})

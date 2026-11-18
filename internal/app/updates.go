@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"log/slog"
 
 	"changeme/internal/errno"
 	"changeme/internal/update"
@@ -28,6 +29,17 @@ func updateUnavailable() error {
 	return errno.New(errno.CodeUnknown, "update.unavailable", "")
 }
 
+func logUpdateFailure(message, event string, err error) {
+	if err == nil {
+		return
+	}
+	key := "unknown"
+	if extracted := errno.Extract(err); extracted != nil {
+		key = extracted.MessageKey
+	}
+	slog.Error(message, "event", event, "error_key", key)
+}
+
 func (s *Service) UpdateStatus() update.Status {
 	if s == nil || s.updates == nil {
 		return update.Status{State: update.StateIdle}
@@ -41,6 +53,7 @@ func (s *Service) UpdateCheck(ctx context.Context, currentVersion string) (updat
 	}
 	release, err := s.updates.Check(ctx, currentVersion)
 	if err != nil {
+		logUpdateFailure("update check failed", "update.check.failed", err)
 		return update.Release{}, publicError(err)
 	}
 	return release, nil
@@ -50,12 +63,16 @@ func (s *Service) UpdateDownload(ctx context.Context) error {
 	if s == nil || s.updates == nil {
 		return publicError(updateUnavailable())
 	}
-	return publicError(s.updates.Download(ctx))
+	err := s.updates.Download(ctx)
+	logUpdateFailure("update download failed", "update.download.failed", err)
+	return publicError(err)
 }
 
 func (s *Service) UpdateInstall(ctx context.Context) error {
 	if s == nil || s.updates == nil {
 		return publicError(updateUnavailable())
 	}
-	return publicError(s.updates.Install(ctx))
+	err := s.updates.Install(ctx)
+	logUpdateFailure("update install failed", "update.install.failed", err)
+	return publicError(err)
 }

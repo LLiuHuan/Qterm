@@ -503,6 +503,7 @@ func (s *managedSession) requestClose(now time.Time, reason model.SessionCloseRe
 func (s *managedSession) closeConnection() {
 	s.resourceOnce.Do(func() {
 		s.mu.RLock()
+		snapshot := s.snapshot
 		terminal := s.terminal
 		terminalCancel := s.terminalCancel
 		connection := s.connection
@@ -513,7 +514,11 @@ func (s *managedSession) closeConnection() {
 			terminalCancel()
 		}
 		if terminal != nil {
-			_ = terminal.Close()
+			if err := terminal.Close(); err != nil {
+
+				slog.Warn("session terminal close failed", "event", "session.close.failed",
+					"session_id", snapshot.ID, "stage", "terminal", "error", err)
+			}
 
 			terminal.releaseHistory()
 		}
@@ -521,10 +526,17 @@ func (s *managedSession) closeConnection() {
 			fileSystemCancel()
 		}
 		if fileSystem != nil {
-			_ = fileSystem.Close()
+			if err := fileSystem.Close(); err != nil {
+				slog.Warn("session filesystem close failed", "event", "session.close.failed",
+					"session_id", snapshot.ID, "stage", "filesystem", "error", err)
+			}
 		}
 		if connection != nil {
-			_ = connection.Close()
+			if err := connection.Close(); err != nil {
+
+				slog.Warn("session connection close failed", "event", "session.close.failed",
+					"session_id", snapshot.ID, "stage", "connection", "error", err)
+			}
 		}
 	})
 }

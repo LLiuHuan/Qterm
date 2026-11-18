@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -80,6 +81,11 @@ func (s *AutoUnlockStore) Load(ctx context.Context) ([]byte, error) {
 	defer clear(envelope)
 	masterKey, err := unwrapAutoUnlockMasterKey(s.key, envelope)
 	if err != nil {
+
+		slog.Warn("vault auto unlock failed",
+			"event", "vault.auto_unlock.failed",
+			"reason", "unwrap",
+			"error", err)
 		return nil, err
 	}
 	if err := contextError(ctx); err != nil {

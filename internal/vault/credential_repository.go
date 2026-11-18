@@ -4,6 +4,7 @@ import (
 	"changeme/internal/model"
 	"context"
 	"fmt"
+	"log/slog"
 )
 
 type CredentialRepository struct {
@@ -26,6 +27,11 @@ func (r *CredentialRepository) List(ctx context.Context) ([]model.Credential, er
 	for _, item := range metadata {
 		credential, err := credentialFromMetadata(item)
 		if err != nil {
+
+			slog.Error("credential record is corrupt",
+				"event", "credential.record.corrupt",
+				"kind", int(item.Kind),
+				"error", err)
 			return nil, err
 		}
 		credentials = append(credentials, credential)
@@ -194,6 +200,8 @@ func vaultKind(kind model.CredentialKind) (Kind, error) {
 		return KindPrivateKeyPassphrase, nil
 	case model.CredentialKindSSHAgent:
 		return KindSSHAgent, nil
+	case model.CredentialKindUserCertificate:
+		return KindUserCertificate, nil
 	default:
 		return 0, fmt.Errorf("map credential kind %q: %w", kind, ErrInvalidRecord)
 	}
@@ -209,6 +217,8 @@ func domainKind(kind Kind) (model.CredentialKind, error) {
 		return model.CredentialKindPrivateKeyPassphrase, nil
 	case KindSSHAgent:
 		return model.CredentialKindSSHAgent, nil
+	case KindUserCertificate:
+		return model.CredentialKindUserCertificate, nil
 	default:
 		return "", fmt.Errorf("map vault kind %d: %w", kind, ErrInvalidRecord)
 	}

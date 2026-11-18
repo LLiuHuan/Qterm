@@ -5,11 +5,11 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "Qterm" # The name of the company
+  companyName: "LLiuHuan" # The name of the company (安装包/文件属性的发布者)
   productName: "Qterm" # The name of the application
   productIdentifier: "com.qterm.desktop" # Provisional bundle identifier; confirm before signing/publishing
   description: "A cross-platform SSH workspace" # The application description
-  copyright: "(c) 2026, Qterm" # Copyright text
+  copyright: "(c) 2026, LLiuHuan" # Copyright text
   comments: "SSH terminal, SFTP, tunneling and host management" # Comments
   version: "0.0.1" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)
@@ -60,6 +60,28 @@ dev_mode:
       type: blocking
     - cmd: wails3 task run
       type: primary
+
+# Custom URL Schemes（深链接）
+#
+# 声明后系统才知道"qterm://… 该交给谁"：macOS 写进 Info.plist 的 CFBundleURLTypes，
+# Windows 写 NSIS 的注册表关联，Linux 写 .desktop 的 MimeType。
+#
+# 两个取舍必须记下来：
+#   1. 主 scheme 用 `qterm`，不抢 `ssh`。抢注 `ssh` 会让本机所有 ssh 链接（含
+#      浏览器里的文档链接、别的 SSH 客户端的链接）都被 Qterm 接管，卸载后还会
+#      留在系统里；`qterm` 属于本应用，冲突面为零。
+#   2. `ssh` 仍然声明，是为了"用户明确想用 Qterm 打开 ssh 链接"这类场景；但
+#      **应用内不会直接连**：`ssh://` 与 `qterm://` 一律先进确认卡片（显示解析出
+#      的目标 + 固定安全提示），用户点了才建连，且 URL 里带密码直接拒绝。否则
+#      任意网页都能构造 `ssh://root@host` 诱导连接。
+#
+# 注意：Windows 便携版（直接跑 exe / 解压 zip）没有安装器，写不了注册表，
+# 因此只有安装版支持被链接唤起。这是平台限制，不是 bug。
+protocols:
+  - scheme: qterm
+    description: Open connection in Qterm
+  - scheme: ssh
+    description: Open SSH connection in Qterm
 
 # File Associations
 # More information at: https://v3.wails.io/noit/done/yet

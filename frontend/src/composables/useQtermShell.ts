@@ -17,6 +17,7 @@ import {
   type CredentialPromptRuleRecord,
 } from '../services/credentialPromptRules'
 import { createProxyGateway, proxyErrorMessage, removeProxy, upsertProxy, type ProxyRecord } from '../services/proxies'
+import { readGlobalShortcut, setGlobalShortcut, subscribeGlobalShortcutFailed } from '../services/globalShortcut'
 import type { CredentialPromptRule, PromptCredential } from '../features/sessions/credentialAutofill'
 import { useAssetState } from '../features/hosts/useAssetState'
 import { connectAssetChanged, type AssetChange } from '../services/assetEvents'
@@ -337,6 +338,17 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   const sftpEditorPath = computed(() => settings.sftpEditorPath ?? '')
   const windowRememberSize = computed(() => settings.windowRememberSize ?? true)
   const closeToTray = computed(() => settings.closeToTray ?? true)
+
+  const globalShortcut = computed(() => settings.globalShortcut ?? '')
+
+  const singleInstance = computed(() => settings.singleInstance ?? true)
+
+  const globalShortcutEffective = ref('')
+  const globalShortcutError = ref('')
+
+  const isPrimaryWindow = computed(
+    () => !isSettingsWindowMode() && !isSessionWindowMode() && !isNewWorkspaceWindowMode(),
+  )
   const restoreOpenSessions = computed(() => settings.restoreOpenSessions ?? true)
   const quitConfirm = computed(() => settings.quitConfirm ?? true)
 
@@ -480,6 +492,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
       | 'recordingDirectory'
       | 'windowRememberSize'
       | 'closeToTray'
+      | 'globalShortcut'
+      | 'singleInstance'
       | 'restoreOpenSessions'
       | 'quitConfirm'
       | 'settingsInWindow'
@@ -521,12 +535,17 @@ export function useQtermShell(options: QtermShellOptions = {}) {
       }
       return
     }
+    if (key === 'globalShortcut') {
+      settings.globalShortcut = typeof value === 'string' ? value.trim() : ''
+      return
+    }
     if (
       key === 'sftpAutoDirectoryFollow' ||
       key === 'sftpShowHiddenFiles' ||
       key === 'windowRememberSize' ||
       key === 'windowRememberPosition' ||
       key === 'closeToTray' ||
+      key === 'singleInstance' ||
       key === 'restoreOpenSessions' ||
       key === 'quitConfirm' ||
       key === 'settingsInWindow'
@@ -1008,6 +1027,37 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   )
 
   watch(
+    [settingsReady, globalShortcut],
+    ([ready, binding]) => {
+      if (!ready || !isPrimaryWindow.value) return
+      globalShortcutError.value = ''
+      void setGlobalShortcut(binding)
+        .then(async () => {
+          globalShortcutEffective.value = binding
+        })
+        .catch(() => {
+          void readGlobalShortcut().then((effective) => {
+            globalShortcutEffective.value = effective
+          })
+        })
+    },
+    { immediate: true },
+  )
+
+  let disposeGlobalShortcutFailed: (() => void) | undefined
+  onMounted(() => {
+    if (!isPrimaryWindow.value) return
+    disposeGlobalShortcutFailed = subscribeGlobalShortcutFailed((failure) => {
+      globalShortcutError.value = t('application.window.globalShortcut.error', {
+        binding: failure.binding,
+      })
+      void readGlobalShortcut().then((effective) => {
+        globalShortcutEffective.value = effective
+      })
+    })
+  })
+
+  watch(
     () => sessions.value.map((session) => session.hostId),
     (hostIds) => writeOpenSessions(hostIds),
     { flush: 'post' },
@@ -1248,6 +1298,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
   onUnmounted(() => {
     disposeAssetChange?.()
     disposeAssetChange = undefined
+    disposeGlobalShortcutFailed?.()
+    disposeGlobalShortcutFailed = undefined
     if (openHostTimer) window.clearInterval(openHostTimer)
     cancelRuntimeRetry?.()
     cancelRuntimeRetry = undefined
@@ -1426,6 +1478,10 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     windowRememberSize,
     windowRememberPosition,
     closeToTray,
+    globalShortcut,
+    globalShortcutEffective,
+    globalShortcutError,
+    singleInstance,
     restoreOpenSessions,
     quitConfirm,
     settingsInWindow,

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ClipboardCopy, Download, ExternalLink, RefreshCw, RotateCcw, Trash2 } from '@lucide/vue'
 import { System } from '@wailsio/runtime'
 import { toast } from '../../services/toast'
-import { IconButton, QtermButton, QtermSwitch } from '../../components/common'
+import { IconButton, QtermButton, SegmentedTabs } from '../../components/common'
 import { ScrollArea } from '../../components/common/control-primitives'
 import { useI18n } from '@/locales'
 import { QTERM_DEV_BUILD, QTERM_VERSION } from '../../services/appInfo'
@@ -11,12 +11,14 @@ import { writeClipboardText } from '../../services/clipboard'
 import type { CredentialGateway } from '../../services/credentials'
 import {
   clearDebugLog,
-  debugLoggingEnabled,
+  debugLogMode,
+  debugLogStatus,
   diagnosticsAvailable,
   exportDebugLog,
   readDebugLog,
-  setDebugLoggingEnabled,
+  setDebugLogMode,
 } from '../../services/diagnostics'
+import type { DebugLogMode, DebugLogStatus } from '../../services/diagnostics'
 import { checkUpdate, downloadUpdate, installUpdate, ensureUpdateChecks, useUpdateState } from '../updates/updateStore'
 import { describeUpdateError } from '../updates/updateError'
 import { formatByteSize } from '../../lib/format'
@@ -33,7 +35,9 @@ const props = defineProps<{
 const emit = defineEmits<{ resourcesImported: [] }>()
 const { t } = useI18n()
 const desktopAvailable = diagnosticsAvailable()
-const debugEnabled = ref(false)
+
+const debugMode = ref<DebugLogMode>('normal')
+const debugStatus = ref<DebugLogStatus | null>(null)
 const debugBusy = ref(false)
 const environment = ref({ runtime: t('about.environment.browser'), os: browserOS(), arch: browserArchitecture() })
 
@@ -66,6 +70,27 @@ const updateError = computed(() =>
   updateState.errorKey ? describeUpdateError(updateState.errorKey, updateState.errorDetail, t) : '',
 )
 const updateStateLabel = computed(() => t(`about.update.state.${updateStatus.value.state}`))
+
+const debugModeOptions = computed(() => [
+  { value: 'off', label: t('about.debug.mode.off'), disabled: !desktopAvailable || debugBusy.value },
+  { value: 'normal', label: t('about.debug.mode.normal'), disabled: !desktopAvailable || debugBusy.value },
+  { value: 'debug', label: t('about.debug.mode.debug'), disabled: !desktopAvailable || debugBusy.value },
+])
+
+const debugModeHelp = computed(
+  () =>
+    ({
+      off: t('about.debug.mode.offHelp'),
+      normal: t('about.debug.mode.normalHelp'),
+      debug: t('about.debug.mode.debugHelp'),
+    })[debugMode.value],
+)
+
+const debugSizeText = computed(() => {
+  const status = debugStatus.value
+  if (!status) return ''
+  return `${formatByteSize(status.sizeBytes)} / ${formatByteSize(status.limitBytes)}`
+})
 
 onMounted(() => {
   ensureUpdateChecks()
@@ -108,10 +133,13 @@ onMounted(async () => {
       os: `${osName}${osVersion}`,
       arch: info.Arch || t('about.value.unknown'),
     }
-    debugEnabled.value = await debugLoggingEnabled()
   } catch {
     toast.error(t('about.support.loadFailure'))
   }
+})
+
+onMounted(() => {
+  void refreshDebugStatus()
 })
 
 function browserOS(): string {
@@ -132,13 +160,22 @@ async function copySupportInformation(): Promise<void> {
   }
 }
 
-async function updateDebugLogging(enabled: boolean): Promise<void> {
+async function refreshDebugStatus(): Promise<void> {
+  if (!desktopAvailable) return
+  const [mode, status] = await Promise.all([debugLogMode().catch(() => null), debugLogStatus().catch(() => null)])
+  if (mode) debugMode.value = mode
+  debugStatus.value = status
+}
+
+async function updateDebugMode(mode: string): Promise<void> {
+  if (mode !== 'off' && mode !== 'normal' && mode !== 'debug') return
   if (!desktopAvailable || debugBusy.value) return
   debugBusy.value = true
   try {
-    await setDebugLoggingEnabled(enabled)
-    debugEnabled.value = enabled
-    toast.success(t(enabled ? 'about.debug.enabled' : 'about.debug.disabled'))
+    await setDebugLogMode(mode)
+    debugMode.value = mode
+    await refreshDebugStatus()
+    toast.success(t('about.debug.modeChanged'))
   } catch {
     toast.error(t('about.debug.actionFailure'))
   } finally {
@@ -151,6 +188,8 @@ async function clearLog(): Promise<void> {
   debugBusy.value = true
   try {
     await clearDebugLog()
+
+    await refreshDebugStatus()
     toast.success(t('about.debug.clearSuccess'))
   } catch {
     toast.error(t('about.debug.actionFailure'))
@@ -317,19 +356,36 @@ async function downloadLog(): Promise<void> {
       class="settings-card p-4 border border-solid border-qt-border rounded-[8px] [background:color-mix(in_srgb,_var(--qt-panel)_32%,_transparent)] [-webkit-backdrop-filter:blur(16px)_saturate(135%)] [backdrop-filter:blur(16px)_saturate(135%)]"
       :aria-label="t('about.debug.title')"
     >
-      <div class="flex items-start justify-between gap-4">
-        <span class="flex min-w-0 flex-col gap-0.5">
-          <strong class="text-sm">{{ t('about.debug.title') }}</strong>
-          <small class="text-xs text-qt-muted">{{
-            desktopAvailable ? t('about.debug.description') : t('about.debug.desktopOnly')
-          }}</small>
-        </span>
-        <QtermSwitch
-          :model-value="debugEnabled"
-          :disabled="!desktopAvailable || debugBusy"
-          :aria-label="t('about.debug.title')"
-          @update:model-value="updateDebugLogging"
-        />
+      <span class="flex min-w-0 flex-col gap-0.5">
+        <strong class="text-sm">{{ t('about.debug.title') }}</strong>
+        <small class="text-xs text-qt-muted">{{
+          desktopAvailable ? t('about.debug.description') : t('about.debug.desktopOnly')
+        }}</small>
+      </span>
+
+      <SegmentedTabs
+        id="settings-debug-log-mode"
+        class="mt-3"
+        :label="t('about.debug.title')"
+        :model-value="debugMode"
+        :options="debugModeOptions"
+        @update:model-value="updateDebugMode"
+      />
+
+      <div class="mt-2 flex flex-col gap-1.5">
+        <small class="text-xs text-qt-muted" data-debug-mode-help>{{ debugModeHelp }}</small>
+        <div v-if="desktopAvailable" class="font-mono text-xs text-qt-muted break-all" data-debug-status>
+          <template v-if="!debugStatus || !debugStatus.present">
+            {{ t('about.debug.status.missing') }}
+          </template>
+          <template v-else>
+            <div>{{ t('about.debug.status.path') }}: {{ debugStatus.path }}</div>
+            <div>{{ t('about.debug.status.size') }}: {{ debugSizeText }}</div>
+            <div v-if="debugStatus.dropped > 0" class="text-qt-warning" data-debug-dropped>
+              {{ t('about.debug.status.dropped') }}: {{ debugStatus.dropped }}
+            </div>
+          </template>
+        </div>
       </div>
       <div class="mt-4 flex flex-wrap justify-end gap-2">
         <QtermButton variant="outline" type="button" :disabled="!desktopAvailable || debugBusy" @click="clearLog">

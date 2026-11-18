@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"strings"
 )
 
@@ -23,13 +24,20 @@ func VerifyChecksumsSignature(checksums, signature []byte) error {
 		return nil
 	}
 	if len(signature) == 0 {
+		slog.Error("update checksums signature missing", "event", "update.signature.missing")
 		return signatureMissing()
 	}
 	decoded, err := decodeSignature(signature)
 	if err != nil {
+
+		slog.Error("update checksums signature malformed",
+			"event", "update.signature.malformed",
+			"bytes", len(signature),
+		)
 		return signatureInvalid("format")
 	}
 	if len(checksums) == 0 {
+		slog.Error("update checksums empty", "event", "update.signature.checksums_empty")
 		return signatureInvalid("checksum")
 	}
 	for _, keyHex := range updatePublicKeyHexes {
@@ -41,6 +49,10 @@ func VerifyChecksumsSignature(checksums, signature []byte) error {
 			return nil
 		}
 	}
+	slog.Error("update checksums signature mismatch",
+		"event", "update.signature.mismatch",
+		"bytes", len(checksums),
+	)
 	return signatureInvalid("mismatch")
 }
 

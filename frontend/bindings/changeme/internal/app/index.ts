@@ -12,6 +12,7 @@ export type {
   AIProviderPreviewInput,
   AIUsage,
   AdHocSessionInput,
+  DebugLogStatus,
   HostImportSourceInfo,
   ImportHostsInput,
   ImportHostsResult,

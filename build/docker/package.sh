@@ -24,7 +24,7 @@ SKIP_DMG=${SKIP_DMG:-}
 REPO_ROOT=$(pwd)
 
 # nfpm 的 maintainer 直接读这两个变量；不设会打出 `Maintainer:  <>` 的空元数据。
-export GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-Qterm}
+export GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-LLiuHuan}
 export GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-qterm@users.noreply.github.com}
 
 log() { printf '\n[package] %s\n' "$*"; }

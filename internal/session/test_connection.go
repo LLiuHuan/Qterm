@@ -292,6 +292,11 @@ func (s *Service) TestRouteDraft(ctx context.Context, input model.RouteDraftInpu
 		}
 	}
 
+	host.SSHHostKeyAlgorithms = input.SSHHostKeyAlgorithms
+	host.SSHKeyExchanges = input.SSHKeyExchanges
+
+	host.SSHProxyCommand = strings.TrimSpace(input.SSHProxyCommand)
+
 	if credentialID := strings.TrimSpace(input.CredentialID); credentialID != "" {
 		host.CredentialID = credentialID
 	}
@@ -353,14 +358,25 @@ func (s *Service) testRouteForHost(
 	}
 
 	var proxyDial sshclient.DialerFunc
-	if route.proxy != nil {
-		proxyAddress := route.proxy.AddressString()
-		row := model.RouteTestHop{Kind: "proxy", Label: proxyAddress, Address: proxyAddress}
-		dial, dialErr := sshclient.NewProxyDialer(*route.proxy)
-		if dialErr != nil {
-			row.ErrorKey = "session.proxy_invalid"
-			return fail(row)
+	if probeDial, errKey, dialErr := route.routeFirstDialer(); dialErr != nil {
+
+		kind := "proxy"
+		if strings.TrimSpace(route.proxyCommand) != "" {
+			kind = "proxy-command"
 		}
+		row := model.RouteTestHop{Kind: kind, Label: firstAddress, Address: firstAddress}
+		row.ErrorKey = errKey
+		return fail(row)
+	} else if probeDial != nil {
+		kind := "proxy"
+		label := route.proxy.AddressString()
+		if strings.TrimSpace(route.proxyCommand) != "" {
+
+			kind = "proxy-command"
+			label = firstAddress
+		}
+		row := model.RouteTestHop{Kind: kind, Label: label, Address: label}
+		dial := probeDial
 
 		started := time.Now()
 
@@ -483,10 +499,12 @@ func (s *Service) testRouteForHost(
 	started := time.Now()
 	_, targetErr := builder.Connect(ctx, sshclient.Hop{
 		Target: sshclient.Target{
-			Address:  host.Address,
-			Port:     host.Port,
-			Username: host.Username,
-			Timeout:  hostConnectTimeout(host),
+			Address:           host.Address,
+			Port:              host.Port,
+			Username:          host.Username,
+			Timeout:           hostConnectTimeout(host),
+			HostKeyAlgorithms: host.SSHHostKeyAlgorithms,
+			KeyExchanges:      host.SSHKeyExchanges,
 		},
 		Auth: targetAuth,
 	})

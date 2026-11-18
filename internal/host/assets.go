@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"log/slog"
 
 	"changeme/internal/assetdata"
 )
@@ -27,5 +28,13 @@ func (s *HostService) ReplaceAssets(ctx context.Context, data assetdata.Snapshot
 	if s.store == nil {
 		return ErrHostServiceNotReady
 	}
-	return s.store.ReplaceAssets(ctx, data)
+	if err := s.store.ReplaceAssets(ctx, data); err != nil {
+
+		slog.Error("asset import failed", "event", "host.assets.import_failed",
+			"stage", "store", "host_count", len(data.Hosts), "group_count", len(data.Groups),
+			"snippet_count", len(data.Snippets), "credential_count", len(data.Credentials),
+			"proxy_count", len(data.Proxies), "error", err)
+		return err
+	}
+	return nil
 }

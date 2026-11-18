@@ -2,6 +2,7 @@ package update
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -76,12 +77,21 @@ func TryRollbackAfterFailedUpdate(executable string, relaunch func(string) error
 		if body, err := json.MarshalIndent(marker, "", "  "); err == nil {
 			_ = os.WriteFile(path, body, 0o600)
 		}
+		slog.Info("update pending confirmed first boot",
+			"event", "update.rollback.first_boot",
+			"target", executable,
+		)
 		return false
 	}
 
 	if _, err := os.Stat(marker.Previous); err != nil {
 
 		_ = os.Remove(path)
+		slog.Warn("update rollback skipped, previous binary missing",
+			"event", "update.rollback.previous_missing",
+			"target", executable,
+			"previous", marker.Previous,
+		)
 		return false
 	}
 	failed := executable + ".failed"
@@ -89,19 +99,41 @@ func TryRollbackAfterFailedUpdate(executable string, relaunch func(string) error
 	if err := os.Rename(executable, failed); err != nil {
 
 		_ = os.Remove(path)
+
+		slog.Error("update rollback cannot move current binary",
+			"event", "update.rollback.move_failed",
+			"target", executable,
+			"error", err,
+		)
 		return false
 	}
 	if err := os.Rename(marker.Previous, executable); err != nil {
 
 		_ = os.Rename(failed, executable)
 		_ = os.Remove(path)
+		slog.Error("update rollback restore failed",
+			"event", "update.rollback.restore_failed",
+			"target", executable,
+			"previous", marker.Previous,
+			"error", err,
+		)
 		return false
 	}
 	_ = os.Remove(path)
+	slog.Warn("update rollback applied",
+		"event", "update.rollback.applied",
+		"target", executable,
+		"previous", marker.Previous,
+	)
 	if relaunch == nil {
 		return false
 	}
 	if err := relaunch(executable); err != nil {
+		slog.Warn("update rollback relaunch failed",
+			"event", "update.rollback.relaunch_failed",
+			"target", executable,
+			"error", err,
+		)
 		return false
 	}
 	return true

@@ -86,6 +86,10 @@ export interface QtermSettings {
 
   closeToTray?: boolean
 
+  globalShortcut?: string
+
+  singleInstance?: boolean
+
   restoreOpenSessions?: boolean
 
   quitConfirm?: boolean
@@ -232,6 +236,10 @@ const LEGACY_DEFAULT_KEYWORD_HIGHLIGHT_RULE: KeywordHighlightRule = {
   color: '#ff0000',
 }
 
+const DEFAULT_GLOBAL_SHORTCUT = 'Ctrl+Shift+Space'
+
+const LEGACY_DEFAULT_GLOBAL_SHORTCUT = 'Mod+Shift+Space'
+
 export const DEFAULT_SETTINGS: QtermSettings = {
   locale: 'zh-CN',
 
@@ -255,6 +263,8 @@ export const DEFAULT_SETTINGS: QtermSettings = {
   windowRememberSize: true,
   windowRememberPosition: true,
   closeToTray: true,
+  globalShortcut: DEFAULT_GLOBAL_SHORTCUT,
+  singleInstance: true,
   restoreOpenSessions: true,
   quitConfirm: true,
   settingsInWindow: false,
@@ -442,6 +452,14 @@ function normalizeOtpEntries(value: unknown): OtpEntry[] {
     })
   }
   return result
+}
+
+function normalizeGlobalShortcut(value: unknown): string {
+  if (typeof value !== 'string') return DEFAULT_GLOBAL_SHORTCUT
+  const trimmed = value.trim()
+  if (trimmed.length > 64) return DEFAULT_GLOBAL_SHORTCUT
+  if (trimmed === LEGACY_DEFAULT_GLOBAL_SHORTCUT) return DEFAULT_GLOBAL_SHORTCUT
+  return trimmed
 }
 
 export function normalizeSettings(value: unknown): QtermSettings {
@@ -887,6 +905,10 @@ export function normalizeSettings(value: unknown): QtermSettings {
         ? candidate.windowRememberPosition
         : DEFAULT_SETTINGS.windowRememberPosition,
     closeToTray: typeof candidate.closeToTray === 'boolean' ? candidate.closeToTray : DEFAULT_SETTINGS.closeToTray,
+
+    globalShortcut: normalizeGlobalShortcut(candidate.globalShortcut),
+    singleInstance:
+      typeof candidate.singleInstance === 'boolean' ? candidate.singleInstance : DEFAULT_SETTINGS.singleInstance,
     settingsInWindow:
       typeof candidate.settingsInWindow === 'boolean' ? candidate.settingsInWindow : DEFAULT_SETTINGS.settingsInWindow,
     restoreOpenSessions:

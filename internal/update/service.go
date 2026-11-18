@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"changeme/internal/errno"
 	"net/http"
@@ -153,6 +154,12 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 		return Release{}, checkFailed("repository")
 	}
 	s.applyCurrentVersion(currentVersion)
+
+	slog.Info("update check started",
+		"event", "update.check.started",
+		"current_version", s.currentVersion,
+		"repository", s.repository,
+	)
 	s.setState(StateChecking, func(status *Status) {
 		status.MessageKey = ""
 		status.SafeDetail = ""
@@ -164,6 +171,7 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 	if err != nil {
 
 		if appErr := errno.Extract(err); appErr != nil && appErr.MessageKey == keyNoRelease {
+			slog.Warn("no published release", "event", "update.check.no_release", "repository", s.repository)
 			release := Release{NoRelease: true}
 			s.mu.Lock()
 			s.release = &release
@@ -171,6 +179,13 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 			s.setState(StateNoRelease, func(status *Status) { status.Release = &release })
 			return release, nil
 		}
+		key, detail := errorFields(err)
+
+		slog.Warn("update check request failed",
+			"event", "update.check.request_failed",
+			"error_key", key,
+			"detail", detail,
+		)
 		s.fail(err)
 		return Release{}, err
 	}
@@ -178,6 +193,11 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 	comparison, comparable := compareVersions(s.currentVersion, remoteVersion)
 	if !comparable {
 		err := checkFailed("version")
+		slog.Warn("update check version not comparable",
+			"event", "update.check.version_invalid",
+			"version", remoteVersion,
+			"current_version", s.currentVersion,
+		)
 		s.fail(err)
 		return Release{}, err
 	}
@@ -213,19 +233,41 @@ func (s *Service) Check(ctx context.Context, currentVersion string) (Release, er
 
 	switch {
 	case !release.HasUpdate:
+		slog.Info("update check finished",
+			"event", "update.check.up_to_date",
+			"current_version", s.currentVersion,
+			"version", remoteVersion,
+		)
 		s.setState(StateUpToDate, func(status *Status) { status.Release = &release })
 		return release, nil
 	case !hasAsset:
 
 		err := noAsset(assetNameFor(s.goos, s.goarch))
+		slog.Warn("update asset missing for platform",
+			"event", "update.check.asset_missing",
+			"version", release.Version,
+			"asset", assetNameFor(s.goos, s.goarch),
+			"error_key", keyNoAsset,
+		)
 		s.failWith(StateAvailable, err, &release)
 		return release, err
 	case !hasSignature:
 
 		err := signatureMissing()
+		slog.Warn("update release has no checksum signature",
+			"event", "update.check.signature_missing",
+			"version", release.Version,
+			"error_key", keySignatureMissing,
+		)
 		s.failWith(StateAvailable, err, &release)
 		return release, err
 	}
+	slog.Info("update check finished",
+		"event", "update.check.available",
+		"version", release.Version,
+		"asset", release.Asset.Name,
+		"bytes", release.Asset.Size,
+	)
 	s.setState(StateAvailable, func(status *Status) {
 		status.Release = &release
 		status.Total = asset.Size
@@ -270,6 +312,12 @@ func (s *Service) Download(ctx context.Context) error {
 		status.Percent = 0
 		status.Total = release.Asset.Size
 	})
+	slog.Info("update download started",
+		"event", "update.download.started",
+		"version", release.Version,
+		"asset", release.Asset.Name,
+		"bytes", release.Asset.Size,
+	)
 
 	path, err := s.downloadAsset(downloadCtx, release)
 	cancel()
@@ -281,6 +329,7 @@ func (s *Service) Download(ctx context.Context) error {
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 
+			slog.Warn("update download cancelled", "event", "update.download.cancelled", "version", release.Version)
 			s.setState(StateAvailable, func(status *Status) {
 				status.Release = release
 				status.Downloaded = 0
@@ -289,6 +338,15 @@ func (s *Service) Download(ctx context.Context) error {
 			})
 			return nil
 		}
+		key, detail := errorFields(err)
+
+		slog.Warn("update download failed",
+			"event", "update.download.request_failed",
+			"version", release.Version,
+			"asset", release.Asset.Name,
+			"error_key", key,
+			"detail", detail,
+		)
 		s.failWith(StateFailed, err, release)
 		return err
 	}
@@ -297,6 +355,12 @@ func (s *Service) Download(ctx context.Context) error {
 	s.stagedPath = path
 	s.stagedDir = filepath.Dir(path)
 	s.mu.Unlock()
+	slog.Info("update download finished",
+		"event", "update.download.done",
+		"version", release.Version,
+		"asset", release.Asset.Name,
+		"bytes", release.Asset.Size,
+	)
 	s.setState(StateReady, func(status *Status) {
 		status.Release = release
 		status.Downloaded = release.Asset.Size
@@ -323,16 +387,35 @@ func (s *Service) Install(ctx context.Context) error {
 	release := s.release
 	s.mu.Unlock()
 	if stagedPath == "" || release == nil {
+		slog.Warn("update install without staged archive", "event", "update.install.not_staged")
 		return installFailed("not-staged")
 	}
 	executable, err := s.executable()
 	if err != nil {
 		wrapped := installFailed("executable")
+		slog.Warn("update install cannot resolve executable",
+			"event", "update.install.executable_failed",
+			"error", err,
+		)
 		s.failWith(StateFailed, wrapped, release)
 		return wrapped
 	}
+	slog.Info("update install started",
+		"event", "update.install.started",
+		"version", release.Version,
+		"target", executable,
+	)
 	s.setState(StateInstalling, func(status *Status) { status.Release = release })
 	if err := s.launchReplacer(ctx, stagedPath, executable); err != nil {
+		key, detail := errorFields(err)
+
+		slog.Warn("update install handoff failed",
+			"event", "update.install.handoff_failed",
+			"version", release.Version,
+			"target", executable,
+			"error_key", key,
+			"detail", detail,
+		)
 		s.failWith(StateFailed, err, release)
 		return err
 	}
@@ -340,6 +423,11 @@ func (s *Service) Install(ctx context.Context) error {
 	s.mu.Lock()
 	s.handoff = true
 	s.mu.Unlock()
+	slog.Info("update install handed off",
+		"event", "update.install.handoff",
+		"version", release.Version,
+		"target", executable,
+	)
 	return nil
 }
 

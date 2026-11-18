@@ -65,8 +65,16 @@ import { claimSession, claimTransfer, currentOwnership, filterOwnedItems } from 
 import { useSessionWindowHandover } from '../composables/useSessionWindowHandover'
 import { useQtermShell } from '../composables/useQtermShell'
 import { hostErrorMessage, type HostRecord } from '../services/hosts'
-import { isAdHocHostId } from '../services/adhocSession'
+import { isAdHocHostId, openAdHocSession, parseAdHocTarget } from '../services/adhocSession'
+import {
+  parseLaunchIntent,
+  subscribeLaunchIntent,
+  takeLaunchIntents,
+  type LaunchIntent,
+  type ParsedLaunchTarget,
+} from '../services/launchIntent'
 import QuickConnectDialog from '../components/dialogs/QuickConnectDialog.vue'
+import LaunchIntentDialog from '../components/dialogs/LaunchIntentDialog.vue'
 import AiChatDialog from '../components/dialogs/AiChatDialog.vue'
 import ImportConfigDialog from '../components/dialogs/ImportConfigDialog.vue'
 import ExportConfigDialog from '../components/dialogs/ExportConfigDialog.vue'
@@ -98,7 +106,12 @@ import AssetPickerDialog, { type AssetChoice, type AssetPickerMode } from '../co
 import type { SplitDirection } from '../features/sessions/useSplitWorkspace'
 import { useWindowTheme } from '../composables/useWindowTheme'
 import { boundShortcutAction } from '../features/settings/shortcutStore'
-import { SETTINGS_CATEGORIES, type SettingsCategory } from '../features/settings'
+import {
+  SETTINGS_CATEGORIES,
+  TERMINAL_FONT_SIZE_MAX,
+  TERMINAL_FONT_SIZE_MIN,
+  type SettingsCategory,
+} from '../features/settings'
 import { createShortcutDispatch, shortcutNeedsActiveTab } from '../features/settings/shortcutDispatch'
 import { provideRemoteEditorFocus } from '../features/remoteedit/remoteEditorFocus'
 import {
@@ -337,6 +350,10 @@ const {
   x11AuthorityFile,
   windowRememberSize,
   closeToTray,
+  globalShortcut,
+  globalShortcutEffective,
+  globalShortcutError,
+  singleInstance,
   restoreOpenSessions,
   quitConfirm,
   settingsInWindow,
@@ -506,6 +523,7 @@ watch(appLocale, pushQuitConfirmLabels, { immediate: true })
 
 let stopQuitRequest: (() => void) | undefined
 let stopTrayActions: (() => void) | undefined
+let stopLaunchIntent: (() => void) | undefined
 let stopHostsChanged: (() => void) | undefined
 let stopSettingsWindowState: (() => void) | undefined
 
@@ -988,6 +1006,25 @@ async function openSnippetEditor(snippet: Snippet): Promise<void> {
 
 const adhocConnectOpen = ref(false)
 
+const LAUNCH_INTENT_QUEUE_CAP = 8
+
+interface PendingLaunchIntent {
+  source: string
+
+  target: ParsedLaunchTarget | null
+
+  errorKey: string
+}
+
+const launchIntentQueue = ref<PendingLaunchIntent[]>([])
+
+const recentLaunchIntentKeys = new Map<string, number>()
+const LAUNCH_INTENT_DEDUP_MS = 5000
+const launchIntentDialogOpen = ref(false)
+const launchIntentTarget = ref<ParsedLaunchTarget | null>(null)
+const launchIntentSource = ref('')
+const launchIntentErrorKey = ref('')
+
 const aiChatOpen = ref(false)
 
 const globalAiOpen = ref(false)
@@ -1059,6 +1096,66 @@ async function handleAdHocOpened(payload: {
   } else if (done > 1) {
     toast.success(t('shell.adhoc.summary', { count: done }))
   }
+}
+
+function enqueueLaunchIntents(intents: LaunchIntent[]): void {
+  if (!intents.length) return
+  const pending: PendingLaunchIntent[] = intents.map((intent) => {
+    const parsed = parseLaunchIntent(intent)
+    return typeof parsed === 'string'
+      ? { source: intent.target, target: null, errorKey: parsed }
+      : { source: intent.target, target: parsed, errorKey: '' }
+  })
+  const now = Date.now()
+
+  for (const [key, stamped] of recentLaunchIntentKeys) {
+    if (now - stamped > LAUNCH_INTENT_DEDUP_MS) recentLaunchIntentKeys.delete(key)
+  }
+  const fresh = pending.filter((item) => {
+    const key = `${item.target?.protocol ?? 'error'}|${item.source}`
+    if (recentLaunchIntentKeys.has(key)) return false
+    recentLaunchIntentKeys.set(key, now)
+    return true
+  })
+  if (!fresh.length) return
+  const room = LAUNCH_INTENT_QUEUE_CAP - launchIntentQueue.value.length
+  if (room <= 0) {
+    toast.warning(t('shell.launchIntent.tooMany'))
+    return
+  }
+  const accepted = fresh.slice(0, room)
+  if (accepted.length < fresh.length) toast.warning(t('shell.launchIntent.tooMany'))
+  launchIntentQueue.value = [...launchIntentQueue.value, ...accepted]
+  presentNextLaunchIntent()
+}
+
+function presentNextLaunchIntent(): void {
+  if (launchIntentDialogOpen.value) return
+  const next = launchIntentQueue.value[0]
+  if (!next) return
+  launchIntentTarget.value = next.target
+  launchIntentSource.value = next.source
+  launchIntentErrorKey.value = next.errorKey
+  launchIntentDialogOpen.value = true
+}
+
+function closeLaunchIntentDialog(): void {
+  launchIntentDialogOpen.value = false
+  launchIntentQueue.value = launchIntentQueue.value.slice(1)
+  void nextTick(() => presentNextLaunchIntent())
+}
+
+function handleLaunchIntentOpened(payload: {
+  entries: Array<{
+    hostId: string
+    displayName: string
+    protocol: 'ssh' | 'telnet'
+    address: string
+    result: import('../services/adhocSession').AdHocOpenResult
+  }>
+  failed: number
+}): void {
+  void handleAdHocOpened(payload)
 }
 
 const bulkConnectBusy = ref(false)
@@ -1236,7 +1333,34 @@ const shortcutDispatch = createShortcutDispatch({
   remoteFileSave: () => {
     remoteEditorFocus.requestSave()
   },
+  increaseTerminalFontSize: () => stepTerminalFontSize(1),
+  decreaseTerminalFontSize: () => stepTerminalFontSize(-1),
 })
+
+const terminalFontSizeHint = ref('')
+let terminalFontSizeHintTimer: number | null = null
+
+const TERMINAL_FONT_SIZE_REFERENCE = 13
+
+function stepTerminalFontSize(delta: number): void {
+  if (delta === 0) return
+  const current = Math.round(terminalFontSize.value)
+
+  const next = Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, current + delta))
+  if (next === current) return
+  setTerminalFontSize(next)
+  showTerminalFontSizeHint(next)
+}
+
+function showTerminalFontSizeHint(size: number): void {
+  const percent = Math.round((size / TERMINAL_FONT_SIZE_REFERENCE) * 100)
+  terminalFontSizeHint.value = `${size}px · ${percent}%`
+  if (terminalFontSizeHintTimer !== null) window.clearTimeout(terminalFontSizeHintTimer)
+  terminalFontSizeHintTimer = window.setTimeout(() => {
+    terminalFontSizeHintTimer = null
+    terminalFontSizeHint.value = ''
+  }, 900)
+}
 
 function closeRemoteEditor(): void {
   closeRemoteTextEditor()
@@ -1289,6 +1413,8 @@ function notifyTabLocked(): void {
 
 const paletteOpen = ref(false)
 
+const paletteQuery = ref('')
+
 const PALETTE_SETTING_CATEGORIES = SETTINGS_CATEGORIES
 
 const paletteItems = computed<PaletteItem[]>(() => {
@@ -1302,10 +1428,17 @@ const paletteItems = computed<PaletteItem[]>(() => {
     })
   }
   for (const host of hosts.value) {
+    const groupName = groups.value.find((group) => group.id === host.groupId)?.name ?? ''
+    const pieces = [
+      host.username ? `${host.username}@${host.address}` : host.address,
+      host.port ? `:${host.port}` : '',
+      ...(host.tags ?? []),
+      groupName,
+    ]
     items.push({
       id: `host:${host.id}`,
       label: host.name || host.address,
-      hint: `${host.address}${host.port ? `:${host.port}` : ''}`,
+      hint: pieces.filter(Boolean).join(' '),
       group: t('shell.palette.hosts'),
     })
   }
@@ -1327,7 +1460,30 @@ const paletteItems = computed<PaletteItem[]>(() => {
       group: t('shell.palette.actions'),
     },
   )
+
+  const direct = paletteDirectTarget.value
+  if (direct) {
+    items.unshift({
+      id: `adhoc:${direct.input.protocol}:${direct.target}`,
+      label: t('shell.palette.connectTo', { target: direct.display }),
+      hint: direct.target,
+      group: t('shell.palette.actions'),
+    })
+  }
   return items
+})
+
+const paletteDirectTarget = computed(() => {
+  const raw = paletteQuery.value.trim()
+  if (raw.length < 3) return null
+  if (!raw.includes('@') && !raw.includes('://') && !raw.includes('.')) return null
+  const protocol = raw.toLowerCase().startsWith('telnet://') ? 'telnet' : 'ssh'
+  const parsed = parseAdHocTarget(protocol, raw)
+  if (typeof parsed === 'string') return null
+
+  if (protocol === 'ssh' && !parsed.input.username) return null
+  const display = parsed.input.username ? `${parsed.input.username}@${parsed.input.address}` : parsed.input.address
+  return { target: raw, display: parsed.input.port ? `${display}:${parsed.input.port}` : display, input: parsed.input }
 })
 
 function runPaletteItem(item: PaletteItem): void {
@@ -1343,6 +1499,24 @@ function runPaletteItem(item: PaletteItem): void {
   }
   if (kind === 'settings') {
     void openSettings(value as Parameters<typeof openSettings>[0])
+    return
+  }
+  if (kind === 'adhoc') {
+    const direct = paletteDirectTarget.value
+    if (!direct) return
+
+    void openAdHocSession({ ...direct.input, password: '' })
+      .then((result) => {
+        const entry = {
+          hostId: result.hostId,
+          displayName: direct.display,
+          protocol: direct.input.protocol,
+          address: direct.input.address,
+          result,
+        }
+        void handleAdHocOpened({ entries: [entry], failed: 0 })
+      })
+      .catch((error: unknown) => toast.error(hostErrorMessage(error, t('shell.adhoc.openFailed'))))
     return
   }
   if (item.id === 'action:new-local') {
@@ -2164,6 +2338,9 @@ onMounted(() => {
       void resourcesImported()
     })
     stopTrayActions = subscribeTrayActions(handleTrayAction)
+
+    stopLaunchIntent = subscribeLaunchIntent(enqueueLaunchIntents)
+    void takeLaunchIntents().then((intents) => enqueueLaunchIntents(intents))
     trayActionsSubscribed = true
     void initializeTrayNativeState()
     stopSettingsWindowState = connectSettingsWindowState((state) => {
@@ -2240,6 +2417,8 @@ onBeforeUnmount(() => {
   stopNativeFileDrop?.()
   stopQuitRequest?.()
   stopTrayActions?.()
+  stopLaunchIntent?.()
+  stopLaunchIntent = undefined
   stopHostsChanged?.()
   stopHostsChanged = undefined
   stopSettingsWindowState?.()
@@ -2407,6 +2586,15 @@ onBeforeUnmount(() => {
         }"
         @click="clearAssetSelection"
       >
+        <div
+          v-if="terminalFontSizeHint"
+          class="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-md border border-qt-border bg-qt-panel px-2 py-1 font-mono text-xs tabular-nums text-qt-text shadow-sm"
+          role="status"
+          aria-live="polite"
+          data-font-zoom-hint
+        >
+          {{ terminalFontSizeHint }}
+        </div>
         <SessionWorkspace
           ref="workspace"
           :sessions="sessions"
@@ -2422,7 +2610,7 @@ onBeforeUnmount(() => {
           :transparent-background="backgroundEnabled"
           :terminal-font-size="terminalFontSize"
           :terminal-font-weight="terminalFontWeight"
-          @font-size-step="setTerminalFontSize(terminalFontSize + $event)"
+          @font-size-step="stepTerminalFontSize($event)"
           :terminal-line-height="terminalLineHeight"
           :terminal-font-family="terminalFontFamily"
           :settings-ready="settingsReady"
@@ -2709,6 +2897,15 @@ onBeforeUnmount(() => {
     />
     <QuickConnectDialog :open="adhocConnectOpen" @close="adhocConnectOpen = false" @opened="handleAdHocOpened" />
 
+    <LaunchIntentDialog
+      :open="launchIntentDialogOpen"
+      :target="launchIntentTarget"
+      :source="launchIntentSource"
+      :error-key="launchIntentErrorKey"
+      @close="closeLaunchIntentDialog"
+      @opened="handleLaunchIntentOpened"
+    />
+
     <ImportConfigDialog
       :open="importConfigOpen"
       :credentials="credentialOptions"
@@ -2740,6 +2937,7 @@ onBeforeUnmount(() => {
       :open="paletteOpen"
       :items="paletteItems"
       @update:open="paletteOpen = $event"
+      @query="paletteQuery = $event"
       @select="runPaletteItem"
     />
 
@@ -2828,6 +3026,10 @@ onBeforeUnmount(() => {
       :x11-authority-file="x11AuthorityFile"
       :window-remember-size="windowRememberSize"
       :close-to-tray="closeToTray"
+      :global-shortcut="globalShortcut"
+      :global-shortcut-effective="globalShortcutEffective"
+      :global-shortcut-error="globalShortcutError"
+      :single-instance="singleInstance"
       :restore-open-sessions="restoreOpenSessions"
       :quit-confirm="quitConfirm"
       :settings-in-window="settingsInWindow"
@@ -2934,6 +3136,8 @@ onBeforeUnmount(() => {
       @update:x11-authority-file="setAppSetting('x11AuthorityFile', $event)"
       @update:window-remember-size="setAppSetting('windowRememberSize', $event)"
       @update:close-to-tray="setAppSetting('closeToTray', $event)"
+      @update:global-shortcut="setAppSetting('globalShortcut', $event)"
+      @update:single-instance="setAppSetting('singleInstance', $event)"
       @update:restore-open-sessions="setAppSetting('restoreOpenSessions', $event)"
       @update:quit-confirm="setAppSetting('quitConfirm', $event)"
       @update:window-remember-position="setAppSetting('windowRememberPosition', $event)"

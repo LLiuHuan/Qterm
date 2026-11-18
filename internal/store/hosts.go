@@ -29,7 +29,8 @@ func (s *Store) ListHosts(ctx context.Context) ([]model.Host, error) {
 		       h.vnc_transport, h.vnc_ws_path, h.vnc_allow_insecure_tls, h.vnc_rfb_password_mode,
 		       h.connection_type, h.terminal_type,
 		       h.jump_host_id, h.proxy_mode, h.proxy_host, h.proxy_port, h.proxy_username,
-		       h.proxy_id
+		       h.proxy_id,
+		       h.ssh_host_key_algorithms, h.ssh_key_exchanges, h.ssh_proxy_command
 		FROM hosts h
 		LEFT JOIN groups g ON g.id = h.group_id
 		ORDER BY CASE WHEN h.group_id IS NULL THEN -1 ELSE g.sort_order END,
@@ -57,6 +58,9 @@ func (s *Store) ListHosts(ctx context.Context) ([]model.Host, error) {
 			proxyPort                int
 			proxyUsername            string
 			proxyID                  sql.NullString
+			hostKeyAlgorithmsJSON    string
+			keyExchangesJSON         string
+			proxyCommand             string
 		)
 		if err := rows.Scan(
 			&host.ID,
@@ -121,10 +125,17 @@ func (s *Store) ListHosts(ctx context.Context) ([]model.Host, error) {
 			&proxyUsername,
 
 			&proxyID,
+
+			&hostKeyAlgorithmsJSON,
+			&keyExchangesJSON,
+			&proxyCommand,
 		); err != nil {
 			return nil, fmt.Errorf("scan host: %w", err)
 		}
 		applyHostProxy(jumpHostID, proxyMode, proxyHost, proxyPort, proxyUsername, proxyID, &host)
+		if err := decodeSSHHandshake(hostKeyAlgorithmsJSON, keyExchangesJSON, proxyCommand, &host); err != nil {
+			return nil, err
+		}
 		host.GroupID = groupID.String
 		host.Group = groupName.String
 		host.PasswordSource = passwordSource
@@ -169,7 +180,8 @@ func (s *Store) GetHost(ctx context.Context, id string) (model.Host, error) {
 		       h.vnc_transport, h.vnc_ws_path, h.vnc_allow_insecure_tls, h.vnc_rfb_password_mode,
 		       h.connection_type, h.terminal_type,
 		       h.jump_host_id, h.proxy_mode, h.proxy_host, h.proxy_port, h.proxy_username,
-		       h.proxy_id
+		       h.proxy_id,
+		       h.ssh_host_key_algorithms, h.ssh_key_exchanges, h.ssh_proxy_command
 		FROM hosts h
 		LEFT JOIN groups g ON g.id = h.group_id
 		WHERE h.id = ?`
@@ -187,6 +199,9 @@ func (s *Store) GetHost(ctx context.Context, id string) (model.Host, error) {
 		proxyPort                int
 		proxyUsername            string
 		proxyID                  sql.NullString
+		hostKeyAlgorithmsJSON    string
+		keyExchangesJSON         string
+		proxyCommand             string
 	)
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
 		&host.ID,
@@ -250,6 +265,10 @@ func (s *Store) GetHost(ctx context.Context, id string) (model.Host, error) {
 		&proxyUsername,
 
 		&proxyID,
+
+		&hostKeyAlgorithmsJSON,
+		&keyExchangesJSON,
+		&proxyCommand,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.Host{}, ErrNotFound
@@ -258,6 +277,9 @@ func (s *Store) GetHost(ctx context.Context, id string) (model.Host, error) {
 		return model.Host{}, fmt.Errorf("query host: %w", err)
 	}
 	applyHostProxy(jumpHostID, proxyMode, proxyHost, proxyPort, proxyUsername, proxyID, &host)
+	if err := decodeSSHHandshake(hostKeyAlgorithmsJSON, keyExchangesJSON, proxyCommand, &host); err != nil {
+		return model.Host{}, err
+	}
 	host.GroupID = groupID.String
 	host.Group = groupName.String
 	if err := decodeEnvironmentVariables(environmentVariablesJSON, &host); err != nil {
@@ -475,14 +497,15 @@ func (s *Store) CreateHostWithPasswords(ctx context.Context, host model.Host, gr
 			vnc_scale, vnc_auto_reconnect, vnc_auto_reconnect_attempts,
 			vnc_transport, vnc_ws_path, vnc_allow_insecure_tls, vnc_rfb_password_mode,
 			connection_type, terminal_type,
-			jump_host_id, proxy_mode, proxy_host, proxy_port, proxy_username, proxy_id
+			jump_host_id, proxy_mode, proxy_host, proxy_port, proxy_username, proxy_id,
+			ssh_host_key_algorithms, ssh_key_exchanges, ssh_proxy_command
 		) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?, NULLIF(?, ''),
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?
 		)`
 	if _, err := tx.ExecContext(
 		ctx,
@@ -519,6 +542,10 @@ func (s *Store) CreateHostWithPasswords(ctx context.Context, host model.Host, gr
 		proxyMode, proxyHost, proxyPort, proxyUsername,
 
 		nullableString(host.ProxyID),
+
+		normalizeSSHAlgorithmsJSON(host.SSHHostKeyAlgorithms),
+		normalizeSSHAlgorithmsJSON(host.SSHKeyExchanges),
+		host.SSHProxyCommand,
 	); err != nil {
 		return model.Host{}, fmt.Errorf("insert host: %w", err)
 	}
@@ -660,7 +687,8 @@ func (s *Store) UpdateHostWithPasswords(ctx context.Context, host model.Host, gr
 		    vnc_scale = ?, vnc_auto_reconnect = ?, vnc_auto_reconnect_attempts = ?,
 		    vnc_transport = ?, vnc_ws_path = ?, vnc_allow_insecure_tls = ?, vnc_rfb_password_mode = ?,
 		    connection_type = ?, terminal_type = ?,
-		    jump_host_id = ?, proxy_mode = ?, proxy_host = ?, proxy_port = ?, proxy_username = ?, proxy_id = ?
+		    jump_host_id = ?, proxy_mode = ?, proxy_host = ?, proxy_port = ?, proxy_username = ?, proxy_id = ?,
+		    ssh_host_key_algorithms = ?, ssh_key_exchanges = ?, ssh_proxy_command = ?
 		WHERE id = ?`
 	proxyMode, proxyHost, proxyPort, proxyUsername := normalizeHostProxyColumns(
 		textValue(host.ProxyMode), textValue(host.ProxyHost), intValue(host.ProxyPort),
@@ -698,6 +726,10 @@ func (s *Store) UpdateHostWithPasswords(ctx context.Context, host model.Host, gr
 		nullableString(textValue(host.JumpHostID)),
 		proxyMode, proxyHost, proxyPort, proxyUsername,
 		nullableString(host.ProxyID),
+
+		normalizeSSHAlgorithmsJSON(host.SSHHostKeyAlgorithms),
+		normalizeSSHAlgorithmsJSON(host.SSHKeyExchanges),
+		host.SSHProxyCommand,
 		host.ID,
 	)
 	if err != nil {
@@ -932,6 +964,41 @@ func decodeHostTags(raw string, host *model.Host) error {
 		return fmt.Errorf("decode host tags: %w", err)
 	}
 	host.Tags = tags
+	return nil
+}
+
+func normalizeSSHAlgorithmsJSON(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
+}
+
+func decodeSSHHandshake(hostKeyAlgorithms, keyExchanges, proxyCommand string, host *model.Host) error {
+	if err := decodeSSHAlgorithms(hostKeyAlgorithms, &host.SSHHostKeyAlgorithms, "host key algorithms"); err != nil {
+		return err
+	}
+	if err := decodeSSHAlgorithms(keyExchanges, &host.SSHKeyExchanges, "key exchanges"); err != nil {
+		return err
+	}
+	host.SSHProxyCommand = proxyCommand
+	return nil
+}
+
+func decodeSSHAlgorithms(raw string, out *[]string, label string) error {
+	if strings.TrimSpace(raw) == "" {
+		*out = nil
+		return nil
+	}
+	var values []string
+	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+		return fmt.Errorf("decode host ssh %s: %w", label, err)
+	}
+	*out = values
 	return nil
 }
 

@@ -18,6 +18,8 @@ const (
 	CredentialKindPrivateKey           CredentialKind = "privateKey"
 	CredentialKindPrivateKeyPassphrase CredentialKind = "privateKeyPassphrase"
 	CredentialKindSSHAgent             CredentialKind = "sshAgent"
+
+	CredentialKindUserCertificate CredentialKind = "userCertificate"
 )
 
 type CredentialInput struct {
@@ -93,7 +95,8 @@ func (k CredentialKind) Valid() bool {
 	return k == CredentialKindPassword ||
 		k == CredentialKindPrivateKey ||
 		k == CredentialKindPrivateKeyPassphrase ||
-		k == CredentialKindSSHAgent
+		k == CredentialKindSSHAgent ||
+		k == CredentialKindUserCertificate
 }
 
 func normalizeCredentialMetadata(value, field string) (string, error) {

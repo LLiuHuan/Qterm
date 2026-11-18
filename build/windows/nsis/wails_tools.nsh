@@ -8,7 +8,7 @@
     !define INFO_PROJECTNAME "qterm"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "Qterm"
+    !define INFO_COMPANYNAME "LLiuHuan"
 !endif
 !ifndef INFO_PRODUCTNAME
     !define INFO_PRODUCTNAME "Qterm"
@@ -17,13 +17,16 @@
     !define INFO_PRODUCTVERSION "0.0.1"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "(c) 2026, Qterm"
+    !define INFO_COPYRIGHT "(c) 2026, LLiuHuan"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"
 !endif
 !ifndef UNINST_KEY_NAME
-    !define UNINST_KEY_NAME "${INFO_COMPANYNAME}${INFO_PRODUCTNAME}"
+    # 发布者已改为 LLiuHuan，但卸载项键名**故意钉死**成旧值 "QtermQterm"：
+    # 键名参与「应用和功能」的条目身份，跟着改名会让已装用户的旧条目留在系统里，
+    # 出现两条同名应用、且旧的那条指向已删除的目录。
+    !define UNINST_KEY_NAME "QtermQterm"
 !endif
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${UNINST_KEY_NAME}"
 
@@ -253,9 +256,17 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
 !macro wails.associateCustomProtocols
     ; Create custom protocols associations
     
+      !insertmacro CUSTOM_PROTOCOL_ASSOCIATE "qterm" "Open connection in Qterm" "$INSTDIR\${PRODUCT_EXECUTABLE},0" "$INSTDIR\${PRODUCT_EXECUTABLE} $\"%1$\""
+    
+      !insertmacro CUSTOM_PROTOCOL_ASSOCIATE "ssh" "Open SSH connection in Qterm" "$INSTDIR\${PRODUCT_EXECUTABLE},0" "$INSTDIR\${PRODUCT_EXECUTABLE} $\"%1$\""
+    
 !macroend
 
 !macro wails.unassociateCustomProtocols
     ; Delete app custom protocol associations
+    
+      !insertmacro CUSTOM_PROTOCOL_UNASSOCIATE "qterm"
+    
+      !insertmacro CUSTOM_PROTOCOL_UNASSOCIATE "ssh"
     
 !macroend

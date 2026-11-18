@@ -9,5 +9,4 @@ Type=Application
 Icon=qterm
 Categories=Utility;
 StartupWMClass=qterm
-
- 
+MimeType=x-scheme-handler/qterm;x-scheme-handler/ssh;

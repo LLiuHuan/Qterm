@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -100,13 +101,28 @@ func (m *Manager) Start(ctx context.Context) error {
 			m.installDEKLocked(dek)
 			clear(dek)
 			m.status = m.statusLocked("", true)
+
+			slog.Info("local data key created",
+				"event", "security.dek.created",
+				"backend", "system")
 		}
 	case errors.Is(err, ErrKeyringUnavailable):
+
 		m.keyringOK = false
 		m.status = m.statusLocked("keychainUnavailable", false)
+		slog.Warn("platform keychain unavailable",
+			"event", "security.keyring.unavailable",
+			"backend", "system",
+			"stage", "start",
+			"error", err)
 	default:
 		m.keyringOK = false
 		m.status = m.statusLocked("keychainUnavailable", false)
+		slog.Warn("platform keychain read failed",
+			"event", "security.keyring.unavailable",
+			"backend", "system",
+			"stage", "start",
+			"error", err)
 	}
 	m.started = true
 	return nil
@@ -213,6 +229,11 @@ func (m *Manager) PersistSystemKey(ctx context.Context) error {
 		}
 		m.status = m.statusLocked(m.status.Reason, len(m.dek) == DEKSize)
 		m.mu.Unlock()
+
+		slog.Warn("platform keychain persist failed",
+			"event", "security.keyring.persist_failed",
+			"backend", "system",
+			"error", err)
 		return err
 	}
 	m.mu.Lock()
@@ -236,6 +257,10 @@ func (m *Manager) UnlockSystem(ctx context.Context) error {
 			m.keyringOK = false
 		}
 		m.mu.Unlock()
+		slog.Warn("platform keychain unlock failed",
+			"event", "security.keyring.unlock_failed",
+			"backend", "system",
+			"error", err)
 		return err
 	}
 	m.mu.Lock()

@@ -103,6 +103,12 @@ type StartInput struct {
 
 	ContextText string
 
+	CustomPrompt string `json:"customPrompt,omitempty"`
+
+	HostNote string `json:"hostNote,omitempty"`
+
+	SnippetIndex []string `json:"snippetIndex,omitempty"`
+
 	ExecutionChannel string
 
 	MaxSteps int

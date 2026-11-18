@@ -25,6 +25,7 @@ import IconButton from '../../components/common/button/IconButton.vue'
 import RefreshIconButton from '../../components/common/button/RefreshIconButton.vue'
 import SftpBrowserPane, { type SftpBrowserEntry, type SftpBrowserSegment } from './SftpBrowserPane.vue'
 import SftpFileInfoDialog from './SftpFileInfoDialog.vue'
+import { emptyPrincipalIndex, toPrincipalIndex, type RemotePrincipalIndex } from './remotePrincipals'
 import type { HostRecord } from '@/services/hosts.ts'
 import { sftpErrorMessage, type SFTPTransferRecord, type SftpGateway } from '../../services/sftp'
 import { translateErrorKey } from '../../services/errors'
@@ -146,6 +147,34 @@ const infoDialog = ref<{ open: boolean; pane: SftpWorkspacePaneState | null; ent
   open: false,
   pane: null,
   entry: null,
+})
+
+const infoPrincipals = ref<RemotePrincipalIndex>(emptyPrincipalIndex)
+const infoPrincipalsSession = ref('')
+let infoPrincipalsPending: Promise<void> | null = null
+
+function primeFileInfoPrincipals(pane: SftpWorkspacePaneState): void {
+  const sessionId = pane.kind === 'remote' ? pane.selectedSessionId : null
+  if (!sessionId || !props.gateway.listRemotePrincipals) return
+  if (infoPrincipalsSession.value === sessionId || infoPrincipalsPending) return
+  const load = props.gateway
+    .listRemotePrincipals(sessionId)
+    .then((principals) => toPrincipalIndex(principals.users, principals.groups))
+    .catch(() => emptyPrincipalIndex)
+    .then((index) => {
+      infoPrincipalsSession.value = sessionId
+      infoPrincipals.value = index
+    })
+    .finally(() => {
+      if (infoPrincipalsPending === load) infoPrincipalsPending = null
+    })
+  infoPrincipalsPending = load
+}
+
+const fileInfoPrincipals = computed(() => {
+  const sessionId = infoDialog.value.pane?.kind === 'remote' ? infoDialog.value.pane.selectedSessionId : null
+  if (!sessionId || infoPrincipalsSession.value !== sessionId) return emptyPrincipalIndex
+  return infoPrincipals.value
 })
 
 type PermissionBits = typeof permissionBits.value
@@ -528,6 +557,7 @@ async function archiveDownloadEntry(pane: SftpWorkspacePaneState, entry: SftpBro
 
 function showEntryInfo(pane: SftpWorkspacePaneState, entry: SftpBrowserEntry): void {
   infoDialog.value = { open: true, pane, entry }
+  primeFileInfoPrincipals(pane)
 }
 
 async function loadLocal(pane: SftpWorkspacePaneState, token = '', child = '') {
@@ -1339,6 +1369,7 @@ onBeforeUnmount(() => {
       v-model:open="infoDialog.open"
       :entry="infoDialog.entry"
       :path="infoDialog.pane && infoDialog.entry ? entryDisplayPath(infoDialog.pane, infoDialog.entry) : ''"
+      :principals="fileInfoPrincipals"
       @copy-path="() => infoDialog.pane && infoDialog.entry && copyEntryPath(infoDialog.pane, infoDialog.entry)"
     />
     <QtermDialog :open="pickerOpen" @update:open="pickerOpen = $event">
@@ -1573,34 +1604,6 @@ onBeforeUnmount(() => {
 }
 .sftp-permission-grid :deep([data-slot='checkbox']) {
   justify-self: center;
-}
-.sftp-info-grid {
-  padding: 0 16px 16px;
-}
-.sftp-info-grid > div {
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--qt-border) 55%, transparent);
-}
-.sftp-info-grid > div:last-child {
-  border-bottom: 0;
-}
-.sftp-info-grid > div > span:first-child {
-  color: var(--qt-muted);
-}
-.sftp-info-path-value {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-.sftp-info-path-value > span {
-  min-width: 0;
-  flex: 1;
-  overflow-wrap: anywhere;
 }
 .sftp-workspace-session-option strong {
   font-weight: 400;

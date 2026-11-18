@@ -29,6 +29,15 @@ type appFileDialogs struct {
 func (d *appFileDialogs) ChooseUploadFile() (string, error) {
 	return d.manager.OpenFile().SetTitle("选择要上传的文件").SetButtonText("上传").PromptForSingleSelection()
 }
+
+func (d *appFileDialogs) ChooseUploadFiles() ([]string, error) {
+	paths, err := d.manager.OpenFile().SetTitle("选择要上传的文件").SetButtonText("上传").PromptForMultipleSelection()
+	if err != nil {
+		return nil, err
+	}
+	return paths, nil
+}
+
 func (d *appFileDialogs) ChooseDownloadFile(filename string) (string, error) {
 	return d.manager.SaveFileWithOptions(&wailsapp.SaveFileDialogOptions{Title: "保存远程文件", Filename: filename, ButtonText: "保存", CanCreateDirectories: true, AllowOtherFileTypes: true}).PromptForSingleSelection()
 }
@@ -85,6 +94,25 @@ func (d *appFileDialogs) ChooseDebugLogDestination() (string, error) {
 	return d.manager.SaveFileWithOptions(&wailsapp.SaveFileDialogOptions{
 		Title:                "导出 Qterm 调试日志",
 		Filename:             "qterm-debug.log",
+		ButtonText:           "导出",
+		CanCreateDirectories: true,
+		AllowOtherFileTypes:  true,
+	}).PromptForSingleSelection()
+}
+
+func (d *appFileDialogs) ChooseAICommandRulesImportFile() (string, error) {
+	return d.manager.OpenFile().
+		SetTitle("导入命令防护规则").
+		SetButtonText("导入").
+		CanChooseFiles(true).
+		CanChooseDirectories(false).
+		PromptForSingleSelection()
+}
+
+func (d *appFileDialogs) ChooseAICommandRulesExportFile() (string, error) {
+	return d.manager.SaveFileWithOptions(&wailsapp.SaveFileDialogOptions{
+		Title:                "导出命令防护规则",
+		Filename:             "qterm-ai-command-rules.json",
 		ButtonText:           "导出",
 		CanCreateDirectories: true,
 		AllowOtherFileTypes:  true,

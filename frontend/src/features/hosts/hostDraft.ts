@@ -73,5 +73,9 @@ export function hostToDraft(host: HostRecord): HostEditorDraft {
     proxyPassword: '',
     clearProxyPassword: false,
     proxyPasswordConfigured: host.proxyPasswordConfigured === true,
+
+    sshHostKeyAlgorithms: [...(host.sshHostKeyAlgorithms ?? [])],
+    sshKeyExchanges: [...(host.sshKeyExchanges ?? [])],
+    sshProxyCommand: host.sshProxyCommand || '',
   }
 }

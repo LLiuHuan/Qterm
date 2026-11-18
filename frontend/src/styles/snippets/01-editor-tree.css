@@ -85,7 +85,7 @@
   background-clip: padding-box;
 }
 .snippet-content-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
-  background: var(--qt-text);
+  background: color-mix(in srgb, var(--snippet-scrollbar-thumb) 62%, var(--qt-text));
   background-clip: padding-box;
 }
 .snippet-content-editor .cm-gutters {
@@ -302,7 +302,7 @@
 }
 .snippets-dialog .dialog-body::-webkit-scrollbar-thumb:hover,
 .snippet-hosts::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--qt-theme-scrollbar, var(--qt-border)) 80%, var(--qt-text));
+  background: color-mix(in srgb, var(--qt-theme-scrollbar, var(--qt-border)) 62%, var(--qt-text));
 }
 .snippets-dialog .dialog-body::-webkit-scrollbar-track,
 .snippet-hosts::-webkit-scrollbar-track {

@@ -37,6 +37,8 @@ import {
   type AIProvider,
 } from '../../services/aiProviders'
 import AiProviderDialog from '../../components/dialogs/AiProviderDialog.vue'
+import AiCommandRules from './AiCommandRules.vue'
+import AiContextSettings from './AiContextSettings.vue'
 import { providerLogo } from '../ai/providerLogos'
 
 const { t } = useI18n()
@@ -316,6 +318,10 @@ function providerLabel(provider: AIProvider): string {
         </div>
       </QtermSettingsRow>
     </div>
+
+    <AiContextSettings />
+
+    <AiCommandRules class="mt-2" />
 
     <QtermSettingsSectionHeader
       class="settings-subsection-header mt-2"

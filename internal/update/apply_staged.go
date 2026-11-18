@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,12 +32,23 @@ func applyStagedExecutable(archivePath, targetPath string) error {
 func ApplyStagedArchive(archivePath, targetPath string) error {
 	reader, err := zip.OpenReader(archivePath)
 	if err != nil {
+
+		slog.Error("update staged archive open failed",
+			"event", "update.apply.archive_failed",
+			"archive", archivePath,
+			"error", err,
+		)
 		return &StagedFailure{Detail: "archive"}
 	}
 	defer func() { _ = reader.Close() }()
 
 	entry := findExecutableEntry(reader.File, targetPath)
 	if entry == nil {
+		slog.Error("update staged archive has no executable",
+			"event", "update.apply.payload_missing",
+			"archive", archivePath,
+			"target", targetPath,
+		)
 		return &StagedFailure{Detail: "payload"}
 	}
 
@@ -46,11 +58,23 @@ func ApplyStagedArchive(archivePath, targetPath string) error {
 	size, err := extractZipEntry(entry, staged)
 	if err != nil {
 		_ = os.Remove(staged)
+		slog.Error("update staged archive extract failed",
+			"event", "update.apply.extract_failed",
+			"archive", archivePath,
+			"target", targetPath,
+			"error", err,
+		)
 		return &StagedFailure{Detail: "extract"}
 	}
 
 	if size != int64(entry.UncompressedSize64) {
 		_ = os.Remove(staged)
+		slog.Error("update staged payload size mismatch",
+			"event", "update.apply.size_mismatch",
+			"target", targetPath,
+			"bytes", size,
+			"expected", int64(entry.UncompressedSize64),
+		)
 		return &StagedFailure{Detail: "extract"}
 	}
 
@@ -58,12 +82,25 @@ func ApplyStagedArchive(archivePath, targetPath string) error {
 	_ = os.Remove(backup)
 	if err := os.Rename(targetPath, backup); err != nil {
 		_ = os.Remove(staged)
+		slog.Error("update replace backup rename failed",
+			"event", "update.apply.backup_failed",
+			"target", targetPath,
+			"backup", backup,
+			"error", err,
+		)
 		return &StagedFailure{Detail: "replace-backup"}
 	}
 	if err := os.Rename(staged, targetPath); err != nil {
 
-		_ = os.Rename(backup, targetPath)
+		rollbackErr := os.Rename(backup, targetPath)
 		_ = os.Remove(staged)
+		slog.Error("update replace swap failed",
+			"event", "update.apply.swap_failed",
+			"target", targetPath,
+			"backup", backup,
+			"restored", rollbackErr == nil,
+			"error", err,
+		)
 		return &StagedFailure{Detail: "replace-swap"}
 	}
 

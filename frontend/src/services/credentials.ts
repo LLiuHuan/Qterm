@@ -2,7 +2,7 @@ import { emitAssetChange } from './assetEvents'
 import { errorMessage } from './errors'
 import { createRuntimeGateway } from './runtime'
 
-export type CredentialKind = 'password' | 'privateKey' | 'privateKeyPassphrase' | 'sshAgent'
+export type CredentialKind = 'password' | 'privateKey' | 'privateKeyPassphrase' | 'sshAgent' | 'userCertificate'
 export type CredentialVaultState = 'setupRequired' | 'locked' | 'unlocked' | 'recoveryRequired' | 'error'
 export type CredentialVaultMode = '' | 'automatic' | 'masterPassword'
 export type LocalEncryptionMode = 'system' | 'custom'
@@ -119,6 +119,8 @@ export interface RevealedCredential {
   passphrase?: string
   username?: string
   publicKey?: string
+
+  certificate?: string
 }
 
 export interface CredentialGateway {
@@ -680,6 +682,7 @@ class WailsCredentialGateway implements CredentialGateway {
       passphrase: revealed?.passphrase ?? '',
       username: revealed?.username ?? '',
       publicKey: revealed?.publicKey ?? '',
+      certificate: revealed?.certificate ?? '',
     }
   }
 

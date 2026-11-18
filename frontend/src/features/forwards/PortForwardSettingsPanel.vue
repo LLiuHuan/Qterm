@@ -320,7 +320,7 @@ function confirmGroupDelete(): void {
     <QtermEmptyState v-else-if="props.error" variant="outlined" role="alert" :description="props.error" />
 
     <ScrollArea v-else-if="sections.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
-      <div class="flex flex-col gap-2 pr-2">
+      <div class="flex flex-col gap-2 pr-px">
         <Accordion v-model="expandedKeys" type="multiple" class="flex flex-col gap-2">
           <AccordionItem
             v-for="section in sections"
@@ -336,27 +336,24 @@ function confirmGroupDelete(): void {
               data-forward-group-toggle
             >
               <template v-if="section.name !== ungroupedLabel" #actions>
-                <QtermButton
-                  variant="ghost"
+                <IconButton
                   size="icon-sm"
-                  type="button"
                   data-forward-group-rename
-                  :aria-label="t('settings.portForwards.group.rename')"
+                  :label="t('settings.portForwards.group.rename')"
                   @click="openRename(section)"
                 >
                   <Pencil :size="14" />
-                </QtermButton>
-                <QtermButton
-                  variant="ghost"
+                </IconButton>
+                <IconButton
+                  danger
                   size="icon-sm"
                   class="settings-delete-action"
-                  type="button"
                   data-forward-group-delete
-                  :aria-label="t('settings.portForwards.group.delete')"
+                  :label="t('settings.portForwards.group.delete')"
                   @click="pendingGroupDelete = section"
                 >
                   <Trash2 :size="14" />
-                </QtermButton>
+                </IconButton>
               </template>
             </SettingsGroupHeader>
 
@@ -394,27 +391,27 @@ function confirmGroupDelete(): void {
                       data-forward-toggle
                       @update:model-value="(value: boolean) => handleToggle(row, value)"
                     />
-                    <QtermButton
-                      variant="ghost"
-                      size="icon-sm"
-                      type="button"
-                      data-forward-edit
-                      :aria-label="t('shell.forwards.edit')"
-                      @click="openEdit(row)"
-                    >
-                      <Pencil :size="15" />
-                    </QtermButton>
-                    <QtermButton
-                      variant="ghost"
-                      size="icon-sm"
-                      class="settings-delete-action"
-                      type="button"
-                      data-forward-delete
-                      :aria-label="t('shell.forwards.remove')"
-                      @click="pendingDelete = row"
-                    >
-                      <Trash2 :size="15" />
-                    </QtermButton>
+
+                    <span class="inline-flex items-center">
+                      <IconButton
+                        size="icon-sm"
+                        data-forward-edit
+                        :label="t('shell.forwards.edit')"
+                        @click="openEdit(row)"
+                      >
+                        <Pencil :size="15" />
+                      </IconButton>
+                      <IconButton
+                        danger
+                        size="icon-sm"
+                        class="settings-delete-action"
+                        data-forward-delete
+                        :label="t('shell.forwards.remove')"
+                        @click="pendingDelete = row"
+                      >
+                        <Trash2 :size="15" />
+                      </IconButton>
+                    </span>
                   </div>
                 </article>
                 <QtermLoadMore

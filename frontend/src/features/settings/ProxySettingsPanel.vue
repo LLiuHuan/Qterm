@@ -110,7 +110,7 @@ async function confirmDelete(): Promise<void> {
     />
 
     <ScrollArea v-else-if="sortedProxies.length" type="hover" :scroll-hide-delay="600" class="min-h-0 flex-1">
-      <div class="flex flex-col gap-2 pr-2">
+      <div class="flex flex-col gap-2 pr-px">
         <article
           v-for="proxy in sortedProxies"
           :key="proxy.id"
@@ -133,17 +133,16 @@ async function confirmDelete(): Promise<void> {
               <template v-if="proxy.passwordConfigured"> · {{ t('settings.proxies.row.passwordConfigured') }}</template>
             </span>
           </div>
-          <div class="settings-library-row-actions flex shrink-0 items-center gap-1">
-            <QtermButton
-              variant="ghost"
+
+          <div class="settings-library-row-actions flex shrink-0 items-center">
+            <IconButton
               size="icon-sm"
-              type="button"
               data-proxy-edit
-              :aria-label="t('settings.proxies.action.edit')"
+              :label="t('settings.proxies.action.edit')"
               @click="openEdit(proxy)"
             >
               <Pencil :size="15" />
-            </QtermButton>
+            </IconButton>
             <IconButton
               danger
               size="icon-sm"

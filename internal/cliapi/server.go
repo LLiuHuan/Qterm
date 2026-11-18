@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -164,10 +165,16 @@ func (s *Server) Close() error {
 
 func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	if !s.authorized(r) {
+
+		slog.Warn("cli request rejected by token check", "event", "cli.auth.rejected",
+			"path", r.URL.Path, "method", r.Method)
 		writeError(w, http.StatusUnauthorized, CodeUnauthorized, "missing or invalid bearer token")
 		return
 	}
 	if s.deps.Locked != nil && s.deps.Locked() {
+
+		slog.Warn("cli request blocked by app lock", "event", "cli.request.locked",
+			"path", r.URL.Path, "method", r.Method)
 		writeError(w, http.StatusLocked, CodeAppLocked, "application is locked")
 		return
 	}

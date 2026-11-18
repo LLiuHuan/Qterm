@@ -37,6 +37,9 @@ import * as tmux$0 from '../tmux/models.js'
 import * as translate$0 from '../translate/models.js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as trzszfiles$0 from '../trzszfiles/models.js'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as update$0 from '../update/models.js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -100,8 +103,20 @@ export function AIChatStreamRelease(streamID: string): $CancellablePromise<void>
   return $Call.ByID(1375990547, streamID)
 }
 
+export function AICommandRules(): $CancellablePromise<model$0.AICommandRule[] | null> {
+  return $Call.ByID(3584577808)
+}
+
+export function AIContextSettings(): $CancellablePromise<model$0.AIContextSettings> {
+  return $Call.ByID(3314631890)
+}
+
 export function AIProviderKeyConfigured(providerID: string): $CancellablePromise<boolean> {
   return $Call.ByID(1242213856, providerID)
+}
+
+export function AbortTrzszFile(token: string): $CancellablePromise<void> {
+  return $Call.ByID(3093642247, token)
 }
 
 export function ApplySFTPSettings(settings: sftp$0.Settings): $CancellablePromise<void> {
@@ -184,6 +199,10 @@ export function CloseToTray(): $CancellablePromise<boolean> {
   return $Call.ByID(411676227)
 }
 
+export function CommitTrzszFile(token: string): $CancellablePromise<trzszfiles$0.File> {
+  return $Call.ByID(1242429502, token)
+}
+
 export function CompactAIConversation(
   input: $models.AIChatInput,
   keepRecent: number,
@@ -194,6 +213,12 @@ export function CompactAIConversation(
 
 export function ConfirmSFTPTransferOverwrite(id: string): $CancellablePromise<model$0.SFTPTransfer> {
   return $Call.ByID(4063224497, id)
+}
+
+export function CreateAICommandRule(
+  input: model$0.AICommandRuleInput,
+): $CancellablePromise<model$0.AICommandRule[] | null> {
+  return $Call.ByID(2170061815, input)
 }
 
 export function CreateCredential(input: credential$0.CreateCredentialInput): $CancellablePromise<model$0.Credential> {
@@ -246,12 +271,24 @@ export function CreateTmuxSession(sessionID: string, name: string): $Cancellable
   return $Call.ByID(1693617716, sessionID, name)
 }
 
+export function CreateTrzszDirectory(directoryToken: string, relativePath: string): $CancellablePromise<void> {
+  return $Call.ByID(1709117734, directoryToken, relativePath)
+}
+
 export function CredentialStatus(): $CancellablePromise<credential$0.CredentialVaultStatus> {
   return $Call.ByID(3923529053)
 }
 
-export function DebugLoggingEnabled(): $CancellablePromise<boolean> {
-  return $Call.ByID(205497095)
+export function DebugLogMode(): $CancellablePromise<string> {
+  return $Call.ByID(3942974802)
+}
+
+export function DebugLogStatus(): $CancellablePromise<$models.DebugLogStatus> {
+  return $Call.ByID(2178687535)
+}
+
+export function DeleteAICommandRule(ruleID: string): $CancellablePromise<model$0.AICommandRule[] | null> {
+  return $Call.ByID(4163582462, ruleID)
 }
 
 export function DeleteCommandHistory(id: string): $CancellablePromise<void> {
@@ -479,6 +516,10 @@ export function EnqueueSFTPDirectoryArchiveDownload(
   return $Call.ByID(104868354, sessionID, remoteDirectory, localDirectory)
 }
 
+export function ExportAICommandRulesToFile(): $CancellablePromise<void> {
+  return $Call.ByID(3447378065)
+}
+
 export function ExportCredentialVaultKey(input: credential$0.ExportCredentialVaultKeyInput): $CancellablePromise<void> {
   return $Call.ByID(637797398, input)
 }
@@ -581,8 +622,16 @@ export function GetTerminalControl(): $CancellablePromise<terminal$0.ControlSnap
   return $Call.ByID(998635879)
 }
 
+export function GlobalShortcut(): $CancellablePromise<string> {
+  return $Call.ByID(966087927)
+}
+
 export function HideSettingsWindow(): $CancellablePromise<void> {
   return $Call.ByID(2087786787)
+}
+
+export function ImportAICommandRulesFromFile(): $CancellablePromise<model$0.AICommandRule[] | null> {
+  return $Call.ByID(3377658107)
 }
 
 export function ImportCredentialVaultKey(
@@ -830,6 +879,14 @@ export function OpenSftpConnection(hostID: string): $CancellablePromise<model$0.
 
 export function OpenSftpWindow(sessionID: string, title: string): $CancellablePromise<void> {
   return $Call.ByID(1576087119, sessionID, title)
+}
+
+export function OpenTrzszDownloadFile(
+  directoryToken: string,
+  relativePath: string,
+  overwrite: boolean,
+): $CancellablePromise<trzszfiles$0.File> {
+  return $Call.ByID(684892889, directoryToken, relativePath, overwrite)
 }
 
 export function OpenVncWindow(hostID: string, title: string): $CancellablePromise<void> {
@@ -1223,6 +1280,10 @@ export function RunServiceAction(sessionID: string, unit: string, action: string
   return $Call.ByID(2335157384, sessionID, unit, action)
 }
 
+export function SSHHandshakeAlgorithmCatalog(): $CancellablePromise<model$0.SSHHandshakeAlgorithms> {
+  return $Call.ByID(1936245361)
+}
+
 export function SaveAIProviderKey(providerID: string, key: string): $CancellablePromise<void> {
   return $Call.ByID(3082854875, providerID, key)
 }
@@ -1283,6 +1344,14 @@ export function SelectSFTPUploadFile(
   return $Call.ByID(3089984444, sessionID, remoteDirectory)
 }
 
+export function SelectTrzszDownloadDirectory(): $CancellablePromise<trzszfiles$0.Directory> {
+  return $Call.ByID(1571115158)
+}
+
+export function SelectTrzszUploads(): $CancellablePromise<zmodem$0.LocalFile[] | null> {
+  return $Call.ByID(1145881975)
+}
+
 export function SelectZmodemDownload(name: string, size: number): $CancellablePromise<zmodem$0.LocalFile> {
   return $Call.ByID(2462619430, name, size)
 }
@@ -1297,6 +1366,10 @@ export function ServiceDetails(sessionID: string, unit: string): $CancellablePro
 
 export function ServiceLogs(sessionID: string, unit: string, lines: number): $CancellablePromise<model$0.ServiceLog> {
   return $Call.ByID(1699247110, sessionID, unit, lines)
+}
+
+export function SetAIContextSettings(input: model$0.AIContextSettings): $CancellablePromise<model$0.AIContextSettings> {
+  return $Call.ByID(4275394090, input)
 }
 
 export function SetAppLockAutoLockMinutes(minutes: number): $CancellablePromise<void> {
@@ -1321,12 +1394,16 @@ export function SetCloseToTray(enabled: boolean): $CancellablePromise<void> {
   return $Call.ByID(980049083, enabled)
 }
 
-export function SetDebugLoggingEnabled(enabled: boolean): $CancellablePromise<void> {
-  return $Call.ByID(828941439, enabled)
+export function SetDebugLogMode(mode: string): $CancellablePromise<void> {
+  return $Call.ByID(1237502714, mode)
 }
 
 export function SetDockerPanelEnabled(hostID: string, enabled: boolean): $CancellablePromise<void> {
   return $Call.ByID(3318709425, hostID, enabled)
+}
+
+export function SetGlobalShortcut(accelerator: string): $CancellablePromise<void> {
+  return $Call.ByID(1431592239, accelerator)
 }
 
 export function SetPreference(key: string, value: string): $CancellablePromise<void> {
@@ -1404,6 +1481,10 @@ export function ShowHostEditorWindow(hostID: string): $CancellablePromise<string
   return $Call.ByID(4271993420, hostID)
 }
 
+export function SingleInstanceEnabled(): $CancellablePromise<boolean> {
+  return $Call.ByID(2385597162)
+}
+
 export function StartFullRecording(id: string): $CancellablePromise<model$0.TerminalRecording> {
   return $Call.ByID(2545149538, id)
 }
@@ -1433,6 +1514,10 @@ export function SuppressCommandHistory(hostID: string, command: string): $Cancel
 
 export function SyncLocalEdit(editID: string): $CancellablePromise<model$0.LocalEdit> {
   return $Call.ByID(3932343604, editID)
+}
+
+export function TakeLaunchIntents(): $CancellablePromise<model$0.LaunchIntent[] | null> {
+  return $Call.ByID(4244491637)
 }
 
 export function TestAIProvider(input: $models.AIProviderPreviewInput): $CancellablePromise<$models.AIChatResult> {
@@ -1502,6 +1587,13 @@ export function UnlockWithCustomKey(key: string): $CancellablePromise<credential
 
 export function UnlockWithPassword(password: string): $CancellablePromise<credential$0.CredentialVaultStatus> {
   return $Call.ByID(2221768555, password)
+}
+
+export function UpdateAICommandRule(
+  ruleID: string,
+  input: model$0.AICommandRuleInput,
+): $CancellablePromise<model$0.AICommandRule[] | null> {
+  return $Call.ByID(3822307304, ruleID, input)
 }
 
 export function UpdateCheck(currentVersion: string): $CancellablePromise<update$0.Release> {
@@ -1594,6 +1686,10 @@ export function WriteRemoteFileText(
   expectedHash: string,
 ): $CancellablePromise<model$0.RemoteFileWriteResult> {
   return $Call.ByID(1976634978, sessionID, remotePath, contentBase64, expectedHash)
+}
+
+export function WriteTrzszFile(token: string, offset: number, data: string | null): $CancellablePromise<void> {
+  return $Call.ByID(314559372, token, offset, data)
 }
 
 export function WriteZmodemFile(token: string, offset: number, data: string | null): $CancellablePromise<void> {

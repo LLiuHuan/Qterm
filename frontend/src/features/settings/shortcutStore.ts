@@ -14,6 +14,8 @@ export type ShortcutAction =
   | 'pasteTerminal'
   | 'reconnectSession'
   | 'disconnectSession'
+  | 'increaseTerminalFontSize'
+  | 'decreaseTerminalFontSize'
   | 'commandPalette'
   | 'togglePaneMaximize'
   | 'focusNextPane'
@@ -31,6 +33,8 @@ export interface ShortcutActionItem {
   id: ShortcutAction
   label: string
   description: string
+
+  fixed?: boolean
 }
 
 export interface ShortcutActionGroup {
@@ -58,6 +62,9 @@ export const DEFAULT_SHORTCUTS: ShortcutBindings = {
   reconnectSession: 'Mod+Shift+R',
 
   disconnectSession: 'Mod+Shift+X',
+
+  increaseTerminalFontSize: 'Mod+Equal',
+  decreaseTerminalFontSize: 'Mod+Minus',
 
   commandPalette: 'Mod+K',
   togglePaneMaximize: 'Mod+Shift+M',
@@ -121,6 +128,18 @@ export const SHORTCUT_ACTION_GROUPS: readonly ShortcutActionGroup[] = [
       { id: 'pasteTerminal', label: '粘贴到终端', description: '把系统剪贴板内容粘贴到当前激活的终端。' },
       { id: 'reconnectSession', label: '重新连接', description: '重新建立当前会话的连接。' },
       { id: 'disconnectSession', label: '断开连接', description: '断开当前会话的连接，标签保留。' },
+      {
+        id: 'increaseTerminalFontSize',
+        label: '放大终端字号',
+        description: '把终端字号加大一档，与 Ctrl/Cmd + 滚轮向上一致。',
+        fixed: true,
+      },
+      {
+        id: 'decreaseTerminalFontSize',
+        label: '缩小终端字号',
+        description: '把终端字号减小一档，与 Ctrl/Cmd + 滚轮向下一致。',
+        fixed: true,
+      },
     ],
   },
   {
@@ -167,6 +186,10 @@ export const SHORTCUT_ACTION_GROUPS: readonly ShortcutActionGroup[] = [
 
 export const SHORTCUT_ACTIONS = SHORTCUT_ACTION_GROUPS.flatMap((group) => group.items)
 
+export const FIXED_SHORTCUT_ACTIONS: ReadonlySet<ShortcutAction> = new Set(
+  SHORTCUT_ACTIONS.filter((item) => item.fixed).map((item) => item.id),
+)
+
 function defaultStorage(): Storage | null {
   try {
     return globalThis.localStorage ?? null
@@ -181,7 +204,7 @@ function normalizeBinding(value: unknown): string | null {
   if (!binding || binding.length > 64) return null
 
   if (
-    !/^(?:(?:Mod|Ctrl|Alt|Shift)\+){0,3}(?:[A-Za-z0-9]|TabNumber|Arrows|F(?:[1-9]|1[0-2])|Arrow(?:Left|Right|Up|Down)|Enter|Escape|Space|Tab|Backspace|Delete)$/.test(
+    !/^(?:(?:Mod|Ctrl|Alt|Shift)\+){0,3}(?:[A-Za-z0-9]|TabNumber|Arrows|F(?:[1-9]|1[0-2])|Arrow(?:Left|Right|Up|Down)|Equal|Minus|Enter|Escape|Space|Tab|Backspace|Delete)$/.test(
       binding,
     )
   ) {
@@ -191,8 +214,12 @@ function normalizeBinding(value: unknown): string | null {
 }
 
 export function normalizeShortcuts(value: unknown): ShortcutBindings {
-  const candidate = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const candidate: Record<string, unknown> = {
+    ...(value && typeof value === 'object' ? (value as Record<string, unknown>) : {}),
+  }
   const actions = Object.keys(DEFAULT_SHORTCUTS) as ShortcutAction[]
+
+  for (const action of FIXED_SHORTCUT_ACTIONS) candidate[action] = DEFAULT_SHORTCUTS[action]
 
   const stored = new Map<ShortcutAction, string>()
   for (const action of actions) {
@@ -247,6 +274,12 @@ export function saveShortcuts(bindings: ShortcutBindings, storage: Storage | nul
     void setPreference(SHORTCUTS_STORAGE_KEY, value, storage).catch(() => undefined)
 }
 
+function physicalKeyToken(code: string): string | null {
+  if (code === 'Equal' || code === 'NumpadAdd') return 'Equal'
+  if (code === 'Minus' || code === 'NumpadSubtract') return 'Minus'
+  return null
+}
+
 function normalizeKey(key: string): string {
   if (key === ' ') return 'Space'
   if (key === 'Esc') return 'Escape'
@@ -256,13 +289,15 @@ function normalizeKey(key: string): string {
 
 export function shortcutFromKeyboardEvent(event: KeyboardEvent, isMac = false): string | null {
   const digitKey = /^Digit([1-9])$/.exec(event.code)?.[1]
-  const key = digitKey ?? normalizeKey(event.key)
+  const physical = physicalKeyToken(event.code)
+  const key = digitKey ?? physical ?? normalizeKey(event.key)
   if (!key || ['Control', 'Meta', 'Alt', 'Shift'].includes(key)) return null
   const modifiers: string[] = []
   if (isMac ? event.metaKey : event.ctrlKey) modifiers.push('Mod')
   if (isMac ? event.ctrlKey : event.metaKey) modifiers.push('Ctrl')
   if (event.altKey) modifiers.push('Alt')
-  if (event.shiftKey) modifiers.push('Shift')
+
+  if (event.shiftKey && !physical) modifiers.push('Shift')
   if (modifiers.length === 0) return null
   const binding = [...modifiers, key].join('+')
   return normalizeBinding(binding)
@@ -425,6 +460,9 @@ export function shortcutDisplay(binding: string, isMac = false): string {
       if (part === 'ArrowDown') return '↓'
       if (part === 'Escape') return 'Esc'
       if (part === 'Space') return 'Space'
+
+      if (part === 'Equal') return '+'
+      if (part === 'Minus') return '-'
       if (SHORTCUT_TOKEN_LABELS[part]) return SHORTCUT_TOKEN_LABELS[part]
       return part
     })

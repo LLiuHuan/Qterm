@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 )
 
@@ -17,6 +18,10 @@ func (s *CredentialService) Start(ctx context.Context) error {
 	}
 	dir, err := s.configDir()
 	if err != nil {
+
+		slog.Error("credential config directory resolve failed",
+			"event", "credential.vault.config_dir_failed",
+			"error", err)
 		return fmt.Errorf("resolve credential config directory: %w", err)
 	}
 
@@ -35,8 +40,17 @@ func (s *CredentialService) Start(ctx context.Context) error {
 	lifecycleLock, err := vault.AcquireLifecycleLock(lifecycleLockPath)
 	if err != nil {
 		if errors.Is(err, vault.ErrLifecycleLockHeld) {
+
+			slog.Warn("credential vault lifecycle lock held",
+				"event", "credential.vault.lock_held",
+				"path", filepath.Base(lifecycleLockPath),
+				"error", err)
 			return ErrCredentialVaultInUse
 		}
+		slog.Warn("credential vault lifecycle lock unavailable",
+			"event", "credential.vault.lock_unavailable",
+			"path", filepath.Base(lifecycleLockPath),
+			"error", err)
 		return ErrCredentialVaultLockUnavailable
 	}
 	s.lifecycleLockPath = lifecycleLockPath
@@ -82,6 +96,10 @@ func (s *CredentialService) Start(ctx context.Context) error {
 
 		s.hint = ""
 		hintUnavailable = true
+		slog.Warn("credential password hint unavailable",
+			"event", "credential.vault.hint_unavailable",
+			"path", filepath.Base(s.hintPath),
+			"error", err)
 	}
 	autoKeyExists, err := vaultRegularFileExists(s.autoKeyPath)
 	if err != nil {
@@ -124,6 +142,11 @@ func (s *CredentialService) Start(ctx context.Context) error {
 		}
 		if !vaultExists || !databaseExists {
 			s.autoUnlock = false
+
+			slog.Error("credential vault database missing",
+				"event", "credential.vault.database_missing",
+				"vault_present", vaultExists,
+				"database_present", databaseExists)
 			s.status = CredentialVaultStatus{
 				State:              CredentialVaultStateRecovery,
 				AutoUnlockEnabled:  false,
@@ -139,6 +162,11 @@ func (s *CredentialService) Start(ctx context.Context) error {
 		}
 		if (autoKeyArtifactExists && !autoKeyExists) || (autoWrapArtifactExists && !autoWrapExists) {
 			s.autoUnlock = false
+
+			slog.Warn("credential auto unlock artifact incomplete",
+				"event", "credential.vault.auto_unlock_artifact_invalid",
+				"key_present", autoKeyArtifactExists,
+				"wrap_present", autoWrapArtifactExists)
 			s.status = s.statusForStateLocked(
 				CredentialVaultStateError,
 				"autoUnlockArtifactInvalid",
@@ -175,6 +203,13 @@ func (s *CredentialService) Start(ctx context.Context) error {
 		}
 		if vaultExists || autoKeyArtifactExists || autoWrapArtifactExists || hintExists || hintUnavailable {
 			s.autoUnlock = false
+
+			slog.Warn("credential vault initialization incomplete",
+				"event", "credential.vault.initialization_incomplete",
+				"vault_present", vaultExists,
+				"key_artifact", autoKeyArtifactExists,
+				"wrap_artifact", autoWrapArtifactExists,
+				"hint_present", hintExists || hintUnavailable)
 			s.status = CredentialVaultStatus{
 				State:              CredentialVaultStateRecovery,
 				AutoUnlockEnabled:  false,
@@ -261,6 +296,12 @@ func (s *CredentialService) installVaultLocked(
 		status.RecoveryAvailable = securityStatus.RecoveryAvailable
 	}
 	s.status = status
+
+	slog.Info("credential vault unlocked",
+		"event", "credential.vault.unlocked",
+		"mode", string(mode),
+		"auto_unlock", s.autoUnlock,
+		"password_configured", s.passwordSet)
 }
 
 func (s *CredentialService) closeVaultLocked() error {

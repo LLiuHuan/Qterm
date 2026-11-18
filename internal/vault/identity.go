@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 )
 
 const (
@@ -102,14 +103,27 @@ func (s *Store) verifyIdentityWithCipher(ctx context.Context, cipher *Cipher) er
 
 	identity, err := cipher.Open(vaultIdentityRecordID, KindPrivateKeyPassphrase, envelope)
 	if err != nil {
+
+		reason := "decrypt"
 		if errors.Is(err, ErrAuthentication) || errors.Is(err, ErrInvalidRecord) ||
 			errors.Is(err, ErrUnsupportedVersion) || errors.Is(err, ErrUnsupportedAlgorithm) {
+			reason = "authentication"
+		}
+		slog.Error("vault identity verify failed",
+			"event", "vault.identity.verify_failed",
+			"reason", reason,
+			"error", err)
+		if reason == "authentication" {
 			return ErrVaultIdentityAuthentication
 		}
 		return fmt.Errorf("decrypt vault identity: %w", err)
 	}
 	defer clear(identity)
 	if len(identity) != vaultIdentitySize {
+		slog.Error("vault identity verify failed",
+			"event", "vault.identity.verify_failed",
+			"reason", "invalid_size",
+			"error", ErrVaultIdentityAuthentication)
 		return ErrVaultIdentityAuthentication
 	}
 	if err := contextError(ctx); err != nil {

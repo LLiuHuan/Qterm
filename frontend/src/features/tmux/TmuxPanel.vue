@@ -456,7 +456,8 @@ onBeforeUnmount(() => {
       <p class="m-0 min-w-0 flex-1 text-xs leading-5 text-qt-muted" data-tmux-version>
         {{ tmuxVersion ? t('shell.tmux.version', { version: tmuxVersion }) : t('shell.tmux.versionUnknown') }}
       </p>
-      <div class="flex shrink-0 items-center gap-1">
+
+      <div class="flex shrink-0 items-center">
         <RefreshIconButton
           :label="t('shell.tmux.refresh')"
           :spinning="loading"
@@ -594,7 +595,8 @@ onBeforeUnmount(() => {
               <span>{{ formatCreatedAt(item.createdAt) }}</span>
             </div>
           </div>
-          <div class="flex shrink-0 items-center gap-1">
+
+          <div class="flex shrink-0 items-center">
             <IconButton
               size="icon-sm"
               :label="t('shell.tmux.enter')"

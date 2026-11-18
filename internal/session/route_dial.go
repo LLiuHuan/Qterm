@@ -56,13 +56,11 @@ func (s *Service) DialRoute(
 
 	verify := connector.verifier.Verify
 	tunnelConnector := sshclient.NewConnector(verify)
-	if route.proxy != nil {
-		dial, dialErr := sshclient.NewProxyDialer(*route.proxy)
-		if dialErr != nil {
-			route.release()
-			return nil, nil, errno.New(errno.CodeInvalidArg, "session.proxy_invalid", "")
-		}
 
+	if dial, errKey, dialErr := route.routeFirstDialer(); dialErr != nil {
+		route.release()
+		return nil, nil, errno.New(errno.CodeInvalidArg, errKey, "")
+	} else if dial != nil {
 		tunnelConnector = sshclient.NewConnectorWithDialer(verify, dial)
 	}
 

@@ -26,7 +26,7 @@ import { useI18n } from '@/locales'
 const props = withDefaults(
   defineProps<{
     open: boolean
-    kind: 'password' | 'privateKey' | 'sshAgent'
+    kind: 'password' | 'privateKey' | 'sshAgent' | 'userCertificate'
 
     gateway: CredentialGateway
 
@@ -53,6 +53,8 @@ const secret = ref('')
 const passphrase = ref('')
 const username = ref('')
 const publicKey = ref('')
+
+const certificate = ref('')
 const installCommand = ref('')
 const keyMode = ref<'generate' | 'upload' | 'manual'>('manual')
 const keyAlgorithm = ref<'ed25519' | 'ecdsa' | 'rsa'>('ed25519')
@@ -68,7 +70,7 @@ const formError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const vaultUnlocked = computed(() => props.status?.state === 'unlocked')
 
-function kindLabel(kind: 'password' | 'privateKey' | 'sshAgent'): string {
+function kindLabel(kind: 'password' | 'privateKey' | 'sshAgent' | 'userCertificate'): string {
   return t('settings.credentials.kind.' + kind)
 }
 
@@ -78,6 +80,7 @@ function resetForm(): void {
   passphrase.value = ''
   username.value = ''
   publicKey.value = ''
+  certificate.value = ''
   installCommand.value = ''
 
   keyMode.value = props.initialKeyMode ?? 'generate'
@@ -99,6 +102,7 @@ function initializeForm(): void {
   name.value = item.name
   username.value = item.username ?? ''
   publicKey.value = item.publicKey ?? ''
+  certificate.value = ''
   void loadEditableSecret(item.id)
 }
 
@@ -146,6 +150,8 @@ async function loadEditableSecret(id: string): Promise<void> {
     secret.value = revealed.secret
     passphrase.value = revealed.passphrase ?? ''
     username.value = revealed.username ?? ''
+
+    if (props.kind === 'userCertificate') certificate.value = revealed.certificate ?? ''
   } catch (error) {
     toast.error(credentialErrorMessage(error, t('settings.credentials.error.reveal')))
   }
@@ -230,6 +236,16 @@ async function save(): Promise<void> {
     formError.value = t('settings.credentials.validation.agentPublicKeyRequired')
     return
   }
+  if (props.kind === 'userCertificate') {
+    if (!certificate.value.trim()) {
+      formError.value = t('settings.credentials.validation.certificateRequired')
+      return
+    }
+    if (!secret.value.trim()) {
+      formError.value = t('settings.credentials.validation.privateKeyRequired')
+      return
+    }
+  }
   saving.value = true
   formError.value = ''
   try {
@@ -266,7 +282,10 @@ async function save(): Promise<void> {
               props.kind,
               props.kind === 'sshAgent' ? publicKey.value : secret.value,
               passphrase.value,
-              { username: username.value, publicKey: publicKey.value },
+              {
+                username: username.value,
+                publicKey: props.kind === 'userCertificate' ? certificate.value : publicKey.value,
+              },
             )
       toast.success(t('settings.credentials.toast.created'))
       emit('created', result.id)
@@ -353,6 +372,53 @@ async function save(): Promise<void> {
                 :hide-label="t('settings.credentials.secret.hide')"
               />
             </div>
+            <template v-else-if="props.kind === 'userCertificate'">
+              <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
+                <Label for="credential-certificate"
+                  >{{ t('settings.credentials.field.certificate') }}
+                  <span class="required-mark text-qt-danger">*</span></Label
+                >
+                <QtermTextarea
+                  id="credential-certificate"
+                  v-model="certificate"
+                  rows="4"
+                  class="font-mono text-xs"
+                  :placeholder="t('settings.credentials.field.certificatePlaceholder')"
+                />
+                <small class="field-help text-xs">{{ t('settings.credentials.field.certificateHelp') }}</small>
+              </div>
+              <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
+                <Label for="credential-certificate-key"
+                  >{{ t('settings.credentials.field.privateKey') }}
+                  <span class="required-mark text-qt-danger">*</span></Label
+                >
+                <QtermTextarea
+                  id="credential-certificate-key"
+                  v-model="secret"
+                  rows="8"
+                  class="min-h-37.5 font-mono text-xs"
+                  :placeholder="t('settings.credentials.field.privateKeyPlaceholder')"
+                />
+                <small class="field-help text-xs">{{ t('settings.credentials.field.certificateKeyHelp') }}</small>
+              </div>
+              <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
+                <Label for="credential-certificate-passphrase"
+                  >{{ t('settings.credentials.field.passphrase') }}
+                  <span class="optional-label text-qt-faint font-normal">{{
+                    t('settings.credentials.field.optional')
+                  }}</span></Label
+                >
+                <QtermSecretInput
+                  id="credential-certificate-passphrase"
+                  autocomplete="new-password"
+                  :key="props.open ? 'open' : 'closed'"
+                  v-model="passphrase"
+                  :placeholder="t('settings.credentials.field.passphrasePlaceholder')"
+                  :show-label="t('settings.credentials.passphrase.show')"
+                  :hide-label="t('settings.credentials.passphrase.hide')"
+                />
+              </div>
+            </template>
             <template v-else-if="props.kind === 'sshAgent'">
               <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
                 <Label for="credential-agent-public-key"
@@ -366,6 +432,9 @@ async function save(): Promise<void> {
                   :placeholder="t('settings.credentials.field.agentPublicKeyPlaceholder')"
                 />
                 <small class="field-help text-xs">{{ t('settings.credentials.field.agentPublicKeyHelp') }}</small>
+                <small class="field-help text-xs text-qt-muted">{{
+                  t('settings.credentials.field.agentSecurityKeyHelp')
+                }}</small>
               </div>
             </template>
             <template v-else>

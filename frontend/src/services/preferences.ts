@@ -27,6 +27,9 @@ const WRITE_DEBOUNCE_MS = 60
 const INITIAL_RETRY_MS = 500
 const MAX_RETRY_MS = 30_000
 
+const recentWrites = new Map<string, { value: string; at: number }>()
+const RECENT_WRITE_WINDOW_MS = 2000
+
 function defaultStorage(): Storage | null {
   try {
     return globalThis.localStorage ?? null
@@ -130,13 +133,15 @@ async function drainWrite(key: string): Promise<void> {
     while (state.pending !== undefined) {
       const value = state.pending
       try {
-        if (nativeRuntimeReady()) {
+        const wroteRemote = nativeRuntimeReady()
+        if (wroteRemote) {
           const api = await bindings()
           await api.SetPreference(key, value)
         }
         state.retryDelay = INITIAL_RETRY_MS
         if (state.pending === value) {
           state.pending = undefined
+          if (wroteRemote) recentWrites.set(key, { value, at: Date.now() })
           writePending(state.storage, key, undefined)
           const waiters = state.waiters.splice(0)
           for (const waiter of waiters) waiter.resolve()
@@ -157,6 +162,15 @@ async function drainWrite(key: string): Promise<void> {
   await state.running
 }
 
+export function hasPendingWrite(key: string, storage: Storage | null = defaultStorage()): boolean {
+  if (writeState(key).pending !== undefined) return true
+  try {
+    return readPending(storage)[key] !== undefined
+  } catch {
+    return false
+  }
+}
+
 export async function getPreference(key: string, storage: Storage | null = defaultStorage()): Promise<string> {
   const cached = readCachedPreference(key, storage)
   const pending = readPending(storage)[key]
@@ -169,6 +183,16 @@ export async function getPreference(key: string, storage: Storage | null = defau
   try {
     const api = await bindings()
     const remote = (await api.GetPreference(key)) ?? ''
+
+    const recent = recentWrites.get(key)
+    if (recent && remote !== recent.value && Date.now() - recent.at <= RECENT_WRITE_WINDOW_MS) {
+      const local = cached !== '' ? cached : recent.value
+      if (local !== remote) {
+        cachePreference(key, local, storage)
+        void setPreference(key, local, storage).catch(() => undefined)
+        return local
+      }
+    }
     if (remote !== '') {
       cachePreference(key, remote, storage)
       return remote

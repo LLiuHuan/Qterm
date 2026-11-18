@@ -139,6 +139,10 @@ export function useHostEditor({ hostGateway, sessionGateway, credentials, onSave
       proxyPassword: '',
       clearProxyPassword: false,
       proxyPasswordConfigured: false,
+
+      sshHostKeyAlgorithms: [],
+      sshKeyExchanges: [],
+      sshProxyCommand: '',
     }
   }
 
@@ -213,6 +217,7 @@ export function useHostEditor({ hostGateway, sessionGateway, credentials, onSave
       privateKey: t('shell.credential.privateKey'),
       privateKeyPassphrase: t('shell.credential.privateKeyPassphrase'),
       sshAgent: t('shell.credential.sshAgent'),
+      userCertificate: t('shell.credential.userCertificate'),
     }
     return labels[credential.kind]
   }
@@ -290,6 +295,26 @@ export function useHostEditor({ hostGateway, sessionGateway, credentials, onSave
     }
     const jumpHostId = connectionVisible ? (snapshot.jumpHostId ?? '').trim() : ''
 
+    const normalizeAlgorithms = (values: string[] | undefined): string[] => {
+      const seen = new Set<string>()
+      const result: string[] = []
+      for (const raw of values ?? []) {
+        const name = raw.trim()
+        if (!name || seen.has(name)) continue
+        seen.add(name)
+        result.push(name)
+      }
+      return result
+    }
+    const sshHostKeyAlgorithms = connectionVisible ? normalizeAlgorithms(snapshot.sshHostKeyAlgorithms) : []
+    const sshKeyExchanges = connectionVisible ? normalizeAlgorithms(snapshot.sshKeyExchanges) : []
+    const sshProxyCommand = connectionVisible ? (snapshot.sshProxyCommand ?? '').trim() : ''
+
+    if (sshProxyCommand && (proxyId !== '' || proxyMode !== 'none')) {
+      formError.value = t('shell.error.proxyCommandProxyConflict')
+      return
+    }
+
     if (snapshot.protocol === 'vnc' && vncUsesWebSocket(snapshot.vncTransport)) {
       const wsPathError = vncWsPathError(snapshot.vncWsPath)
       if (wsPathError) {
@@ -354,6 +379,9 @@ export function useHostEditor({ hostGateway, sessionGateway, credentials, onSave
         proxyUsername: proxyMode === 'none' ? '' : (snapshot.proxyUsername ?? '').trim(),
         proxyPassword: proxyMode === 'none' ? '' : (snapshot.proxyPassword ?? ''),
         clearProxyPassword: proxyMode === 'none' ? true : snapshot.clearProxyPassword === true,
+        sshHostKeyAlgorithms,
+        sshKeyExchanges,
+        sshProxyCommand,
       }
       const host = id ? await hostGateway.update(id, input) : await hostGateway.create(input)
       if (disposed) return

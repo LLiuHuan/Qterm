@@ -971,7 +971,7 @@ onBeforeUnmount(() => {
       :scroll-hide-delay="600"
       class="settings-history-list-area"
     >
-      <div class="settings-history-list grid gap-3 [align-content:start] pt-px pr-1.5 pb-px pl-px">
+      <div class="settings-history-list grid gap-3 [align-content:start] pt-px pr-px pb-px pl-px">
         <article
           v-for="item in historyPageItems"
           :key="item.id"
@@ -1003,11 +1003,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="settings-history-dates flex min-w-0 flex-wrap items-center gap-[0.25rem_0.75rem] text-qt-muted">
             <span>{{ formatTimeRange(item.startedAt, item.endedAt) }}</span>
-            <span
-              class="settings-history-actions inline-flex flex-none ml-auto items-center gap-0.5"
-              @click.stop
-              @keydown.stop
-            >
+            <span class="settings-history-actions inline-flex flex-none ml-auto items-center" @click.stop @keydown.stop>
               <IconButton
                 v-if="recordingIndex[item.id]"
                 :label="t('history.action.replay')"
@@ -1183,7 +1179,7 @@ onBeforeUnmount(() => {
         class="settings-history-recording-area"
         aria-live="polite"
       >
-        <div class="settings-history-recording-list grid content-start gap-3 px-1.5 py-px pl-px">
+        <div class="settings-history-recording-list grid content-start gap-3 py-px pr-px pl-px">
           <article
             v-for="item in visibleRecordings"
             :key="item.id"
@@ -1214,7 +1210,7 @@ onBeforeUnmount(() => {
                 {{ t('history.recording.events', { count: item.eventCount }) }}</span
               >
               <span
-                class="settings-history-actions inline-flex flex-none ml-auto items-center gap-0.5"
+                class="settings-history-actions inline-flex flex-none ml-auto items-center"
                 @click.stop
                 @keydown.stop
               >
@@ -1425,7 +1421,7 @@ onBeforeUnmount(() => {
               />
             </div>
             <div class="history-replay-player-controls flex min-w-0 items-center gap-2">
-              <div class="history-replay-toolbar-actions inline-flex items-center gap-1">
+              <div class="history-replay-toolbar-actions inline-flex items-center">
                 <IconButton
                   :label="!replayRunning || replaySuspended ? t('history.replay.resume') : t('history.replay.pause')"
                   :disabled="replayLoading || !replayEvents.length || replayMode === 'static'"

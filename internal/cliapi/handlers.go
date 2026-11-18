@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -167,6 +168,9 @@ func (s *Server) handleOpenSession(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	session, err := s.deps.Sessions.OpenSession(ctx, hostID)
 	if err != nil {
+
+		slog.Error("cli open session failed", "event", "cli.session.open_failed",
+			"host_id", hostID, "error", err, "error_key", appErrorKey(err))
 		writeAppError(w, err)
 		return
 	}
@@ -230,6 +234,9 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := s.deps.Exec.RunBackgroundCommand(ctx, sessionID, command)
 	if err != nil {
+
+		slog.Error("cli background exec failed", "event", "cli.exec.failed",
+			"session_id", sessionID, "error", err, "error_key", appErrorKey(err))
 		writeAppError(w, err)
 		return
 	}
@@ -253,6 +260,8 @@ func (s *Server) handleSftpList(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	entries, err := s.deps.Files.ListRemoteDirectory(ctx, sessionID, path)
 	if err != nil {
+		slog.Warn("cli sftp list failed", "event", "cli.sftp.list_failed",
+			"session_id", sessionID, "error", err, "error_key", appErrorKey(err))
 		writeAppError(w, err)
 		return
 	}
@@ -284,6 +293,8 @@ func (s *Server) handleSftpRead(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	content, err := s.deps.Files.ReadRemoteText(ctx, sessionID, path)
 	if err != nil {
+		slog.Warn("cli sftp read failed", "event", "cli.sftp.read_failed",
+			"session_id", sessionID, "error", err, "error_key", appErrorKey(err))
 		writeAppError(w, err)
 		return
 	}
@@ -337,6 +348,9 @@ func (s *Server) handleSftpWrite(w http.ResponseWriter, r *http.Request) {
 		strings.TrimSpace(payload.ExpectedHash),
 	)
 	if err != nil {
+
+		slog.Warn("cli sftp write failed", "event", "cli.sftp.write_failed",
+			"session_id", sessionID, "error", err, "error_key", appErrorKey(err))
 		writeAppError(w, err)
 		return
 	}
@@ -399,4 +413,11 @@ func formatTime(value time.Time) string {
 		return ""
 	}
 	return value.UTC().Format(time.RFC3339)
+}
+
+func appErrorKey(err error) string {
+	if appError := errno.Extract(err); appError != nil {
+		return appError.MessageKey
+	}
+	return ""
 }

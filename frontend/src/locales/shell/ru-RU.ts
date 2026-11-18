@@ -348,7 +348,65 @@ export const shellUiRu: Record<string, string> = {
   'shell.adhoc.error.empty': 'Введите адрес для подключения.',
   'shell.adhoc.error.invalid': 'Неверный формат адреса; следуйте примеру.',
   'shell.adhoc.error.username': 'Для SSH нужно имя пользователя — укажите user@host.',
+  'shell.aiContext.title': 'Контекст ИИ',
+  'shell.aiContext.description':
+    'Расскажите ИИ о том, чего он не видит: ваша среда и привычки, заметка к этому хосту и уже сохранённые команды.',
+  'shell.aiContext.customPromptLabel': 'Свой промпт',
+  'shell.aiContext.customPromptHelp':
+    'Добавляется после встроенного system-промпта, чтобы описать ограничения, привычки и среду хоста (дистрибутив, shell, любимые инструменты). Пусто — не добавлять.',
+  'shell.aiContext.customPromptPlaceholder':
+    'Например: целевая машина Debian 12 с bash; предпочитать systemctl; не запускать apt upgrade.',
+  'shell.aiContext.hostNoteLabel': 'Передавать заметку хоста',
+  'shell.aiContext.hostNoteHelp':
+    'Если включено, при использовании ИИ в терминале хоста заметка текущего хоста отправляется настроенному сервису ИИ как справочная информация.',
+  'shell.aiContext.snippetIndexLabel': 'Передавать сохранённые команды',
+  'shell.aiContext.snippetIndexHelp':
+    'Отправляет ваши сохранённые сниппеты (имя и команда) как справку, чтобы ИИ переиспользовал их. Команды, привязанные к хостам, действуют только там.',
+  'shell.aiContext.save': 'Сохранить',
+  'shell.aiContext.saved': 'Сохранено',
+  'shell.aiContext.saveFailed': 'Не удалось сохранить настройки контекста ИИ.',
+  'shell.aiRules.title': 'Правила защиты команд',
+  'shell.aiRules.description':
+    'Проверяет команды, которые собирается выполнить ИИ, регулярными выражениями. Эти правила важнее режима подтверждений и выбора «больше не спрашивать в этом запуске».',
+  'shell.aiRules.matchingHint':
+    'Шаблоны не заякорены: достаточно совпадения в любом месте команды. Для совпадения со всей строкой добавьте ^ и $ (например, ^rm\\s+-rf\\s+/$).',
+  'shell.aiRules.loading': 'Загрузка…',
+  'shell.aiRules.empty': 'Правил пока нет. Попробуйте, например, запретить rm\\s+-rf.',
+  'shell.aiRules.emptyTitle': 'Правил защиты команд пока нет',
+  'shell.aiRules.create': 'Добавить правило',
+  'shell.aiRules.editTitle': 'Изменить правило',
+  'shell.aiRules.createTitle': 'Добавить правило',
+  'shell.aiRules.dialogHint':
+    'При совпадении: «Спрашивать» — всегда запрашивать подтверждение; «Запретить» — отклонить эту команду, и ИИ попробует иначе.',
+  'shell.aiRules.import': 'Импорт',
+  'shell.aiRules.export': 'Экспорт',
+  'shell.aiRules.edit': 'Изменить',
+  'shell.aiRules.remove': 'Удалить',
+  'shell.aiRules.cancel': 'Отмена',
+  'shell.aiRules.save': 'Сохранить',
+  'shell.aiRules.action.confirm': 'Спрашивать',
+  'shell.aiRules.action.deny': 'Запретить',
+  'shell.aiRules.field.pattern': 'Шаблон',
+  'shell.aiRules.field.patternHelp': 'Регулярное выражение; обратные ссылки и просмотр вперёд/назад не поддерживаются.',
+  'shell.aiRules.field.action': 'Действие',
+  'shell.aiRules.field.note': 'Заметка',
+  'shell.aiRules.error.generic': 'Операция не удалась. Попробуйте ещё раз.',
+  'shell.aiRules.error.invalidPattern': 'Некорректное регулярное выражение.',
+  'shell.aiRules.error.tooMany': 'Достигнут предел числа правил. Сначала удалите часть из них.',
   'shell.adhoc.toolUnavailable': 'Недоступно для временных подключений',
+  'shell.launchIntent.title': 'Открыть внешнее подключение',
+  'shell.launchIntent.description':
+    'Ссылка запросила открытие подключения в Qterm. Проверьте адрес перед подключением.',
+  'shell.launchIntent.warning':
+    'Ссылка может прийти с любой страницы или из сообщения. Продолжайте, только если действительно хотите подключиться к этой машине.',
+  'shell.launchIntent.tooMany': 'Слишком много ожидающих внешних ссылок; лишние запросы пропущены',
+  'shell.launchIntent.error.empty': 'В ссылке нет пригодного адреса.',
+  'shell.launchIntent.error.unsupported-scheme':
+    'Этот тип ссылки не поддерживается. Открывать можно только ссылки qterm, ssh и telnet.',
+  'shell.launchIntent.error.unsupported-verb': 'Неизвестная ссылка qterm.',
+  'shell.launchIntent.error.password-in-url':
+    'В целях безопасности пароль из ссылки не читается. Используйте ссылку без пароля.',
+  'shell.launchIntent.error.invalid': 'Ссылка имеет неверный формат, узел не удалось разобрать.',
   'shell.toolbar.sftp': 'SFTP',
   'shell.toolbar.newWindow': 'Новое окно',
   'shell.toolbar.global': 'Глобальные инструменты',
@@ -673,6 +731,7 @@ export const shellUiRu: Record<string, string> = {
   'shell.palette.hosts': 'Хосты',
   'shell.palette.settings': 'Настройки',
   'shell.palette.actions': 'Команды',
+  'shell.palette.connectTo': 'Подключиться к {target}',
   'shell.palette.newLocalTerminal': 'Новый локальный терминал',
   'shell.palette.openSettingsAction': 'Открыть настройки',
   'shell.palette.toggleOutputPause': 'Пауза / возобновление вывода терминала',
@@ -1271,6 +1330,7 @@ export const shellUiRu: Record<string, string> = {
   'shell.credential.privateKey': 'Закрытый ключ',
   'shell.credential.privateKeyPassphrase': 'Парольная фраза закрытого ключа',
   'shell.credential.sshAgent': 'Агент SSH',
+  'shell.credential.userCertificate': 'Пользовательский сертификат',
   'shell.hostEditor.optional': '(необязательно)',
   'shell.hostEditor.usernamePlaceholderRdp': 'Например: Administrator',
   'shell.hostEditor.usernamePlaceholderVnc': 'Можно оставить пустым (только Apple RA2)',
@@ -1300,6 +1360,9 @@ export const shellUiRu: Record<string, string> = {
     'Подключение к цели выполняется через другой сохранённый хост SSH; для целевого хоста источником будет промежуточный хост.',
   'shell.hostEditor.connectionProxyHint':
     'Сначала подключитесь к прокси, затем прокси подключится к цели. Введите имя пользователя и пароль прокси или оставьте оба поля пустыми для работы без аутентификации.',
+  'shell.hostEditor.proxyCommandMode': 'Локальная команда',
+  'shell.hostEditor.connectionProxyCommandHint':
+    'Использовать локальную программу (ssh / nc / aws / kubectl …), stdin/stdout которой становится соединением с узлом. %h — хост, %p — порт.',
   'shell.hostEditor.jumpHost': 'Промежуточный хост',
   'shell.hostEditor.jumpHostPlaceholder': 'Выберите хост SSH для промежуточного подключения',
   'shell.hostEditor.jumpHostEmpty':
@@ -1499,6 +1562,16 @@ export const shellUiRu: Record<string, string> = {
   'shell.hostIcon.remove': 'Убрать значок',
   'shell.hostIcon.importDisabled': 'Свои значки появятся в следующих версиях.',
   'shell.hostIcon.import': 'Импортировать значок',
+  'shell.hostIcon.search': 'Поиск значков хоста',
+  'shell.hostIcon.searchPlaceholder': 'Поиск значков',
+  'shell.hostIcon.clearSearch': 'Очистить поиск',
+  'shell.hostIcon.noMatch': 'Подходящих значков нет',
+  'shell.hostIcon.category.os': 'Операционные системы',
+  'shell.hostIcon.category.network': 'Сетевое оборудование',
+  'shell.hostIcon.category.nas': 'NAS и хранилища',
+  'shell.hostIcon.category.cloud': 'Облачные сервисы',
+  'shell.hostIcon.category.virt': 'Виртуализация и контейнеры',
+  'shell.hostIcon.category.other': 'Прочее',
   'shell.hostIcon.removeTitle': 'Убрать значок хоста',
   'shell.hostIcon.removeMessage': 'Убрать значок текущего хоста?',
   'shell.hostIcon.removeConfirm': 'Убрать',
@@ -1831,6 +1904,8 @@ export const shellUiRu: Record<string, string> = {
   'shell.error.portRange': 'Порт должен быть целым числом от 1 до 65535.',
   'shell.error.proxyHostRequired': 'Введите адрес прокси.',
   'shell.error.proxyPortRange': 'Порт прокси должен быть целым числом от 1 до 65535.',
+  'shell.error.proxyCommandProxyConflict':
+    'ProxyCommand и прокси (SOCKS5/HTTP) нельзя использовать одновременно: оба устанавливают первое соединение.',
   'shell.error.passwordRequired': 'Введите пароль для входа.',
   'shell.error.authenticationFailed': 'Не удалось пройти аутентификацию SSH.',
   'shell.error.authenticationChallenge':
@@ -1939,6 +2014,30 @@ export const shellUiRu: Record<string, string> = {
   'shell.otp.fillCode': 'Вставить код',
   'shell.otp.generateError': 'Не удалось создать код. Проверьте хранилище учётных данных.',
 
+  'shell.hostEditor.sshHandshake.title': 'SSH-рукопожатие и ProxyCommand',
+  'shell.hostEditor.sshHandshake.description':
+    'Ослабить или ограничить алгоритмы согласования для старых устройств либо пропустить первый участок через локальную команду. По умолчанию используется встроенный список.',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithms': 'Алгоритмы ключей хоста',
+  'shell.hostEditor.sshHandshake.hostKeyAlgorithmsHelp':
+    'Оставьте пустым, чтобы использовать список по умолчанию; если заполнить, он **полностью заменяет** значения по умолчанию — будут предложены только перечисленные алгоритмы.',
+  'shell.hostEditor.sshHandshake.keyExchanges': 'Алгоритмы обмена ключами',
+  'shell.hostEditor.sshHandshake.keyExchangesHelp':
+    'Оставьте пустым, чтобы использовать список по умолчанию; заполняйте только если старое устройство требует, например, group1-sha1.',
+  'shell.hostEditor.sshHandshake.deprecatedHint':
+    'Алгоритмы с пометкой «устаревший» имеют известные слабости. Используйте их только если удалённое устройство не поддерживает ничего лучше.',
+  'shell.hostEditor.sshHandshake.addAlgorithm': 'Добавить алгоритм…',
+  'shell.hostEditor.sshHandshake.resetAlgorithms': 'По умолчанию',
+  'shell.hostEditor.sshHandshake.proxyCommand': 'ProxyCommand',
+  'shell.hostEditor.sshHandshake.proxyCommandPlaceholder': 'например: ssh -W %h:%p bastion.example.com',
+  'shell.hostEditor.sshHandshake.proxyCommandHelp':
+    'Стандартный ввод-вывод команды используется как соединение с целевым хостом. %h и %p заменяются на адрес и порт; нельзя сочетать с прокси (SOCKS5/HTTP).',
+  'shell.hostEditor.sshHandshake.proxyCommandAdvancedHint':
+    'Если нужно просто пройти через другой сохранённый SSH-хост, используйте «Промежуточный хост». ProxyCommand нужен для каналов, которые SSH не выражает: AWS SSM, Kubernetes, Cloudflare Tunnel.',
+  'shell.hostEditor.sshHandshake.deprecatedTag': 'устаревший',
+  'shell.hostEditor.sshHandshake.defaultGroup': 'Включены по умолчанию',
+  'shell.hostEditor.sshHandshake.deprecatedGroup': 'Устаревшие (известные слабости)',
+  'shell.hostEditor.sshHandshake.usingDefaults': 'Используется встроенный список по умолчанию',
+  'shell.hostEditor.sshHandshake.removeAlgorithm': 'Удалить {name}',
   'shell.otp.search': 'Поиск сервиса или аккаунта',
   'shell.otp.scan': 'Сканировать QR-код',
   'shell.otp.scanHint': 'Выберите или вставьте QR-изображение. Перед сохранением проверьте результат.',

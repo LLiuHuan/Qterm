@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -101,6 +102,9 @@ func (s *Server) handleShell(w http.ResponseWriter, r *http.Request, sessionID s
 	defer cancel()
 	channel, err := s.deps.Shell(ctx, sessionID, columns, rows)
 	if err != nil {
+
+		slog.Warn("cli shell channel open failed", "event", "cli.shell.open_failed",
+			"session_id", sessionID, "error", err, "error_key", appErrorKey(err))
 		writeAppError(w, err)
 		return
 	}
@@ -109,6 +113,8 @@ func (s *Server) handleShell(w http.ResponseWriter, r *http.Request, sessionID s
 	connection, err := websocket.Accept(w, r, nil)
 	if err != nil {
 
+		slog.Warn("cli shell upgrade failed", "event", "cli.shell.upgrade_failed",
+			"session_id", sessionID, "error", err)
 		return
 	}
 	defer func() {

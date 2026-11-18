@@ -135,6 +135,12 @@ export interface HostDraft {
 
   proxyPasswordConfigured?: boolean
 
+  sshHostKeyAlgorithms?: string[]
+
+  sshKeyExchanges?: string[]
+
+  sshProxyCommand?: string
+
   password?: string
   clearPassword?: boolean
 }
@@ -261,6 +267,10 @@ class MemoryHostGateway implements HostGateway {
 
       proxyId: input.proxyId ?? '',
       ...proxyFields(input),
+
+      sshHostKeyAlgorithms: input.sshHostKeyAlgorithms ?? [],
+      sshKeyExchanges: input.sshKeyExchanges ?? [],
+      sshProxyCommand: input.sshProxyCommand ?? '',
       passwordSource: input.passwordSource ?? (input.password ? 'saved' : 'none'),
     }
     delete safeInput.password
@@ -332,6 +342,10 @@ class MemoryHostGateway implements HostGateway {
       jumpHostId: input.jumpHostId ?? this.hosts[index].jumpHostId ?? '',
       proxyId: input.proxyId ?? this.hosts[index].proxyId ?? '',
       ...proxyFields(input, this.hosts[index]),
+
+      sshHostKeyAlgorithms: input.sshHostKeyAlgorithms ?? this.hosts[index].sshHostKeyAlgorithms ?? [],
+      sshKeyExchanges: input.sshKeyExchanges ?? this.hosts[index].sshKeyExchanges ?? [],
+      sshProxyCommand: input.sshProxyCommand ?? this.hosts[index].sshProxyCommand ?? '',
       passwordSource: input.passwordSource ?? this.hosts[index].passwordSource ?? 'none',
     }
     delete safeInput.password
@@ -561,6 +575,10 @@ function toRecord(host: HostRecord): HostRecord {
     proxyPort: host.proxyPort ?? 0,
     proxyUsername: host.proxyUsername || '',
     proxyPasswordConfigured: host.proxyPasswordConfigured === true,
+
+    sshHostKeyAlgorithms: host.sshHostKeyAlgorithms ?? [],
+    sshKeyExchanges: host.sshKeyExchanges ?? [],
+    sshProxyCommand: host.sshProxyCommand || '',
     tags: host.tags ?? [],
     passwordSource: host.passwordSource || (host.passwordConfigured ? 'saved' : 'none'),
     sortOrder: Number(host.sortOrder ?? 0),
@@ -608,6 +626,10 @@ class WailsHostGateway implements HostGateway {
 
       proxyId: input.proxyId ?? '',
       ...proxyFields(input),
+
+      sshHostKeyAlgorithms: input.sshHostKeyAlgorithms ?? [],
+      sshKeyExchanges: input.sshKeyExchanges ?? [],
+      sshProxyCommand: input.sshProxyCommand ?? '',
     } as Parameters<typeof CreateHost>[0]
 
     return toRecord((await CreateHost(payload)) as HostRecord)
@@ -637,6 +659,10 @@ class WailsHostGateway implements HostGateway {
       jumpHostId: input.jumpHostId ?? '',
       proxyId: input.proxyId ?? '',
       ...proxyFields(input),
+
+      sshHostKeyAlgorithms: input.sshHostKeyAlgorithms ?? [],
+      sshKeyExchanges: input.sshKeyExchanges ?? [],
+      sshProxyCommand: input.sshProxyCommand ?? '',
     } as Parameters<typeof UpdateHost>[1]
     return toRecord((await UpdateHost(id, payload)) as HostRecord)
   }

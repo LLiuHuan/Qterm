@@ -47,6 +47,8 @@ import {
 import type { OtpEntry } from '../../services/otp'
 import { defaultTerminalTypeFor } from '@/services/hosts.ts'
 import { testRouteDraft, type RouteTestHopView } from '../../services/hostRoute'
+import { loadSSHHandshakeAlgorithms, type SSHHandshakeAlgorithmCatalog } from '../../services/sshHandshake'
+import SshHandshakeAlgorithms from './SshHandshakeAlgorithms.vue'
 import { decodeAppError, translateErrorKey } from '../../services/errors'
 import { hostIconPickerOptions } from '../../features/hosts/builtinIcons'
 import { isCustomHostIcon } from '../../features/hosts/customHostIcon'
@@ -190,7 +192,7 @@ watch(
 onBeforeUnmount(() => document.removeEventListener('keydown', handlePageEscape))
 
 const credentialCreateOpen = ref(false)
-const credentialCreateKind = ref<'password' | 'privateKey' | 'sshAgent'>('password')
+const credentialCreateKind = ref<'password' | 'privateKey' | 'sshAgent' | 'userCertificate'>('password')
 const credentialCreateKeyMode = ref<'generate' | 'upload' | 'manual'>('generate')
 
 const credentialCreateDisabled = computed(
@@ -198,7 +200,7 @@ const credentialCreateDisabled = computed(
 )
 
 function openCredentialCreate(
-  kind: 'password' | 'privateKey' | 'sshAgent',
+  kind: 'password' | 'privateKey' | 'sshAgent' | 'userCertificate',
   keyMode?: 'generate' | 'upload' | 'manual',
 ): void {
   if (credentialCreateDisabled.value) return
@@ -448,7 +450,10 @@ function clampRdpSize(value: unknown, fallback: number, min: number, max: number
 
 const JUMP_HOST_NONE = '__qterm_no_jump_host__'
 
-function draftConnectionMode(): 'direct' | 'jump' | 'proxy' {
+type ConnectionMode = 'direct' | 'jump' | 'proxy' | 'proxyCommand'
+
+function draftConnectionMode(): ConnectionMode {
+  if ((props.draft.sshProxyCommand ?? '').trim() !== '') return 'proxyCommand'
   if (props.draft.jumpHostId) return 'jump'
 
   if ((props.draft.proxyId ?? '').trim() !== '') return 'proxy'
@@ -456,7 +461,7 @@ function draftConnectionMode(): 'direct' | 'jump' | 'proxy' {
   return 'direct'
 }
 
-const connectionMode = ref<'direct' | 'jump' | 'proxy'>(draftConnectionMode())
+const connectionMode = ref<ConnectionMode>(draftConnectionMode())
 
 watch(
   () => [props.open, props.editingHostId] as const,
@@ -465,10 +470,45 @@ watch(
   },
 )
 
+const sshHandshakeCatalog = ref<SSHHandshakeAlgorithmCatalog | null>(null)
+
+async function ensureSSHHandshakeCatalog(): Promise<void> {
+  if (sshHandshakeCatalog.value) return
+  try {
+    sshHandshakeCatalog.value = await loadSSHHandshakeAlgorithms()
+  } catch {
+    sshHandshakeCatalog.value = null
+  }
+}
+
+watch(
+  () => [props.open, props.editingHostId] as const,
+  () => {
+    if (props.open) void ensureSSHHandshakeCatalog()
+  },
+  { immediate: true },
+)
+
+const hostKeyAlgorithmsModel = computed({
+  get: () => props.draft.sshHostKeyAlgorithms ?? [],
+  set: (value: string[]) => updateDraft({ sshHostKeyAlgorithms: value }),
+})
+
+const keyExchangesModel = computed({
+  get: () => props.draft.sshKeyExchanges ?? [],
+  set: (value: string[]) => updateDraft({ sshKeyExchanges: value }),
+})
+
+const handshakeHostKeySupported = computed(() => sshHandshakeCatalog.value?.hostKeyAlgorithms ?? [])
+const handshakeHostKeyDeprecated = computed(() => sshHandshakeCatalog.value?.deprecatedHostKeyAlgorithms ?? [])
+const handshakeKeyExchangesSupported = computed(() => sshHandshakeCatalog.value?.keyExchanges ?? [])
+const handshakeKeyExchangesDeprecated = computed(() => sshHandshakeCatalog.value?.deprecatedKeyExchanges ?? [])
+
 const connectionModeOptions = computed(() => [
   { value: 'direct', label: t('shell.hostEditor.direct') },
   { value: 'jump', label: t('shell.hostEditor.jump') },
   { value: 'proxy', label: t('shell.hostEditor.proxy') },
+  { value: 'proxyCommand', label: t('shell.hostEditor.proxyCommandMode') },
 ])
 
 const PROXY_GROUP_DEFAULTS = {
@@ -517,16 +557,23 @@ watch(
 )
 
 function switchConnectionMode(value: string | number): void {
-  const next = String(value)
-  connectionMode.value = next === 'proxy' ? 'proxy' : next === 'jump' ? 'jump' : 'direct'
+  const raw = String(value)
+  const next: ConnectionMode =
+    raw === 'proxy' ? 'proxy' : raw === 'jump' ? 'jump' : raw === 'proxyCommand' ? 'proxyCommand' : 'direct'
+  connectionMode.value = next
   if (next === 'direct') {
     proxyCustomSelected.value = false
-    updateDraft({ jumpHostId: '', ...PROXY_GROUP_DEFAULTS })
+    updateDraft({ jumpHostId: '', sshProxyCommand: '', ...PROXY_GROUP_DEFAULTS })
     return
   }
   if (next === 'jump') {
     proxyCustomSelected.value = false
-    updateDraft({ ...PROXY_GROUP_DEFAULTS })
+    updateDraft({ sshProxyCommand: '', ...PROXY_GROUP_DEFAULTS })
+    return
+  }
+  if (next === 'proxyCommand') {
+    proxyCustomSelected.value = false
+    updateDraft({ jumpHostId: '', ...PROXY_GROUP_DEFAULTS })
     return
   }
 
@@ -583,6 +630,9 @@ watch(
     props.draft.proxyUsername,
     props.draft.proxyPassword,
     props.draft.clearProxyPassword,
+    props.draft.sshProxyCommand,
+    props.draft.sshHostKeyAlgorithms,
+    props.draft.sshKeyExchanges,
     props.draft.credentialId,
     props.authMode,
     props.directSecret,
@@ -593,6 +643,7 @@ watch(
 const hasDraftRoute = computed(
   () =>
     Boolean(props.draft.jumpHostId) ||
+    (props.draft.sshProxyCommand ?? '').trim() !== '' ||
     (props.draft.proxyId ?? '').trim() !== '' ||
     normalizeProxyMode(props.draft.proxyMode) !== 'none',
 )
@@ -625,6 +676,9 @@ async function runConnectionTest(): Promise<void> {
       proxyUsername: props.draft.proxyUsername || '',
       proxyPassword: props.draft.proxyPassword || '',
       clearProxyPassword: props.draft.clearProxyPassword === true,
+      sshHostKeyAlgorithms: props.draft.sshHostKeyAlgorithms ?? [],
+      sshKeyExchanges: props.draft.sshKeyExchanges ?? [],
+      sshProxyCommand: props.draft.sshProxyCommand || '',
       credentialId: props.authMode === 'credential' ? props.draft.credentialId : '',
       kind: props.authMode === 'password' ? 'password' : '',
       secret: props.authMode === 'password' ? props.directSecret : '',
@@ -1277,7 +1331,12 @@ function updateAddress(value: unknown): void {
                 <QtermFormMessage variant="hint">{{ t('shell.hostEditor.jumpHostHint') }}</QtermFormMessage>
               </div>
 
-              <div v-else class="flex flex-col gap-3" role="group" :aria-label="t('shell.hostEditor.proxyMode')">
+              <div
+                v-else-if="connectionMode === 'proxy'"
+                class="flex flex-col gap-3"
+                role="group"
+                :aria-label="t('shell.hostEditor.proxyMode')"
+              >
                 <QtermFormMessage variant="hint">{{ t('shell.hostEditor.connectionProxyHint') }}</QtermFormMessage>
 
                 <div v-if="libraryProxies.length || proxyReferenceMissing" class="flex flex-col gap-1.5">
@@ -1422,6 +1481,38 @@ function updateAddress(value: unknown): void {
                 </template>
 
                 <QtermFormMessage variant="hint">{{ t('shell.hostEditor.proxyScopeHint') }}</QtermFormMessage>
+              </div>
+
+              <div
+                v-else-if="connectionMode === 'proxyCommand'"
+                class="flex flex-col gap-3"
+                role="group"
+                :aria-label="t('shell.hostEditor.sshHandshake.proxyCommand')"
+              >
+                <QtermFormMessage variant="hint">{{
+                  t('shell.hostEditor.connectionProxyCommandHint')
+                }}</QtermFormMessage>
+                <div class="form-field min-w-0 grid gap-[6px] text-qt-muted">
+                  <Label for="host-ssh-proxy-command">
+                    {{ t('shell.hostEditor.sshHandshake.proxyCommand') }}
+                  </Label>
+                  <QtermInput
+                    id="host-ssh-proxy-command"
+                    :model-value="props.draft.sshProxyCommand || ''"
+                    class="h-qt-control-height min-h-qt-control-height font-mono"
+                    name="sshProxyCommand"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    :placeholder="t('shell.hostEditor.sshHandshake.proxyCommandPlaceholder')"
+                    @update:model-value="(value) => updateDraft({ sshProxyCommand: String(value) })"
+                  />
+                  <small class="text-xs">{{ t('shell.hostEditor.sshHandshake.proxyCommandHelp') }}</small>
+                </div>
+                <p class="text-xs text-qt-warning" role="status">
+                  {{ t('shell.hostEditor.sshHandshake.proxyCommandAdvancedHint') }}
+                </p>
               </div>
             </div>
 
@@ -2026,6 +2117,35 @@ function updateAddress(value: unknown): void {
                             {{ t('shell.hostEditor.terminal.environmentAdd') }}
                           </QtermButton>
                         </div>
+                      </div>
+
+                      <div v-if="sshHost" class="mt-4 border-t border-qt-border/40 pt-3">
+                        <Label>{{ t('shell.hostEditor.sshHandshake.title') }}</Label>
+                        <small class="mt-1 block text-xs">{{ t('shell.hostEditor.sshHandshake.description') }}</small>
+                        <SshHandshakeAlgorithms
+                          id="host-ssh-host-key-algorithms"
+                          v-model="hostKeyAlgorithmsModel"
+                          :label="t('shell.hostEditor.sshHandshake.hostKeyAlgorithms')"
+                          :help="t('shell.hostEditor.sshHandshake.hostKeyAlgorithmsHelp')"
+                          :supported="handshakeHostKeySupported"
+                          :deprecated="handshakeHostKeyDeprecated"
+                          :deprecated-hint="t('shell.hostEditor.sshHandshake.deprecatedHint')"
+                          :deprecated-tag="t('shell.hostEditor.sshHandshake.deprecatedTag')"
+                          :add-label="t('shell.hostEditor.sshHandshake.addAlgorithm')"
+                          :reset-label="t('shell.hostEditor.sshHandshake.resetAlgorithms')"
+                        />
+                        <SshHandshakeAlgorithms
+                          id="host-ssh-key-exchanges"
+                          v-model="keyExchangesModel"
+                          :label="t('shell.hostEditor.sshHandshake.keyExchanges')"
+                          :help="t('shell.hostEditor.sshHandshake.keyExchangesHelp')"
+                          :supported="handshakeKeyExchangesSupported"
+                          :deprecated="handshakeKeyExchangesDeprecated"
+                          :deprecated-hint="t('shell.hostEditor.sshHandshake.deprecatedHint')"
+                          :deprecated-tag="t('shell.hostEditor.sshHandshake.deprecatedTag')"
+                          :add-label="t('shell.hostEditor.sshHandshake.addAlgorithm')"
+                          :reset-label="t('shell.hostEditor.sshHandshake.resetAlgorithms')"
+                        />
                       </div>
                     </template>
                   </div>

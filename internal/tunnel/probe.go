@@ -140,7 +140,10 @@ func (c *Connector) probeHostKey(
 			return verifyErr
 		},
 
-		HostKeyAlgorithms: hostKeyAlgorithms,
+		HostKeyAlgorithms: handshakeAlgorithms(target.HostKeyAlgorithms, hostKeyAlgorithms),
+	}
+	if len(target.KeyExchanges) > 0 {
+		config.KeyExchanges = append([]string(nil), target.KeyExchanges...)
 	}
 	_, _, _, handshakeErr := ssh.NewClientConn(netConn, address, config)
 	if verifyFailure != nil {

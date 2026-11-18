@@ -5,9 +5,9 @@
   "info": {
     "0000": {
       "ProductVersion": "0.0.1",
-      "CompanyName": "Qterm",
+      "CompanyName": "LLiuHuan",
       "FileDescription": "A cross-platform SSH workspace",
-      "LegalCopyright": "(c) 2026, Qterm",
+      "LegalCopyright": "(c) 2026, LLiuHuan",
       "ProductName": "Qterm",
       "Comments": "SSH terminal, SFTP, tunneling and host management"
     }
