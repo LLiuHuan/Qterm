@@ -267,7 +267,8 @@ func (s *Service) CloseSession(ctx context.Context, id string) error {
 	if err := manager.Close(ctx, id); err != nil {
 		return sessionServiceError(err)
 	}
-	connector.Forget(id)
+
+	connector.ReleaseSession(id)
 	s.mu.RLock()
 	telnetConnector := s.telnetConnector
 	s.mu.RUnlock()

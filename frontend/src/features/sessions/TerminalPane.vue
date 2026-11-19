@@ -3986,11 +3986,13 @@ onBeforeUnmount(() => {
             @mousedown.prevent="focusCompletionTerminal"
             @click.stop
           >
-            <div class="terminal-command-completion-header justify-between border-b-d px-[10px] py-[7px] text-sm">
-              <span class="terminal-command-completion-title inline-flex items-center gap-[6px]"
-                ><HistoryIcon :size="13" />{{ t('shell.terminal.completionTitle') }}</span
+            <div class="terminal-command-completion-header justify-between border-b-d px-[10px] py-[7px]">
+              <span class="terminal-command-completion-title inline-flex items-center gap-[5px] text-[13px] leading-4"
+                ><HistoryIcon :size="12" />{{ t('shell.terminal.completionTitle') }}</span
               >
-              <span>{{ completionItems.length }} {{ t('shell.terminal.completionMatches') }}</span>
+              <span class="shrink-0 text-[11px] leading-4 whitespace-nowrap text-qt-muted tabular-nums"
+                >{{ completionItems.length }} {{ t('shell.terminal.completionMatches') }}</span
+              >
             </div>
             <ScrollArea class="terminal-command-completion-scroll" type="hover" :scroll-hide-delay="600">
               <div

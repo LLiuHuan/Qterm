@@ -129,6 +129,13 @@ tasks:
     cmds:
       # Create the Microsoft WebView2 bootstrapper if it doesn't exist
       - wails3 generate webview2bootstrapper -dir "{{.ROOT_DIR}}/build/windows/nsis"
+      # RDP helper 是可选文件：构建过就拷到 nsi 同目录，project.nsi 用 File /nonfatal 引入。
+      - |
+        {{if eq OS "windows"}}
+        if exist "{{.ROOT_DIR}}\tools\rdp-helper-poc\freerdp\build\qterm-freerdp-helper.exe" copy /Y "{{.ROOT_DIR}}\tools\rdp-helper-poc\freerdp\build\qterm-freerdp-helper.exe" qterm-freerdp-helper.exe >NUL
+        {{else}}
+        if [ -f "{{.ROOT_DIR}}/tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper.exe" ]; then cp "{{.ROOT_DIR}}/tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper.exe" .; fi
+        {{end}}
       - |
         {{if eq OS "windows"}}
         makensis {{if eq .INSTALL_SCOPE "user"}}-DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user {{end}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" project.nsi

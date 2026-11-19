@@ -138,6 +138,10 @@ Section
     
     !insertmacro wails.files
 
+    ; RDP helper（可选）：静态链接的单文件，构建过才会被拷到本目录。
+    ; /nonfatal 让文件缺失时安装继续，应用侧会提示"未安装 RDP helper"。
+    File /nonfatal "qterm-freerdp-helper.exe"
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 

@@ -191,6 +191,8 @@ type Connector struct {
 	pendingAuth         map[string]*authenticationRequest
 	failures            map[string]string
 	directoryFollowMode string
+
+	ephemeral *ephemeralSecrets
 }
 
 func (c *Connector) SetDirectoryFollowMode(mode string) {
@@ -404,6 +406,7 @@ func newConnectorWithFactory(
 		pending:     make(map[string][]*sshclient.HostKeyError),
 		pendingAuth: make(map[string]*authenticationRequest),
 		failures:    make(map[string]string),
+		ephemeral:   newEphemeralSecrets(),
 	}
 	return connector
 }
@@ -538,6 +541,11 @@ func (c *Connector) Connect(
 			route.release()
 		}
 	}()
+
+	var promptCredentialID string
+	promptPassword := false
+
+	c.ephemeral.forget(sessionID)
 	var connection SessionConnection
 	if host.PasswordSource == "prompt" && host.CredentialID == "" {
 		request := &authenticationRequest{
@@ -569,6 +577,7 @@ func (c *Connector) Connect(
 		}
 		if input.CredentialID != "" {
 			credentialID := input.CredentialID
+			promptCredentialID = credentialID
 			err = c.credentials.UseCredentialSecret(ctx, input.CredentialID, func(kind model.CredentialKind, secret []byte) error {
 
 				if kind != model.CredentialKindPassword &&
@@ -598,11 +607,16 @@ func (c *Connector) Connect(
 			doRemember := input.Remember
 			targetInteractive := makeTargetInteractive(model.CredentialKindPassword, secret)
 			connection, err = c.connectThroughRouteWithAuth(ctx, dialer, route, target, model.CredentialKindPassword, secret, targetInteractive, len(targetInteractive) > 0)
+			promptPassword = err == nil && connection != nil
 			if err == nil && doRemember {
 
 				if rememberer, ok := c.hosts.(hostPasswordRememberer); ok {
 					_ = rememberer.RememberHostPassword(ctx, host.ID, secret)
 				}
+			}
+			if promptPassword {
+
+				c.ephemeral.remember(sessionID, secret)
 			}
 			clear(secret)
 		}
@@ -706,13 +720,19 @@ func (c *Connector) Connect(
 	}
 	if host.ConnectionType != model.ConnectionTypeNetwork {
 
-		c.installAuxiliaryProvisioner(connection, host)
+		c.installAuxiliaryProvisioner(connection, host, sessionID, promptCredentialID, promptPassword)
 	}
 	c.Forget(sessionID)
 	return connection, nil
 }
 
-func (c *Connector) installAuxiliaryProvisioner(connection SessionConnection, host model.Host) {
+func (c *Connector) installAuxiliaryProvisioner(
+	connection SessionConnection,
+	host model.Host,
+	sessionID string,
+	promptCredentialID string,
+	promptPassword bool,
+) {
 	if c == nil || connection == nil || c.credentials == nil || c.hosts == nil {
 		return
 	}
@@ -722,7 +742,12 @@ func (c *Connector) installAuxiliaryProvisioner(connection SessionConnection, ho
 	if !ok {
 		return
 	}
-	if host.CredentialID == "" && !host.PasswordConfigured {
+	credentialID := host.CredentialID
+	if credentialID == "" {
+
+		credentialID = promptCredentialID
+	}
+	if credentialID == "" && !host.PasswordConfigured && !promptPassword {
 
 		return
 	}
@@ -742,7 +767,7 @@ func (c *Connector) installAuxiliaryProvisioner(connection SessionConnection, ho
 		KeyExchanges:      host.SSHKeyExchanges,
 	})
 	hostID := host.ID
-	credentialID := host.CredentialID
+	hostPassword := host.PasswordConfigured
 	installer.SetAuxiliaryProvisioner(func(dialCtx context.Context) (sshclient.AuxiliaryConnection, error) {
 		if dialCtx == nil {
 			return sshclient.AuxiliaryConnection{}, errno.New(errno.CodeInvalidArg, "session.dialer_not_ready", "")
@@ -758,12 +783,22 @@ func (c *Connector) installAuxiliaryProvisioner(connection SessionConnection, ho
 			return connectErr
 		}
 		var err error
-		if credentialID != "" {
+		switch {
+		case credentialID != "":
 			err = c.credentials.UseCredentialSecret(dialCtx, credentialID, useSecret)
-		} else {
+		case hostPassword:
 			err = c.hosts.UseHostPassword(dialCtx, hostID, func(secret []byte) error {
 				return useSecret(model.CredentialKindPassword, secret)
 			})
+		default:
+
+			var used bool
+			used, err = c.ephemeral.use(sessionID, func(secret []byte) error {
+				return useSecret(model.CredentialKindPassword, secret)
+			})
+			if !used {
+				return sshclient.AuxiliaryConnection{}, errors.New("session: ephemeral password is no longer available")
+			}
 		}
 		if err != nil {
 			return sshclient.AuxiliaryConnection{}, err
@@ -1582,6 +1617,14 @@ func (c *Connector) Forget(sessionID string) {
 	delete(c.pending, sessionID)
 	delete(c.pendingAuth, sessionID)
 	delete(c.failures, sessionID)
+}
+
+func (c *Connector) ReleaseSession(sessionID string) {
+	if c == nil {
+		return
+	}
+	c.Forget(sessionID)
+	c.ephemeral.forget(sessionID)
 }
 
 func SessionConnectionFailureKey(err error) string {

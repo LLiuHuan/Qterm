@@ -218,7 +218,8 @@ func (s *Service) finalizeOrphanSession(sessionID string) {
 		recordings.flushPending()
 	}
 	if connector != nil {
-		connector.Forget(sessionID)
+
+		connector.ReleaseSession(sessionID)
 	}
 }
 

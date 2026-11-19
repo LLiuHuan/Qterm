@@ -27,3 +27,6 @@ bin
 /node_modules/
 frontend/.cache-inspect.png
 .suvoro
+
+# nfpm 打包配置的生成产物（build/linux/nfpm/render-config.mjs 生成）
+build/linux/nfpm/nfpm.generated.yaml

@@ -20,6 +20,8 @@ type FileSystemGroup struct {
 
 	provisioner ConnectionProvisioner
 
+	dedicatedTransfer bool
+
 	desiredConnections int
 	connections        []*connectionEntry
 	dialFailedAt       time.Time
@@ -70,6 +72,23 @@ func newFileSystemGroup(
 	provisioner ConnectionProvisioner,
 	subsystemWidth int,
 ) *FileSystemGroup {
+	return newFileSystemGroupWithMode(primary, provisioner, subsystemWidth, false)
+}
+
+func newDedicatedTransferGroup(
+	primary *ssh.Client,
+	provisioner ConnectionProvisioner,
+	subsystemWidth int,
+) *FileSystemGroup {
+	return newFileSystemGroupWithMode(primary, provisioner, subsystemWidth, true)
+}
+
+func newFileSystemGroupWithMode(
+	primary *ssh.Client,
+	provisioner ConnectionProvisioner,
+	subsystemWidth int,
+	dedicated bool,
+) *FileSystemGroup {
 	if subsystemWidth < 1 {
 		subsystemWidth = 1
 	}
@@ -81,7 +100,11 @@ func newFileSystemGroup(
 		provisioner:        provisioner,
 		desiredConnections: 1,
 		subsystemWidth:     subsystemWidth,
-		connections:        []*connectionEntry{{client: primary}},
+		dedicatedTransfer:  dedicated && provisioner != nil,
+	}
+	if !group.dedicatedTransfer {
+
+		group.connections = []*connectionEntry{{client: primary}}
 	}
 	group.refreshCapacityLocked()
 	group.cond = sync.NewCond(&group.mu)
@@ -301,6 +324,7 @@ func (g *FileSystemGroup) ensureConnections(ctx context.Context, target int) {
 
 		var closeAuxiliary func() error
 		var added bool
+		var fellBack bool
 		var connections, systemsPerConnection int
 		var degradedErr error
 		g.mu.Lock()
@@ -318,6 +342,15 @@ func (g *FileSystemGroup) ensureConnections(ctx context.Context, target int) {
 				g.dialFailedAt = time.Now()
 				g.degraded.Add(1)
 				degradedErr = dialErr
+			}
+
+			if g.dedicatedTransfer && len(g.connections) == 0 && g.connection != nil {
+				g.connections = append(g.connections, &connectionEntry{client: g.connection})
+				g.dedicatedTransfer = false
+				g.refreshCapacityLocked()
+				connections = len(g.connections)
+				systemsPerConnection = g.systemsPerConn
+				fellBack = true
 			}
 		}
 		g.expanding = false
@@ -340,6 +373,14 @@ func (g *FileSystemGroup) ensureConnections(ctx context.Context, target int) {
 				"connections", connections,
 				"desired", desired,
 				"systems_per_connection", systemsPerConnection)
+			continue
+		}
+		if fellBack {
+
+			slog.Warn("sftp dedicated transfer connection unavailable, falling back to session connection",
+				"event", "sftp.transfer.fallback",
+				"connections", connections,
+				"desired", desired)
 			continue
 		}
 		if degradedErr != nil {
@@ -452,7 +493,11 @@ func (g *FileSystemGroup) acquireSystem(ctx context.Context) (*subsystem, error)
 		if len(g.connections) < g.desiredConnections {
 			if !expansionAttempted {
 				expansionAttempted = true
-				target := g.desiredConnections
+
+				target := len(g.connections) + 1
+				if target > g.desiredConnections {
+					target = g.desiredConnections
+				}
 				g.mu.Unlock()
 				g.ensureConnections(ctx, target)
 				continue
@@ -649,8 +694,9 @@ func (g *FileSystemGroup) shutdown() {
 	g.open -= len(idle)
 
 	auxiliary := make([]func() error, 0, len(g.connections))
-	for index, entry := range g.connections {
-		if index > 0 && entry.closeFn != nil {
+	for _, entry := range g.connections {
+
+		if entry.closeFn != nil {
 			auxiliary = append(auxiliary, entry.closeFn)
 		}
 	}

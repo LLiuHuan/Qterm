@@ -124,6 +124,8 @@ type Connection struct {
 	fsMu        sync.Mutex
 	fileSystems *FileSystemGroup
 
+	transferSystems *FileSystemGroup
+
 	auxiliaryProvisioner ConnectionProvisioner
 
 	chainMu sync.Mutex
@@ -173,6 +175,10 @@ func (c *Connection) SetAuxiliaryProvisioner(provisioner ConnectionProvisioner) 
 	}
 	c.fsMu.Lock()
 	c.auxiliaryProvisioner = provisioner
+
+	if c.transferSystems != nil && c.transferSystems == c.fileSystems {
+		c.transferSystems = nil
+	}
 	c.fsMu.Unlock()
 }
 
@@ -588,11 +594,16 @@ func (c *Connection) Close() error {
 		}
 		c.fsMu.Lock()
 		group := c.fileSystems
+		transfer := c.transferSystems
 		c.fileSystems = nil
+		c.transferSystems = nil
 		c.fsMu.Unlock()
-		if group != nil {
-			group.abort(errSSHConnectionClosed)
-			group.shutdown()
+
+		for _, pool := range []*FileSystemGroup{group, transfer} {
+			if pool != nil {
+				pool.abort(errSSHConnectionClosed)
+				pool.shutdown()
+			}
 		}
 		if c.client != nil {
 			c.closeErr = c.client.Close()

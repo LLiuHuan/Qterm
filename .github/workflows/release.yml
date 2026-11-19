@@ -79,6 +79,36 @@ jobs:
           fi
           node build/stamp-version.mjs "${RELEASE_TAG#v}"
 
+      # RDP helper 由独立的 rdp-helper workflow 在各自平台原生编出来（Linux/Windows 没法
+      # 从 macOS 交叉产出可信产物）。这里**尽力**取同一次运行里的 helper：
+      # 缺了不影响发版，只是该平台的安装包不带 RDP（界面会提示"未安装 helper"）。
+      # 想让它成为硬门槛：去掉下面的 continue-on-error，并把 package 的 needs 加上 rdp-helper。
+      - name: Fetch RDP helper artifacts (optional)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qterm-rdp-helper-*
+          path: .cache/rdp-helpers
+          merge-multiple: true
+
+      - name: Stage RDP helper for packaging (optional)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tools/rdp-helper-poc/freerdp/build
+          for dir in darwin-arm64 linux-amd64 linux-arm64 windows-amd64; do
+            for candidate in ".cache/rdp-helpers/$dir/qterm-freerdp-helper" ".cache/rdp-helpers/$dir/qterm-freerdp-helper.exe" \
+                             ".cache/rdp-helpers/qterm-freerdp-helper" ".cache/rdp-helpers/qterm-freerdp-helper.exe"; do
+              [ -f "$candidate" ] || continue
+              case "$dir" in
+                windows-*) cp "$candidate" tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper.exe ;;
+                *) cp "$candidate" tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper ;;
+              esac
+            done
+          done
+          ls -l tools/rdp-helper-poc/freerdp/build || true
+
       # npm ci 只安装依赖；dist 不入库，必须在盖章后构建，才能把本次版本写入前端。
       # 两个架构都先生成宿主机产物，再由下面的 Docker 挂载读取。
       - name: Build frontend

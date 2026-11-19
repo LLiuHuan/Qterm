@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+# 构建静态链接的 FreeRDP helper（macOS / Linux）。
+#
+# 为什么要有这个脚本：静态化涉及一长串很容易漏的 CMake 参数，漏一个就会把构建机的
+# /opt/homebrew/... 绝对路径重新写进二进制，用户机器上 dyld 直接 abort（2026-11-19 事故）。
+# CI 与本地都只走这一条路径，保证"开发机能跑"与"发布包能跑"是同一套参数。
+#
+# 用法：
+#   tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
+#   FREERDP_SRC=/path/to/freerdp JOBS=4 tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
+#
+# 产物：tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper
+# 前置：FreeRDP 源码在 ${FREERDP_SRC}（默认 .cache/freerdp-src），且系统有 OpenSSL 静态库。
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+FREERDP_SRC="${FREERDP_SRC:-${ROOT_DIR}/.cache/freerdp-src}"
+FREERDP_BUILD="${FREERDP_BUILD:-${ROOT_DIR}/.cache/freerdp-build-static}"
+FREERDP_INSTALL="${FREERDP_INSTALL:-${ROOT_DIR}/.cache/freerdp-install-static}"
+HELPER_BUILD="${ROOT_DIR}/tools/rdp-helper-poc/freerdp/build"
+JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
+
+if [ ! -d "${FREERDP_SRC}" ]; then
+  echo "找不到 FreeRDP 源码：${FREERDP_SRC}" >&2
+  echo "先取源码，例如：git clone --depth 1 --branch 3.9.0 https://github.com/FreeRDP/FreeRDP.git ${FREERDP_SRC}" >&2
+  exit 1
+fi
+
+# OpenSSL 静态库的位置按平台确定。
+case "$(uname -s)" in
+  Darwin)
+    OPENSSL_PREFIX="${OPENSSL_PREFIX:-/opt/homebrew/opt/openssl@3}"
+    ;;
+  Linux)
+    OPENSSL_PREFIX="${OPENSSL_PREFIX:-$(pkg-config --variable=prefix openssl 2>/dev/null || echo /usr)}"
+    ;;
+  *)
+    echo "当前脚本只支持 macOS 与 Linux；Windows 用 build-static-freeerdp.ps1" >&2
+    exit 1
+    ;;
+esac
+
+# 必须**显式**传 .a 路径：CMake 缓存里一旦有 .dylib 值，OPENSSL_USE_STATIC_LIBS 不会覆盖它，
+# 导出的目标就会把动态库路径带进 helper 的链接接口。
+OPENSSL_SSL_LIB="$(ls "${OPENSSL_PREFIX}"/lib/libssl.a "${OPENSSL_PREFIX}"/lib/*/libssl.a 2>/dev/null | head -n1 || true)"
+OPENSSL_CRYPTO_LIB="$(ls "${OPENSSL_PREFIX}"/lib/libcrypto.a "${OPENSSL_PREFIX}"/lib/*/libcrypto.a 2>/dev/null | head -n1 || true)"
+if [ -z "${OPENSSL_SSL_LIB}" ] || [ -z "${OPENSSL_CRYPTO_LIB}" ]; then
+  echo "在 ${OPENSSL_PREFIX} 下找不到 libssl.a / libcrypto.a（headless 环境通常要装 OpenSSL 静态库）" >&2
+  echo "Debian/Ubuntu: apt-get install -y libssl-dev；Alpine: apk add openssl-dev openssl-libs-static" >&2
+  exit 1
+fi
+
+# 只保留 helper 真正需要的库：libfreerdp / libfreerdp-client / libwinpr。
+# SDL 客户端、server、sample 一律关掉，否则会额外拖进 C++ filesystem、wayland 等无关依赖；
+# FFmpeg/swscale 也必须关，否则 configure 阶段就要求构建机装有 ffmpeg 开发包。
+CMAKE_ARGS=(
+  -DCMAKE_BUILD_TYPE=Release
+  -DBUILD_SHARED_LIBS=OFF
+  -DOPENSSL_ROOT_DIR="${OPENSSL_PREFIX}"
+  -DOPENSSL_INCLUDE_DIR="${OPENSSL_PREFIX}/include"
+  -DOPENSSL_USE_STATIC_LIBS=ON
+  -DOPENSSL_SSL_LIBRARY="${OPENSSL_SSL_LIB}"
+  -DOPENSSL_CRYPTO_LIBRARY="${OPENSSL_CRYPTO_LIB}"
+  -DCHANNEL_URBDRC=OFF
+  -DCHANNEL_URBDRC_CLIENT=OFF
+  -DWITH_X11=OFF
+  -DWITH_CAIRO=OFF
+  -DWITH_CUPS=OFF
+  -DWITH_WAYLAND=OFF
+  -DWITH_FFMPEG=OFF
+  -DWITH_DSP_FFMPEG=OFF
+  -DWITH_VIDEO_FFMPEG=OFF
+  -DWITH_SWSCALE=OFF
+  -DWITH_CLIENT=OFF
+  -DWITH_SERVER=OFF
+  -DWITH_SAMPLE=OFF
+  -DWITH_SERVER_INTERFACE=OFF
+  -DWITH_SERVER_CHANNELS=OFF
+  -DWITH_MANPAGES=OFF
+  -DCMAKE_INSTALL_PREFIX="${FREERDP_INSTALL}"
+)
+
+echo "==> 配置 FreeRDP 静态构建（${FREERDP_BUILD}）"
+cmake -S "${FREERDP_SRC}" -B "${FREERDP_BUILD}" "${CMAKE_ARGS[@]}"
+
+echo "==> 构建 FreeRDP（-j${JOBS}）"
+cmake --build "${FREERDP_BUILD}" --parallel "${JOBS}"
+cmake --install "${FREERDP_BUILD}" >/dev/null
+
+echo "==> 构建 helper（${HELPER_BUILD}）"
+cmake -S "${ROOT_DIR}/tools/rdp-helper-poc/freerdp" -B "${HELPER_BUILD}" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DFREERDP_INSTALL_PREFIX="${FREERDP_INSTALL}"
+cmake --build "${HELPER_BUILD}" --parallel "${JOBS}"
+
+HELPER="${HELPER_BUILD}/qterm-freerdp-helper"
+echo "==> 检查动态依赖（除系统库外应为空）"
+EXTERNAL=""
+case "$(uname -s)" in
+  Darwin)
+    EXTERNAL="$(otool -L "${HELPER}" | tail -n +2 | awk '{print $1}' | grep -vE '^(/System/|/usr/lib/)' || true)"
+    ;;
+  Linux)
+    if ! ldd "${HELPER}" 2>&1 | grep -q 'not a dynamic executable'; then
+      EXTERNAL="$(ldd "${HELPER}" | awk '{print $3}' | grep -v '^$' | grep -vE '^(/lib/|/usr/lib/)' || true)"
+    fi
+    ;;
+esac
+if [ -n "${EXTERNAL}" ]; then
+  echo "helper 仍依赖非系统库，静态化失败：" >&2
+  echo "${EXTERNAL}" >&2
+  exit 1
+fi
+echo "OK: ${HELPER}"

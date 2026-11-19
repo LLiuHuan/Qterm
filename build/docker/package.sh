@@ -114,11 +114,14 @@ package_linux() {
   wails3 generate .desktop -name "${APP_NAME}" -exec "${APP_NAME}" -icon "${APP_NAME}" \
     -outputfile "${REPO_ROOT}/build/linux/${APP_NAME}.desktop" -categories "Development" >/dev/null
 
+  # RDP helper 只有对平台编过才存在：这里生成"存在则打包"的 nfpm 配置。
+  node ./build/linux/nfpm/render-config.mjs
+
   log "生成 deb / rpm linux/${arch}"
   GOARCH="${arch}" wails3 tool package -name "${APP_NAME}" -format deb \
-    -config ./build/linux/nfpm/nfpm.yaml -out "${OUT}" >/dev/null
+    -config ./build/linux/nfpm/nfpm.generated.yaml -out "${OUT}" >/dev/null
   GOARCH="${arch}" wails3 tool package -name "${APP_NAME}" -format rpm \
-    -config ./build/linux/nfpm/nfpm.yaml -out "${OUT}" >/dev/null
+    -config ./build/linux/nfpm/nfpm.generated.yaml -out "${OUT}" >/dev/null
 
   # wails3 tool package 的输出名固定是 <name>.deb / <name>.rpm（不带版本与架构），
   # 这里统一改成发行物命名，避免两个架构互相覆盖。

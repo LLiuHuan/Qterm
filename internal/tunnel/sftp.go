@@ -91,7 +91,7 @@ func (c *Connection) OpenFileSystemForConnections(
 	if c == nil || c.client == nil {
 		return nil, ErrFileSystemNotReady
 	}
-	return c.fileSystemGroup().acquireForConnections(ctx, planned)
+	return c.transferFileSystemGroup().acquireForConnections(ctx, planned)
 }
 
 func (c *Connection) fileSystemGroup() *FileSystemGroup {
@@ -102,6 +102,22 @@ func (c *Connection) fileSystemGroup() *FileSystemGroup {
 		c.fileSystems = newFileSystemGroup(c.client, c.auxiliaryProvisioner, sftpParallelMaxWidth)
 	}
 	return c.fileSystems
+}
+
+func (c *Connection) transferFileSystemGroup() *FileSystemGroup {
+	c.fsMu.Lock()
+	defer c.fsMu.Unlock()
+	if c.transferSystems != nil {
+		return c.transferSystems
+	}
+	if c.auxiliaryProvisioner == nil {
+		if c.fileSystems == nil {
+			c.fileSystems = newFileSystemGroup(c.client, nil, sftpParallelMaxWidth)
+		}
+		return c.fileSystems
+	}
+	c.transferSystems = newDedicatedTransferGroup(c.client, c.auxiliaryProvisioner, sftpParallelMaxWidth)
+	return c.transferSystems
 }
 
 func (f *FileSystem) ReadDirContext(ctx context.Context, directory string) ([]fs.FileInfo, error) {

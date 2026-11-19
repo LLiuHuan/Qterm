@@ -84,34 +84,80 @@ Qterm 要主动刷新时发 `type=8`，helper 跳过这次去重、把当前远�
 
 ## 构建
 
+helper 现在**静态链接** FreeRDP：产物只有一个可执行文件，除系统库外没有任何动态依赖，
+因此不再需要随包 `.dylib`、也不再需要 rpath 改写。
+
+### 1. 先把 FreeRDP 编成静态库并安装到前缀（只需一次，升级 FreeRDP 时重做）
+
 ```bash
-cmake -S tools/rdp-helper-poc/freerdp \
-  -B tools/rdp-helper-poc/freerdp/build \
-  -DFREERDP_SOURCE_DIR="$PWD/.cache/freerdp-src" \
-  -DFREERDP_BUILD_DIR="$PWD/.cache/freerdp-build-make"
+cmake -S .cache/freerdp-src -B .cache/freerdp-build-static \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DOPENSSL_USE_STATIC_LIBS=ON \
+  -DOPENSSL_SSL_LIBRARY=/opt/homebrew/opt/openssl@3/lib/libssl.a \
+  -DOPENSSL_CRYPTO_LIBRARY=/opt/homebrew/opt/openssl@3/lib/libcrypto.a \
+  -DCHANNEL_URBDRC=OFF -DCHANNEL_URBDRC_CLIENT=OFF \
+  -DWITH_X11=OFF -DWITH_CAIRO=OFF -DWITH_CUPS=OFF \
+  -DCMAKE_INSTALL_PREFIX="$PWD/.cache/freerdp-install-static"
+cmake --build .cache/freerdp-build-static -j"$(sysctl -n hw.ncpu)"
+cmake --install .cache/freerdp-build-static
+```
+
+两个不能省的坑（都是真机上炸过的）：
+
+- `OPENSSL_SSL_LIBRARY` / `OPENSSL_CRYPTO_LIBRARY` 必须**显式**指向 `.a`。缓存里一旦存在
+  `.dylib` 值，`OPENSSL_USE_STATIC_LIBS` 不会覆盖它，导出的 CMake 配置就会把
+  `/opt/homebrew/opt/openssl@N/lib/libssl.dylib` 写进链接接口——这正是 2026-11-19 那次
+  "换台机器就 dyld abort" 的根因。
+- `CHANNEL_URBDRC=OFF` 必须关。该通道的 CMake 导出文件里硬编码了
+  `/opt/homebrew/lib/libusb-1.0.dylib`，会把动态依赖重新带回来（USB 重定向本项目不使用）。
+
+### 2. 构建 helper
+
+```bash
+cmake -S tools/rdp-helper-poc/freerdp -B tools/rdp-helper-poc/freerdp/build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DFREERDP_INSTALL_PREFIX="$PWD/.cache/freerdp-install-static"
 cmake --build tools/rdp-helper-poc/freerdp/build
 ```
 
-构建后**必须**运行下面的脚本把动态库随包化：
+验收标准：
 
 ```bash
-python3 tools/rdp-helper-poc/scripts/relocate-dylibs.py
+otool -L tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper   # 只应出现 /System 与 /usr/lib
+mkdir -p /tmp/rdp-static-check && cp tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper /tmp/rdp-static-check/ \
+  && /tmp/rdp-static-check/qterm-freerdp-helper                     # 空目录里能跑 = 真的静态
 ```
 
-它会把 helper 依赖的 `libfreerdp*/libwinpr*`（当前 3 个）拷到 helper 同级目录，
-把所有引用改成 `@loader_path/...`、删掉指向构建机的 `LC_RPATH`，并做 ad-hoc 重签名
-（Apple Silicon 上 `install_name_tool` 会让原签名失效，不重签无法加载）。
-执行完 `otool -L` 只应看到 `@loader_path/...` 与系统库。
+打包时只把 `freerdp/build/qterm-freerdp-helper` 一个文件放进
+`Contents/Resources/helpers/`；可用 `QTERM_RDP_HELPER_FREERDP=/abs/path` 覆盖位置。
+Windows 装到 `$INSTDIR`、Linux 装到 `/usr/local/bin`，与主程序同级，
+`helperCandidates` 里都有对应候选（同级 → `helpers/` → macOS `Resources/helpers/`）。
 
-打包时把 `freerdp/build/` 整个目录（helper + 那 3 个 dylib）随应用分发，
-可用 `QTERM_RDP_HELPER_FREERDP=/abs/path` 覆盖 helper 位置。
+## 跨平台构建
+
+静态化之后 helper 只剩一个可执行文件，但**必须在对平台编译**（Linux 的 musl 静态运行库、
+Windows 的 MSVC 运行库都没法从 macOS 交叉产出可信产物）。各平台入口：
+
+| 平台    | 脚本                                                     | 前置                                                                        |
+| ------- | -------------------------------------------------------- | --------------------------------------------------------------------------- |
+| macOS   | `tools/rdp-helper-poc/scripts/build-static-freeerdp.sh`  | Homebrew `openssl@3`（要 `.a`，`brew install openssl@3` 自带）              |
+| Linux   | 同上（`uname -s` 自动切换 OpenSSL 前缀）                 | `build-essential cmake libssl-dev libusb-1.0-0-dev zlib1g-dev`              |
+| Windows | `tools/rdp-helper-poc/scripts/build-static-freeerdp.ps1` | vcpkg（`freerdp:x64-windows-static` 会把 OpenSSL/zlib/libz 一并编成静态库） |
+
+脚本最后都会断言「除系统库外没有动态依赖」，不满足直接 `exit 1`——这正是 2026-11-19 那次
+`Library not loaded: libssl.4.dylib` 事故的回归门禁。
+
+自动构建：`.github/workflows/rdp-helper.yml` 在 tag 与手动触发时跑 4 条腿
+（darwin-arm64 / linux-amd64 / linux-arm64 / windows-amd64），产物是
+`qterm-rdp-helper-<platform>` artifact；`release.yml` 用 `continue-on-error` **尽力**取同一次
+运行的 artifact 并拷进各平台打包目录，取不到就发一个不带 RDP 的包（界面提示"未安装 helper"）。
 
 ## 待办（正式发布前必须处理）
 
 1. ~~证书静默放行~~ **已实现**：helper 用 FreeRDP 的 `VerifyX509Certificate` 回调 + `FreeRDP_ExternalCertificateManagement=TRUE`
    做**指纹固定**，stderr 上报 `QTERM-CERT-SHA256/SUBJECT/ISSUER`，并以 `NEED-TRUST`/`MISMATCH` 拒绝连接（退出码 5）；
    Qterm 侧按 TOFU 询问用户并把指纹存本机。仍保留 `/tls:seclevel:0`（旧服务器需要）。
-2. 动态库随包分发 + rpath 改写（见上）。
+2. ~~动态库随包分发 + rpath 改写~~ **已改为静态链接**：helper 只依赖系统库，安装包只带一个可执行文件。
 3. ~~剪贴板通道未接入~~ **已实现（文本、双向）**：输入侧 `type=7/8`，输出侧
    `QTERM-CLIPBOARD-B64`/`QTERM-CLIPBOARD-EMPTY` 两条契约行，上限 1 MiB、不做文件剪贴板（见上）。
    仍未接入的是**音频（rdpsnd）**——helper 协议目前还没有音频事件与音频契约行。

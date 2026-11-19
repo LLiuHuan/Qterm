@@ -1,0 +1,116 @@
+name: rdp-helper
+
+# 单独构建各平台的静态 RDP helper 并作为 artifact 上传。
+#
+# 为什么单独一个 workflow：
+# - helper 必须**在目标平台上编**（Linux 的 musl 静态、Windows 的 MSVC/vcpkg 都没法从
+#   macOS 交叉产出可信产物），跟 release.yml 里那套 Linux Docker 交叉工具链是两条路径；
+# - 单独跑意味着它失败不会连坐发版。release.yml 的 package job 会**尽力**下载同一次
+#   运行里的 helper（`continue-on-error`），拿不到就退化成「RDP 提示未安装 helper」。
+#
+# 想让它拦住发版时：在 release.yml 里去掉下载步骤的 `continue-on-error`，并把 package
+# 的 needs 加上 rdp-helper。
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  helper:
+    name: helper-${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: darwin-arm64
+            os: macos-15
+            script: tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
+            output: tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper
+            path: qterm-rdp-helper-darwin-arm64
+          - name: linux-amd64
+            os: ubuntu-24.04
+            script: tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
+            output: tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper
+            path: qterm-rdp-helper-linux-amd64
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            script: tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
+            output: tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper
+            path: qterm-rdp-helper-linux-arm64
+          - name: windows-amd64
+            os: windows-2022
+            script: tools/rdp-helper-poc/scripts/build-static-freeerdp.ps1
+            output: tools/rdp-helper-poc/freerdp/build/Release/qterm-freerdp-helper.exe
+            path: qterm-rdp-helper-windows-amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev libusb-1.0-0-dev zlib1g-dev
+
+      - name: Check out FreeRDP source (macOS/Linux)
+        if: runner.os != 'Windows'
+        uses: actions/checkout@v4
+        with:
+          repository: FreeRDP/FreeRDP
+          ref: 3.9.0
+          path: .cache/freerdp-src
+
+      - name: Build helper (macOS/Linux)
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          bash "${{ matrix.script }}"
+          ls -l "${{ matrix.output }}"
+
+      - name: Build helper (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./${{ matrix.script }}
+          Get-Item ${{ matrix.output }} | Format-List
+
+      - name: Verify no non-system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          external=$(otool -L "${{ matrix.output }}" | tail -n +2 | awk '{print $1}' | grep -vE '^(/System/|/usr/lib/)' || true)
+          if [ -n "$external" ]; then echo "非系统依赖：$external" >&2; exit 1; fi
+
+      - name: Verify no non-system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          external=$(ldd "${{ matrix.output }}" || true)
+          if echo "$external" | grep -q 'not a dynamic executable'; then echo "静态链接 OK"; exit 0; fi
+          echo "$external" >&2
+          echo "helper 不是静态链接" >&2
+          exit 1
+
+      - name: Verify no non-system dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $deps = & dumpbin /dependents "${{ matrix.output }}"
+          $allowed = @('KERNEL32.dll', 'USER32.dll', 'ADVAPI32.dll', 'WS2_32.dll', 'CRYPT32.dll',
+                       'Secur32.dll', 'SHELL32.dll', 'ole32.dll', 'OLEAUT32.dll', 'GDI32.dll',
+                       'WINMM.dll', 'IPHLPAPI.dll', 'bcrypt.dll', 'ncrypt.dll', 'WSOCK32.dll',
+                       'api-ms-win-crt-runtime-l1-1-0.dll', 'VCRUNTIME140.dll', 'ucrtbase.dll')
+          $bad = $deps | Select-String -Pattern '^\s+(\S+\.dll)' | ForEach-Object { $_.Matches[0].Groups[1].Value } |
+            Where-Object { $allowed -notcontains $_ }
+          if ($bad) { Write-Error "非系统依赖：$($bad -join ', ')"; exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.path }}
+          path: ${{ matrix.output }}
+          retention-days: 7

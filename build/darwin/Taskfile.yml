@@ -170,8 +170,8 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
-      # 远程桌面（RDP）helper 随包分发：helper 与它依赖的 FreeRDP 动态库一起放进
-      # Contents/Resources/helpers/（动态库已由 relocate-dylibs.py 改成 @loader_path）。
+      # 远程桌面（RDP）helper 随包分发：只有一个静态链接的可执行文件，放进
+      # Contents/Resources/helpers/（Go 侧按该目录查找）。
       # 没构建过 helper 时跳过，避免没有 RDP 需求的构建被迫依赖 FreeRDP 构建产物。
       - |
         HELPER_SRC="tools/rdp-helper-poc/freerdp/build"
@@ -181,7 +181,8 @@ tasks:
           DEST="{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/helpers"
           mkdir -p "$DEST"
           cp "$HELPER_SRC/qterm-freerdp-helper" "$DEST/"
-          cp "$HELPER_SRC"/libfreerdp*.dylib "$HELPER_SRC"/libwinpr*.dylib "$DEST/" 2>/dev/null || true
+          # helper 静态链接 FreeRDP（见 tools/rdp-helper-poc/README.md）：
+          # 除系统库外没有动态依赖，只拷这一个可执行文件，不再随包 .dylib。
         else
           echo "未找到 RDP helper（$HELPER_SRC），跳过随包分发"
         fi
@@ -208,8 +209,8 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
-      # 与正式包一致：开发包也带上 RDP helper 与它依赖的 FreeRDP 动态库
-      # （放在 Contents/Resources/helpers/，Go 侧按该目录查找）。
+      # 与正式包一致：开发包也带上 RDP helper（放在 Contents/Resources/helpers/，
+      # Go 侧按该目录查找）。
       - |
         HELPER_SRC="tools/rdp-helper-poc/freerdp/build"
         if [ "{{.SKIP_RDP_HELPER}}" = "true" ]; then
@@ -218,7 +219,8 @@ tasks:
           DEST="{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources/helpers"
           mkdir -p "$DEST"
           cp "$HELPER_SRC/qterm-freerdp-helper" "$DEST/"
-          cp "$HELPER_SRC"/libfreerdp*.dylib "$HELPER_SRC"/libwinpr*.dylib "$DEST/" 2>/dev/null || true
+          # helper 静态链接 FreeRDP（见 tools/rdp-helper-poc/README.md）：
+          # 除系统库外没有动态依赖，只拷这一个可执行文件，不再随包 .dylib。
         else
           echo "未找到 RDP helper（$HELPER_SRC），跳过随包分发"
         fi

@@ -271,23 +271,30 @@ function expectedLipoArchitecture(arch) {
 
 function helperFiles(rootDirectory) {
   const directory = join(rootDirectory, RDP_HELPER_DIRECTORY);
-  if (!existsSync(directory))
-    return {
-      directory,
-      helper: join(directory, "qterm-freerdp-helper"),
-      dylibs: [],
-    };
-  const dylibs = readdirSync(directory)
-    .filter((name) => /^(?:libfreerdp|libwinpr).*\.dylib$/.test(name))
-    .sort()
-    .map((name) => join(directory, name));
-  return { directory, helper: join(directory, "qterm-freerdp-helper"), dylibs };
+  return { directory, helper: join(directory, "qterm-freerdp-helper") };
+}
+
+const SYSTEM_DEPENDENCY_PREFIXES = ["/System/", "/usr/lib/"];
+
+function parseExternalDependencies(listing) {
+  return listing
+    .split("\n")
+    .slice(1)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(" (")[0].trim())
+    .filter((path) => path.startsWith("/"))
+    .filter(
+      (path) =>
+        !SYSTEM_DEPENDENCY_PREFIXES.some((prefix) => path.startsWith(prefix)),
+    );
 }
 
 export async function inspectRdpHelper({
   arch,
   rootDirectory = DEFAULT_ROOT_DIRECTORY,
   lipoCommand = "lipo",
+  otoolCommand = "otool",
   run = runCommand,
   signal,
 } = {}) {
@@ -299,45 +306,57 @@ export async function inspectRdpHelper({
       files: [],
     };
   }
-  if (files.dylibs.length === 0) {
+
+  const requiredArchitecture = expectedLipoArchitecture(arch);
+  let appleArchitectures;
+  try {
+    appleArchitectures = await run(lipoCommand, ["-archs", files.helper], {
+      forwardOutput: false,
+      signal,
+    });
+  } catch (error) {
     return {
       include: false,
-      reason: `helper dependencies are absent in ${files.directory}`,
+      reason: `lipo could not inspect ${files.helper}: ${error.message}`,
+      files: [files.helper],
+    };
+  }
+  const architectures = parseLipoArchitectures(appleArchitectures.stdout);
+  if (!architectures.has(requiredArchitecture)) {
+    const available = [...architectures].sort().join(", ") || "unknown";
+    return {
+      include: false,
+      reason: `${files.helper} does not contain ${requiredArchitecture} (contains ${available})`,
       files: [files.helper],
     };
   }
 
-  const requiredArchitecture = expectedLipoArchitecture(arch);
-  const inspectedFiles = [files.helper, ...files.dylibs];
-  for (const file of inspectedFiles) {
-    let result;
-    try {
-      result = await run(lipoCommand, ["-archs", file], {
-        forwardOutput: false,
-        signal,
-      });
-    } catch (error) {
-      return {
-        include: false,
-        reason: `lipo could not inspect ${file}: ${error.message}`,
-        files: inspectedFiles,
-      };
-    }
-    const architectures = parseLipoArchitectures(result.stdout);
-    if (!architectures.has(requiredArchitecture)) {
-      const available = [...architectures].sort().join(", ") || "unknown";
-      return {
-        include: false,
-        reason: `${file} does not contain ${requiredArchitecture} (contains ${available})`,
-        files: inspectedFiles,
-      };
-    }
+  let listing;
+  try {
+    listing = await run(otoolCommand, ["-L", files.helper], {
+      forwardOutput: false,
+      signal,
+    });
+  } catch (error) {
+    return {
+      include: false,
+      reason: `otool could not inspect ${files.helper}: ${error.message}`,
+      files: [files.helper],
+    };
+  }
+  const external = parseExternalDependencies(listing.stdout);
+  if (external.length > 0) {
+    return {
+      include: false,
+      reason: `${files.helper} is not statically linked, depends on ${external.join(", ")}`,
+      files: [files.helper],
+    };
   }
 
   return {
     include: true,
-    reason: `helper and ${files.dylibs.length} bundled dylib(s) contain ${requiredArchitecture}`,
-    files: inspectedFiles,
+    reason: `helper is statically linked and contains ${requiredArchitecture}`,
+    files: [files.helper],
   };
 }
 

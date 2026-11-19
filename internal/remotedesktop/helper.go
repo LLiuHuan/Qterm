@@ -209,6 +209,8 @@ func helperCandidates(relative string) []string {
 		directory := filepath.Dir(executable)
 		candidates = append(candidates,
 			filepath.Join(directory, relative),
+
+			filepath.Join(directory, filepath.Base(relative)),
 			filepath.Join(directory, "helpers", filepath.Base(relative)),
 
 			filepath.Join(directory, "..", "Resources", "helpers", filepath.Base(relative)),
@@ -683,8 +685,10 @@ func (s *helperSession) recordError(err error) {
 	if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
 		s.mu.Lock()
 		reason := s.exitReason
+		frames := s.frames
+		stderrTail := append([]string(nil), s.stderrTail...)
 		s.mu.Unlock()
-		err = errors.New(helperExitDescription(reason))
+		err = errors.New(helperExitFailureDescription(reason, frames, stderrTail))
 	}
 	s.mu.Lock()
 	if s.err == nil && !s.closed {
@@ -713,6 +717,35 @@ func helperExitDescription(reason string) string {
 	}
 }
 
+func helperExitFailureDescription(reason string, frames int, stderrTail []string) string {
+	description := helperExitDescription(reason)
+	if frames > 0 || len(stderrTail) == 0 || helperExitWasRequested(reason) {
+		return description
+	}
+	return description + helperMissingLibraryHint(stderrTail) + helperStderrExcerpt(stderrTail)
+}
+
+func helperMissingLibraryHint(lines []string) string {
+	const marker = "Library not loaded:"
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		index := strings.Index(line, marker)
+		if index < 0 {
+			continue
+		}
+		library := strings.TrimSpace(line[index+len(marker):])
+
+		if space := strings.IndexByte(library, ' '); space >= 0 {
+			library = library[:space]
+		}
+		if library == "" {
+			break
+		}
+		return fmt.Sprintf("（缺少动态库 %s：请重新安装 Qterm；本地构建请按 tools/rdp-helper-poc/README.md 重新构建静态 RDP helper）", library)
+	}
+	return ""
+}
+
 func (s *helperSession) recordTerminalError(err error) {
 	s.mu.Lock()
 	alreadyClosed := s.closed
@@ -739,10 +772,18 @@ func (s *helperSession) recordTerminalError(err error) {
 
 		s.mu.Lock()
 		engine, exitCode, reason, frames := s.engine, s.exitCode, s.exitReason, s.frames
+		stderrTail := append([]string(nil), s.stderrTail...)
 		s.mu.Unlock()
-		slog.Error("remote desktop helper exited", "event", "rdp.helper.exited",
+		attributes := []any{
+			"event", "rdp.helper.exited",
 			"engine", string(engine), "exit_code", exitCode, "reason", reason,
-			"frames", frames, "stderr_bytes", len(s.HelperStderr()))
+			"frames", frames, "stderr_bytes", len(strings.Join(stderrTail, "\n")),
+		}
+		if frames == 0 && len(stderrTail) > 0 {
+
+			attributes = append(attributes, "stderr_excerpt", helperStderrExcerpt(stderrTail))
+		}
+		slog.Error("remote desktop helper exited", attributes...)
 	}
 	s.recordError(err)
 }
