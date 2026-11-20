@@ -25,10 +25,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-
-#ifndef _WIN32
+// Windows 没有 unistd.h / poll.h：本文件跨平台只用到 fileno() 与 getppid()，
+// 前者在 Windows 上是 <io.h> 的 _fileno，后者在 Windows 上没有对应语义（见 helper_parent_gone）。
+#ifdef _WIN32
+#include <io.h>
+#include <process.h>
+#define HELPER_STDIN_FD() _fileno(stdin)
+#else
 #include <poll.h>
+#include <unistd.h>
+#define HELPER_STDIN_FD() fileno(stdin)
 #endif
 
 #include <freerdp/channels/cliprdr.h>
@@ -432,7 +438,13 @@ static void helper_report_exit(void)
 // 父进程还在吗？被 launchd/init 收养后 getppid() 会变成 1。
 static BOOL helper_parent_gone(void)
 {
+#ifdef _WIN32
+    // Windows 没有 getppid()：父进程退出时管道写端关闭，stdin 会先 EOF，
+    // 由 helper_stdin_closed() 那条路径收口，这里不重复判断。
+    return FALSE;
+#else
     return getppid() == 1;
+#endif
 }
 
 // stdin 是否已经到 EOF。这里只"探测"不读取：读一个字节就会抢走主循环的事件。
@@ -441,7 +453,7 @@ static BOOL helper_stdin_closed(void)
 {
 #ifndef _WIN32
     struct pollfd probe = { 0 };
-    probe.fd = fileno(stdin);
+    probe.fd = HELPER_STDIN_FD();
     probe.events = POLLIN;
     const int rc = poll(&probe, 1, 0);
     if (rc <= 0)
@@ -1646,7 +1658,7 @@ static int run_client(rdpContext* context)
         return status != 0 ? status : 1;
     }
 
-    HANDLE input_event = CreateFileDescriptorEvent(NULL, FALSE, FALSE, fileno(stdin), WINPR_FD_READ);
+    HANDLE input_event = CreateFileDescriptorEvent(NULL, FALSE, FALSE, HELPER_STDIN_FD(), WINPR_FD_READ);
     if (!input_event)
         return -1;
 

@@ -123,8 +123,6 @@ $env:VCPKG_DEFAULT_TRIPLET = $Triplet
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_TOOLCHAIN_FILE="$Toolchain" `
   "-DVCPKG_TARGET_TRIPLET=$Triplet" `
-  '--debug-find-pkg=FreeRDP' `
-  '--debug-find-pkg=WinPR' `
   "-DVCPKG_INSTALLED_DIR=$(Join-Path $VcpkgRoot 'installed')" `
   "-DCMAKE_PREFIX_PATH=$Installed" `
   @DirArgs
