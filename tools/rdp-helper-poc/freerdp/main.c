@@ -1759,6 +1759,44 @@ static void free_arguments(char** arguments, int count)
     free(arguments);
 }
 
+// 读一行（含换行符）到 *buffer，*capacity 由本函数维护；读到 EOF 且没有任何字节时返回 -1。
+// 为什么不用 getline()：MSVC 的 CRT 没有这个 POSIX 函数，Windows 上会直接
+// LNK2001: unresolved external symbol getline（2026-11-20 的 windows job 就是这么红的）。
+static int read_line(char** buffer, size_t* capacity, FILE* stream)
+{
+    if (!*buffer || *capacity == 0)
+    {
+        *capacity = 128;
+        *buffer = malloc(*capacity);
+        if (!*buffer)
+            return -1;
+    }
+
+    size_t length = 0;
+    int ch = 0;
+    while ((ch = fgetc(stream)) != EOF)
+    {
+        // 留一个字节给结尾的 '\0'，所以是 length + 1 >= capacity 时扩容。
+        if (length + 1 >= *capacity)
+        {
+            const size_t grown = *capacity * 2;
+            char* expanded = realloc(*buffer, grown);
+            if (!expanded)
+                return -1;
+            *buffer = expanded;
+            *capacity = grown;
+        }
+        (*buffer)[length++] = (char)ch;
+        if (ch == '\n')
+            break;
+    }
+
+    if (length == 0 && ch == EOF)
+        return -1;
+    (*buffer)[length] = '\0';
+    return (int)length;
+}
+
 static char** read_arguments(int* count)
 {
     size_t capacity = 16;
@@ -1770,7 +1808,7 @@ static char** read_arguments(int* count)
 
     char* line = NULL;
     size_t line_capacity = 0;
-    while (getline(&line, &line_capacity, stdin) >= 0)
+    while (read_line(&line, &line_capacity, stdin) >= 0)
     {
         const size_t length = strcspn(line, "\r\n");
         line[length] = '\0';
