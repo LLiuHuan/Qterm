@@ -114,11 +114,17 @@ if ($WinprDir) {
 
 Write-Host "==> 配置 helper（生成器 $Generator / 平台 $Platform）"
 Write-Host "==> vcpkg 安装树：$Installed"
+Write-Host "==> 包目录参数：$($DirArgs -join ' ')"
+# vcpkg 工具链优先读环境变量，其次是 -DVCPKG_TARGET_TRIPLET；两条都给，避免某一侧被
+# PowerShell 的引号/续行吃掉后静默退化成默认三元组（x64-windows 动态库）。
+$env:VCPKG_DEFAULT_TRIPLET = $Triplet
 & cmake -S (Join-Path $Root 'tools/rdp-helper-poc/freerdp') -B $HelperBuild `
   -G $Generator -A $Platform `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_TOOLCHAIN_FILE="$Toolchain" `
-  -DVCPKG_TARGET_TRIPLET=$Triplet `
+  "-DVCPKG_TARGET_TRIPLET=$Triplet" `
+  '--debug-find-pkg=FreeRDP' `
+  '--debug-find-pkg=WinPR' `
   "-DVCPKG_INSTALLED_DIR=$(Join-Path $VcpkgRoot 'installed')" `
   "-DCMAKE_PREFIX_PATH=$Installed" `
   @DirArgs

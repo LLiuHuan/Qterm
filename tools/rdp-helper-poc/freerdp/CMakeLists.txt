@@ -16,6 +16,12 @@ if(FREERDP_INSTALL_PREFIX)
   list(PREPEND CMAKE_PREFIX_PATH "${FREERDP_INSTALL_PREFIX}")
 endif()
 
+# 定位失败时最需要的就是「cmake 到底拿着哪些变量在找包」，所以先把工具链侧的变量打出来。
+message(STATUS
+  "helper 定位参数：VCPKG_TARGET_TRIPLET=[${VCPKG_TARGET_TRIPLET}] "
+  "VCPKG_INSTALLED_DIR=[${VCPKG_INSTALLED_DIR}] "
+  "CMAKE_PREFIX_PATH=[${CMAKE_PREFIX_PATH}]")
+
 # 包名随来源不同：自建的静态安装树导出 FreeRDPConfig.cmake，vcpkg 的 freerdp 端口把配置
 # 挪到 share/freerdp 但保留上游文件名（新版上游可能带主版本号，如 FreeRDP3Config.cmake）。
 # 各来源包名不一致，逐个回落，最后用 target 是否存在判定——2026-11-20 的 windows-amd64 /
