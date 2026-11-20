@@ -75,6 +75,8 @@ import {
 } from '../services/launchIntent'
 import QuickConnectDialog from '../components/dialogs/QuickConnectDialog.vue'
 import LaunchIntentDialog from '../components/dialogs/LaunchIntentDialog.vue'
+import RemoteAuthDialog from '../components/dialogs/RemoteAuthDialog.vue'
+import { stashHostCredential, dropHostCredential } from '../features/remotedesktop/pendingHostCredential'
 import AiChatDialog from '../components/dialogs/AiChatDialog.vue'
 import ImportConfigDialog from '../components/dialogs/ImportConfigDialog.vue'
 import ExportConfigDialog from '../components/dialogs/ExportConfigDialog.vue'
@@ -601,6 +603,36 @@ const rdpTabs = ref<RdpWorkspaceTab[]>([])
 const activeRdpTabId = ref<string | null>(null)
 let rdpTabSequence = 0
 
+const rdpCredentialPrompt = ref<{
+  host: HostRecord
+  protocol: 'rdp' | 'vnc'
+  hostLabel: string
+  username: string
+} | null>(null)
+const rdpCredentialSubmitting = ref(false)
+const rdpCredentialError = ref('')
+
+function submitDesktopCredential(password: string, remember: boolean): void {
+  const pending = rdpCredentialPrompt.value
+  if (!pending || rdpCredentialSubmitting.value) return
+  rdpCredentialSubmitting.value = true
+  rdpCredentialError.value = ''
+  try {
+    stashHostCredential(pending.host.id, password, remember)
+    rdpCredentialPrompt.value = null
+    createDesktopTab(pending.host, pending.protocol)
+  } finally {
+    rdpCredentialSubmitting.value = false
+  }
+}
+
+function cancelDesktopCredential(): void {
+  const pending = rdpCredentialPrompt.value
+  if (pending) dropHostCredential(pending.host.id)
+  rdpCredentialPrompt.value = null
+  rdpCredentialError.value = ''
+}
+
 const adoptedRdpTabIds = new Set<string>()
 const rdpAttachWaiters = new Map<
   string,
@@ -753,10 +785,37 @@ function handleRdpPaneOpened(tabId: string, sessionId: string): void {
 }
 
 function openRdpTab(host: HostRecord): void {
+  const protocol: 'rdp' | 'vnc' = host.protocol === 'vnc' ? 'vnc' : 'rdp'
+  const existing = rdpTabs.value.find((tab) => tab.hostId === host.id && (tab.protocol ?? 'rdp') === protocol)
+  if (existing) {
+    activeRdpTabId.value = existing.id
+    return
+  }
+
+  const passwordSource = (host.passwordSource ?? '').trim()
+  const needsCredential = passwordSource === 'prompt' && !host.passwordConfigured && !host.credentialId
+  if (needsCredential) {
+    rdpCredentialPrompt.value = {
+      host,
+      protocol,
+      hostLabel: desktopCredentialHostLabel(host),
+      username: (host.username ?? '').trim(),
+    }
+    return
+  }
+  createDesktopTab(host, protocol)
+}
+
+function desktopCredentialHostLabel(host: HostRecord): string {
+  const address = (host.address ?? '').trim()
+  const port = typeof host.port === 'number' && host.port > 0 ? host.port : null
+  if (!address) return (host.name ?? '').trim()
+  return port ? `${address}:${port}` : address
+}
+
+function createDesktopTab(host: HostRecord, protocol: 'rdp' | 'vnc'): void {
   assetLibraryVisible.value = false
   activeSftpTabId.value = null
-
-  const protocol: 'rdp' | 'vnc' = host.protocol === 'vnc' ? 'vnc' : 'rdp'
   const existing = rdpTabs.value.find((tab) => tab.hostId === host.id && (tab.protocol ?? 'rdp') === protocol)
   if (existing) {
     activeRdpTabId.value = existing.id
@@ -2602,6 +2661,7 @@ onBeforeUnmount(() => {
           :active-session-id="activeSessionId"
           :active-session="activeSession"
           :active-host="activeHost"
+          :hosts="hosts"
           :active-status="activeSessionStatus"
           :asset-library-covered="showAssetLibrary"
           :persistent="sessionGateway.persistent"
@@ -2896,6 +2956,19 @@ onBeforeUnmount(() => {
       @update-secret="directSecret = $event"
     />
     <QuickConnectDialog :open="adhocConnectOpen" @close="adhocConnectOpen = false" @opened="handleAdHocOpened" />
+
+    <RemoteAuthDialog
+      :open="rdpCredentialPrompt !== null"
+      :title="rdpCredentialPrompt?.protocol === 'vnc' ? t('shell.authDialog.vncTitle') : t('shell.authDialog.rdpTitle')"
+      :description="t('shell.authDialog.description')"
+      :host-label="rdpCredentialPrompt?.hostLabel ?? ''"
+      :username="rdpCredentialPrompt?.username ?? ''"
+      :can-remember="true"
+      :submitting="rdpCredentialSubmitting"
+      :error="rdpCredentialError"
+      @submit="submitDesktopCredential"
+      @cancel="cancelDesktopCredential"
+    />
 
     <LaunchIntentDialog
       :open="launchIntentDialogOpen"

@@ -386,6 +386,7 @@ onBeforeUnmount(() => {
     ref="host"
     class="history-replay-terminal history-replay-asciinema"
     :class="{ 'is-failed': playerFailed }"
+    data-qt-thin-scrollbar
     :style="hostStyle"
     :aria-label="t('history.replay.title')"
     :data-ready="String(playerReady)"

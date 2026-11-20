@@ -124,6 +124,8 @@
 }
 
 .settings-history-head strong {
+  min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
   color: var(--qt-text);
   text-overflow: ellipsis;

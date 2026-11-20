@@ -490,6 +490,8 @@ export const shellUiEn: Record<string, string> = {
   'shell.tmux.helpGroupWindow': 'Window',
   'shell.tmux.helpGroupSession': 'Session',
   'shell.tmux.helpPrefix': 'Prefix 「{prefix}」: hold it, then the key below',
+  'shell.tmux.helpPrefixFallback':
+    'Remote tmux prefix was not detected: the keys below assume the default Ctrl+B. Use your own prefix if it was changed.',
   'shell.tmux.helpScroll': 'Wheel = history; to scroll pages enable 「set -g mouse on」 remotely',
   'shell.tmux.refresh': 'Refresh',
   'shell.tmux.create': 'New',
@@ -1104,6 +1106,10 @@ export const shellUiEn: Record<string, string> = {
     'Sent to the remote clipboard. Paste with Ctrl+Shift+V on the remote side — right/middle click pastes the selection buffer, which most servers do not sync.',
   'shell.vnc.pasteEmpty': 'The local clipboard is empty, so there is nothing to paste.',
   'shell.vnc.openFailed': 'Failed to open VNC',
+  'shell.vnc.authChannelClosed':
+    'The server closed the connection before authentication finished (this does not mean the password was wrong). The server may be temporarily blocking this client, or the VNC service may have just restarted. Retry in a moment.',
+  'shell.vnc.closedBeforeAuth':
+    'The server closed the connection before authentication even started. No password was sent, and this is not a wrong password. The server may be temporarily blocking this client (for example after several unfinished authentications), or the VNC service may have just restarted. Retry in a moment.',
   'shell.vnc.pasteReadFailed': 'Could not read the local clipboard (system clipboard unavailable).',
   'shell.vnc.pasteFailed': 'Could not send the text to the remote clipboard.',
   'shell.vnc.kasmCompatDegradedBadge': 'Clipboard patch off',
@@ -1291,6 +1297,8 @@ export const shellUiEn: Record<string, string> = {
   'shell.hostEditor.passwordPromptHint':
     'The password is not saved. Qterm prompts for the credential to use on each connection.',
   'shell.authDialog.title': 'SSH authentication',
+  'shell.authDialog.rdpTitle': 'RDP authentication',
+  'shell.authDialog.vncTitle': 'VNC authentication',
   'shell.authDialog.wrongPassword': 'Incorrect password. Try again ({attempt}/{max}).',
   'shell.authDialog.tooManyAttempts':
     'Authentication failed {attempts} times in a row. Check the username, password, or key and try later.',

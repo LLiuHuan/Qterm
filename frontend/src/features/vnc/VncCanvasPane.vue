@@ -107,30 +107,6 @@
       </SessionOverlay>
 
       <SessionOverlay
-        v-else-if="status === 'password-required'"
-        surface="canvas"
-        tone="warning"
-        data-vnc-status="password-required"
-        :title="t('shell.vnc.passwordRequired')"
-      >
-        <form class="flex flex-col items-center gap-3" @submit.prevent="submitPassword()">
-          <span class="text-xs leading-5 text-qt-overlay-muted">{{ t('shell.vnc.passwordHint') }}</span>
-          <QtermInput
-            v-model="passwordDraft"
-            type="password"
-            name="password"
-            class="w-full"
-            autocomplete="off"
-            :aria-label="t('shell.vnc.passwordLabel')"
-            data-vnc-password
-          />
-          <QtermButton type="submit" :disabled="passwordDraft.length === 0" data-vnc-password-submit>
-            {{ t('shell.common.confirm') }}
-          </QtermButton>
-        </form>
-      </SessionOverlay>
-
-      <SessionOverlay
         v-else-if="status === 'disconnected'"
         class="pointer-events-none"
         surface="canvas"
@@ -141,16 +117,31 @@
         <span class="text-sm text-qt-overlay-fg">{{ t('shell.vnc.disconnected') }}</span>
       </SessionOverlay>
     </div>
+
+    <RemoteAuthDialog
+      :open="status === 'password-required'"
+      :title="t('shell.authDialog.vncTitle')"
+      :description="t('shell.authDialog.description')"
+      :host-label="authHostLabel"
+      :username="authUsername"
+      :can-remember="authCanRemember"
+      :error="passwordError"
+      @submit="submitPassword"
+      @cancel="cancelPasswordPrompt"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { toast } from '../../services/toast'
-import { QtermButton, QtermInput, SessionOverlay } from '../../components/common'
+import { QtermButton, SessionOverlay } from '../../components/common'
 import { useI18n } from '@/locales'
 import { readClipboardText } from '../../services/clipboard'
 import { fetchVncHostProfile } from '../../services/vnc'
+import { rememberHostPassword } from '../../services/hostSecrets'
+import { takeHostCredential } from '../remotedesktop/pendingHostCredential'
+import RemoteAuthDialog from '../../components/dialogs/RemoteAuthDialog.vue'
 import { useVncSession, readVncHostPreferences, VNC_DEFAULT_PREFERENCES } from './useVncSession'
 import { createPasteKeyHandler, type PasteKeyEventLike } from './vncClipboardBridge'
 
@@ -193,6 +184,7 @@ const session = useVncSession({
       const profile = await fetchVncHostProfile(hostId)
 
       adoptTransportBadge(profile)
+      adoptAuthSummary(profile)
       return {
         ...readVncHostPreferences(profile),
 
@@ -204,6 +196,7 @@ const session = useVncSession({
       }
     } catch {
       adoptTransportBadge(null)
+      adoptAuthSummary(null)
       return { ...VNC_DEFAULT_PREFERENCES }
     }
   },
@@ -290,7 +283,28 @@ watch(viewOnly, () => {
   syncAutoSyncGate()
 })
 
-const passwordDraft = ref('')
+const authHostLabel = ref('')
+const authUsername = ref('')
+const authCanRemember = ref(false)
+
+const passwordError = ref('')
+
+let pendingRememberPassword = ''
+
+function adoptAuthSummary(
+  profile: {
+    address?: string
+    port?: number
+    username?: string
+    passwordSource?: string
+  } | null,
+): void {
+  const address = typeof profile?.address === 'string' ? profile.address.trim() : ''
+  const port = typeof profile?.port === 'number' ? profile.port : 0
+  authHostLabel.value = address ? (port > 0 ? `${address}:${port}` : address) : props.hostTitle || ''
+  authUsername.value = typeof profile?.username === 'string' ? profile.username.trim() : ''
+  authCanRemember.value = profile?.passwordSource === 'prompt'
+}
 
 const fitEnabled = ref(true)
 
@@ -351,15 +365,30 @@ function toastPasteResult(result: string): void {
   }
 }
 
-function submitPassword(): void {
-  if (passwordDraft.value.length === 0) return
-  session.submitPassword(passwordDraft.value)
-  passwordDraft.value = ''
+function submitPassword(password: string, remember: boolean): void {
+  if (password.length === 0) return
+  passwordError.value = ''
+  pendingRememberPassword = remember ? password : ''
+  session.submitPassword(password)
+}
+
+function cancelPasswordPrompt(): void {
+  pendingRememberPassword = ''
+  passwordError.value = ''
+  void disconnect()
+  emit('close')
 }
 
 async function connect(): Promise<void> {
   const element = viewport.value
   if (!element) return
+
+  const credential = takeHostCredential(props.hostId)
+  if (credential) {
+    pendingRememberPassword = credential.remember ? credential.password : ''
+    await session.connect(element, credential.password)
+    return
+  }
   await session.connect(element)
 }
 
@@ -416,7 +445,20 @@ onBeforeUnmount(() => {
 })
 
 watch(status, (value) => {
-  if (value === 'connected') applyFit()
+  if (value === 'connected') {
+    applyFit()
+    const secret = pendingRememberPassword
+    pendingRememberPassword = ''
+    if (secret && props.hostId) {
+      void rememberHostPassword(props.hostId, secret).catch(() => undefined)
+    }
+  } else if (value === 'failed') {
+    pendingRememberPassword = ''
+    passwordError.value = errorText.value
+  } else if (value === 'password-required') {
+    pendingRememberPassword = ''
+    passwordError.value = ''
+  }
   syncAutoSyncGate()
 })
 
@@ -425,6 +467,7 @@ watch(
   () => {
     adoptedHostScale = false
     adoptTransportBadge(null)
+    adoptAuthSummary(null)
     void reconnect()
   },
 )

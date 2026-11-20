@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"changeme/internal/credential"
@@ -9,6 +10,7 @@ import (
 	"changeme/internal/host"
 	"changeme/internal/model"
 	"changeme/internal/remotedesktop"
+	storage "changeme/internal/store"
 )
 
 func splitRdpUsername(username string) (domain, user string) {
@@ -77,6 +79,13 @@ func (s *Service) RdpHostProfile(ctx context.Context, hostID string) (model.RdpH
 	return publicValue(s.rdpHostProfile(ctx, hostID))
 }
 
+func rdpPasswordLookupError(err error) error {
+	if errors.Is(err, storage.ErrNotFound) {
+		return rdpError(errno.CodeInvalidArg, "rdp.passwordRequired", err)
+	}
+	return err
+}
+
 func (s *Service) resolveRdpPassword(ctx context.Context, record model.Host, explicit string) (string, error) {
 	if explicit != "" {
 		return explicit, nil
@@ -101,7 +110,7 @@ func (s *Service) resolveRdpPassword(ctx context.Context, record model.Host, exp
 		secret = string(value)
 		return nil
 	}); err != nil {
-		return "", err
+		return "", rdpPasswordLookupError(err)
 	}
 	return secret, nil
 }

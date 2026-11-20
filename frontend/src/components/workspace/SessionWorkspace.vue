@@ -109,6 +109,8 @@ const props = defineProps<{
   activeSessionId: string | null
   activeSession: SessionTab | null
   activeHost: HostRecord | null
+
+  hosts?: HostRecord[]
   activeStatus: SessionStatus
   persistent: boolean
   dark: boolean
@@ -297,6 +299,13 @@ const sftpActive = () => Boolean(props.activeSftpTabId)
 const rdpActive = () => Boolean(props.activeRdpTabId)
 
 const auxiliaryActive = () => sftpActive() || rdpActive()
+
+function rdpTabHost(tab: RdpWorkspaceTab): HostRecord | null {
+  if (!tab.hostId) return null
+  const host = props.hosts?.find((entry) => entry.id === tab.hostId) ?? null
+  if (!host) return null
+  return host.icon || host.protocol === 'vnc' ? host : null
+}
 
 const tabsCovered = () => Boolean(props.assetLibraryCovered)
 
@@ -1346,7 +1355,13 @@ function finishSplitResize(): void {
               @keydown.enter="emit('selectRdp', item.tab.id)"
               @keydown.space.prevent="emit('selectRdp', item.tab.id)"
             >
-              <Monitor :size="16" aria-hidden="true" />
+              <HostIcon
+                v-if="rdpTabHost(item.tab)"
+                :icon="rdpTabHost(item.tab)?.icon"
+                :protocol="rdpTabHost(item.tab)?.protocol"
+                :size="16"
+              />
+              <Monitor v-else :size="16" aria-hidden="true" />
               <span
                 v-if="!isRenaming('rdp', item.tab.id)"
                 class="session-tab-title min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap"

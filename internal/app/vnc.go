@@ -136,6 +136,18 @@ func (s *Service) VncHostProfile(ctx context.Context, hostID string) (model.VncH
 }
 
 func (s *Service) VncOpenHost(ctx context.Context, hostID string) (model.VncOpenResult, error) {
+	return s.openVncHost(ctx, hostID, "")
+}
+
+func (s *Service) VncOpenHostWithPassword(
+	ctx context.Context,
+	hostID string,
+	password string,
+) (model.VncOpenResult, error) {
+	return s.openVncHost(ctx, hostID, password)
+}
+
+func (s *Service) openVncHost(ctx context.Context, hostID string, password string) (model.VncOpenResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -154,7 +166,7 @@ func (s *Service) VncOpenHost(ctx context.Context, hostID string) (model.VncOpen
 	if record.Protocol != model.ProtocolVNC {
 		return model.VncOpenResult{}, publicError(vncError(errno.CodeInvalidArg, "vnc.hostNotVnc", nil))
 	}
-	secret, err := s.resolveVncPassword(ctx, record, "")
+	secret, err := s.resolveVncPassword(ctx, record, password)
 	if err != nil {
 		return model.VncOpenResult{}, publicError(err)
 	}

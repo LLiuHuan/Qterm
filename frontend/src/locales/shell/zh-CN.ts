@@ -463,6 +463,8 @@ export const shellUiZh: Record<string, string> = {
   'shell.tmux.helpGroupWindow': '窗口',
   'shell.tmux.helpGroupSession': '会话',
   'shell.tmux.helpPrefix': '前缀「{prefix}」：按住它再按下面的键',
+  'shell.tmux.helpPrefixFallback':
+    '未探测到远端的 tmux 前缀：下面按默认的 Ctrl+B 显示；远端若改过前缀，请以你自己的配置为准。',
   'shell.tmux.helpScroll': '滚轮切历史；滚屏要在远端开「set -g mouse on」',
   'shell.tmux.refresh': '刷新',
   'shell.tmux.create': '新建',
@@ -1059,6 +1061,10 @@ export const shellUiZh: Record<string, string> = {
   'shell.vnc.pasteSent': '已放入远端剪贴板。远端请用 Ctrl+Shift+V 粘贴——右键/中键粘贴的是划选区，多数服务端不同步它。',
   'shell.vnc.pasteEmpty': '本机剪贴板是空的，没有可粘贴的内容。',
   'shell.vnc.openFailed': '打开 VNC 失败',
+  'shell.vnc.authChannelClosed':
+    '认证尚未完成，连接已被服务端关闭（不代表口令错误）：常见原因是服务端临时限制了本机来源，或 VNC 服务端刚重启。请稍后重试。',
+  'shell.vnc.closedBeforeAuth':
+    '服务端在认证开始前就关闭了连接，本次没有提交口令，也不是口令错误。常见原因是服务端临时限制了本机来源（例如短时间内多次未完成的认证），或 VNC 服务端刚重启。请稍后重试。',
   'shell.vnc.pasteReadFailed': '读取本机剪贴板失败（系统剪贴板不可用）。',
   'shell.vnc.pasteFailed': '发送到远端剪贴板失败。',
   'shell.vnc.kasmCompatDegradedBadge': '剪贴板适配未启用',
@@ -1233,6 +1239,8 @@ export const shellUiZh: Record<string, string> = {
   'shell.hostEditor.passwordSaved': '直接输入',
   'shell.hostEditor.passwordPromptHint': '不保存密码；发起连接时会再次询问本次连接使用的凭据。',
   'shell.authDialog.title': 'SSH 认证',
+  'shell.authDialog.rdpTitle': 'RDP 认证',
+  'shell.authDialog.vncTitle': 'VNC 认证',
   'shell.authDialog.wrongPassword': '密码不正确，请重试（{attempt}/{max}）',
   'shell.authDialog.tooManyAttempts': '已连续 {attempts} 次认证失败，请检查用户名、密码或密钥后稍后再试',
   'shell.authDialog.verifying': '正在验证…',

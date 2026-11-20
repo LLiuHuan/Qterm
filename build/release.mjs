@@ -269,8 +269,14 @@ function expectedLipoArchitecture(arch) {
   return arch === "amd64" ? "x86_64" : arch;
 }
 
-function helperFiles(rootDirectory) {
+function helperFiles(rootDirectory, arch) {
   const directory = join(rootDirectory, RDP_HELPER_DIRECTORY);
+
+  const perArchDirectory = join(directory, `darwin-${arch}`);
+  const perArchHelper = join(perArchDirectory, "qterm-freerdp-helper");
+  if (existsSync(perArchHelper)) {
+    return { directory: perArchDirectory, helper: perArchHelper };
+  }
   return { directory, helper: join(directory, "qterm-freerdp-helper") };
 }
 
@@ -298,7 +304,7 @@ export async function inspectRdpHelper({
   run = runCommand,
   signal,
 } = {}) {
-  const files = helperFiles(resolve(rootDirectory));
+  const files = helperFiles(resolve(rootDirectory), arch);
   if (!existsSync(files.helper)) {
     return {
       include: false,
@@ -582,6 +588,9 @@ export async function runRelease({
             logger(`[release] darwin/${target.arch}: ${helper.reason}`);
           }
           vars.push(`SKIP_RDP_HELPER=${helper.include ? "false" : "true"}`);
+          if (helper.include) {
+            vars.push(`RDP_HELPER_SRC=${relative(root, helper.files[0])}`);
+          }
         }
         assertNoSharedIntermediate(root, target);
         mkdirSync(target.targetDirectory, { recursive: true });

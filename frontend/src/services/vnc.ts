@@ -10,6 +10,7 @@ import {
   VncHostProfile as VncHostProfileCall,
   VncListSessions,
   VncOpenHost,
+  VncOpenHostWithPassword as VncOpenHostWithPasswordCall,
   VncStreamTicket as VncStreamTicketCall,
 } from '../../bindings/changeme/internal/app/service'
 
@@ -19,6 +20,10 @@ export async function fetchVncHostProfile(hostId: string): Promise<VncHostProfil
 
 export async function openVncHostSession(hostId: string): Promise<VncOpenResult> {
   return VncOpenHost(hostId)
+}
+
+export async function openVncHostSessionWithPassword(hostId: string, password: string): Promise<VncOpenResult> {
+  return VncOpenHostWithPasswordCall(hostId, password)
 }
 
 export async function fetchVncStreamTicket(sessionId: string): Promise<VncStreamTicket> {

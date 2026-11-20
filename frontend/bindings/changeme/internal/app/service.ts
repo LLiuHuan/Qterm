@@ -1161,6 +1161,10 @@ export function ReleaseZmodemFile(token: string): $CancellablePromise<void> {
   return $Call.ByID(1943757433, token)
 }
 
+export function RememberHostPassword(hostID: string, password: string): $CancellablePromise<void> {
+  return $Call.ByID(3724123514, hostID, password)
+}
+
 export function RemoveSFTPEntryElevated(sessionID: string, path: string, password: string): $CancellablePromise<void> {
   return $Call.ByID(2419819003, sessionID, path, password)
 }
@@ -1669,6 +1673,10 @@ export function VncListSessions(): $CancellablePromise<model$0.VncSession[] | nu
 
 export function VncOpenHost(hostID: string): $CancellablePromise<model$0.VncOpenResult> {
   return $Call.ByID(2704274809, hostID)
+}
+
+export function VncOpenHostWithPassword(hostID: string, password: string): $CancellablePromise<model$0.VncOpenResult> {
+  return $Call.ByID(1720362704, hostID, password)
 }
 
 export function VncStreamTicket(sessionID: string): $CancellablePromise<model$0.VncStreamTicket> {

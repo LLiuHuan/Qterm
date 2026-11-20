@@ -1,0 +1,1905 @@
+#AOCI-CODE-VOLUME: 1
+
+===/<repository>/===
+.gitattributes[OV4T]: F:强制全仓文本以 LF 检出，保证 AOCI 基线跨平台字节一致 | R:- | A:- | S:不要改成 CRLF：基线按原始字节比对，换行差异会让整棵树判 stale
+.gitignore[OV4T]: F:忽略构建产物、前端依赖、本地缓存、截图与 AOCI 之外的本地产物 | R:- | A:- | S:不要把 aoci.txt/aoci.meta.txt/aoci.code.txt/AGENTS.md 加进来：被忽略的文件会被 scan 静默跳过
+AGENTS.md[SG9M]: F:项目协作规则：强制开发流程、提交范围与不推送、编码与图标规范、子智能体派发约束 | R:code:docs/AGENT-DELEGATION.md,code:docs/WWORKBENCH-CODING-STANDARD.md | A:- | S:提交只暂存明确路径，禁止 git add -A/；测试、智能体文档与构建产物不进提交；一律不 push
+LICENSE[SG4M]: F:Apache License 2.0 全文 | R:- | A:- | S:分发与再发布必须保留许可证与声明文本
+README.en.md[SG7M]: F:README 的英文译本：产品定位、界面预览、功能与构建说明 | R:code:README.md | A:- | S:七种语言 README 需同步修改
+README.fr.md[SG7M]: F:README 的法文译本 | R:code:README.md | A:- | S:七种语言 README 需同步修改
+README.ja.md[SG7M]: F:README 的日文译本 | R:code:README.md | A:- | S:七种语言 README 需同步修改
+README.ko.md[SG7M]: F:README 的韩文译本 | R:code:README.md | A:- | S:七种语言 README 需同步修改
+README.md[SG8M]: F:简体中文首页：产品定位、界面预览、功能清单、下载与本地构建说明 | R:- | A:- | S:其余六种语言 README 必须与本文同步修改
+README.ru.md[SG7M]: F:README 的俄文译本 | R:code:README.md | A:- | S:七种语言 README 需同步修改
+README.zh-TW.md[SG7M]: F:README 的繁体中文译本 | R:code:README.md | A:- | S:七种语言 README 需同步修改
+Taskfile.yml[OV6S]: F:go-task 任务入口：按 GOOS 分派构建打包、发布、公开仓镜像与本地质量基线 | R:code:build/release-docker.mjs | A:build, release:docker, check, mirror:public | S:check 任务把 build/ 与 frontend/ 包排除在 go test/vet 之外；mirror:public 默认不提交不推送
+commitlint.config.mjs[XQ7M]: F:commitlint 与 cz-git 配置：提交类型清单、scope 自动推导与交互式提交提示 | R:code:.husky/commit-msg | A:TYPES,MODULE_SCOPES,listDirectories | S:scope 从 internal/* 与 frontend/src/features/* 目录名推导，新增功能目录自动获得同名 scope
+go.mod[FV6T]: F:Go 模块与依赖版本声明 | R:- | A:- | S:依赖升级需单独提交并跑全量验证
+main.go[RI6T]: F:Wails 应用入口：嵌入前端产物并启动 app.Run | R:- | A:- | S:前端 dist 通过 go:embed 打进二进制，dev 走反向代理
+package.json[RI3T]: F:根包描述：脚本与工具链版本锚点 | R:- | A:- | S:-
+
+===/<repository>/.agents/skills/astra-orchestrator/===
+SKILL.md[SW6L]: F:Pro 档 Astra 编排技能：派发门槛、角色选择、并行策略与交付验收纪律 | R:- | A:Goal, Delegation gate, Spawn policy, Final verification | S:-
+
+===/<repository>/.codex/agents/===
+explorer.toml[XZ5T]: F:只读探查子代理定义：模型、reasoning effort、沙箱与报告格式 | R:code:.codex/config.toml | A:explorer | S:沙箱固定 read-only，不得改文件
+researcher.toml[XZ5T]: F:只读技术调研子代理定义，负责核实版本相关 API 与外部文档 | R:code:.codex/config.toml | A:researcher | S:只读沙箱，不改应用代码
+reviewer.toml[XZ5T]: F:独立代码评审子代理定义，关注正确性、安全、并发与缺测试风险 | R:code:.codex/config.toml | A:reviewer | S:只看实际改动；纯风格问题除非掩盖缺陷否则不提
+tester.toml[XQ5T]: F:验证子代理定义：跑最小定向测试并返回精确证据与覆盖缺口 | R:code:.codex/config.toml | A:tester | S:禁止为让测试通过而改产品代码
+worker.toml[XZ5T]: F:实现子代理定义，只做被派发的有界编码任务 | R:code:.codex/config.toml | A:worker | S:不得改架构、公共 API、schema 或依赖，除非被显式授权
+
+===/<repository>/.codex/===
+config.toml[XC6T]: F:项目级 Codex 编排配置：主模型、审批与沙箱默认值、子代理模型与并发线程上限 | R:- | A:agents, default_subagent_model | S:子代理并发上限 4，仅在真正可并行时调高
+
+===/<repository>/.github/workflows/===
+release.yml[OV7M]: F:推 vX.Y.Z tag 时用 Docker 交叉工具链产出三平台安装包、便携包与 SHA256SUMS 并创建 Release | R:code:build/release-docker.mjs,code:internal/update/github.go | A:package, macos-signing, publish | S:资产名必须保留 qterm-{os}-{arch}.{zip|tar.gz}；tag 必须是数字三段 vX.Y.Z，预发布会被拒
+
+===/<repository>/.husky/===
+commit-msg[XQ4T]: F:提交钩子：用 commitlint 按 commitlint.config.mjs 校验提交信息 | R:code:commitlint.config.mjs | A:- | S:应急时可用 git commit --no-verify 跳过，但不要养成习惯
+
+===/<repository>/cmd/qterm/===
+main.go[EG8L]: F:qterm CLI 入口：读握手文件取本机端口与一次性 token，再经 HTTP 代理桌面应用能力 | R:code:internal/cliapi/handshake.go,code:cmd/qterm/shell.go | A:run,parseGlobal,dispatch,exitCodeFor | S:退出码 0-5 是脚本契约，改动视为不兼容；默认超时 130s 必须大于服务端 exec 的 120s 上限
+shell.go[EN7M]: F:qterm shell 子命令：在本地终端以 WebSocket 帧直接操作远端 PTY | R:code:internal/cliapi/shell.go | A:cmdShell,runShellSession,resolveShellSize | S:服务端另开独立 PTY，不 attach GUI 终端 hub；raw 模式必须在连接成功后才切换
+shell_unix.go[RG5T]: F:Unix 侧窗口缩放信号订阅与取消（SIGWINCH） | R:code:cmd/qterm/shell.go | A:notifyShellResize,stopShellResize | S:SIGWINCH 只存在于 Unix；Windows 上不发 resize
+shell_windows.go[RG5T]: F:Windows 侧缩放订阅的空实现 | R:code:cmd/qterm/shell.go | A:notifyShellResize,stopShellResize | S:空实现是刻意的：Windows 控制台缩放不是信号
+
+===/<repository>/docs/===
+AGENT-DELEGATION.md[SW6S]: F:子智能体派发 playbook：是否值得派发、fork 与冷启动选型、侦察优先、brief 与复盘 | R:code:AGENTS.md | A:- | S:默认 subagent_fork；禁止主代理摸底的同时另派冷启动代理查同一件事
+WWORKBENCH-CODING-STANDARD.md[SG9L]: F:Qterm 强制编码规范：目录职责、唯一 Wails Facade、DTO 契约、错误链、并发取消、资源关闭与前端样式规则 | R:- | A:- | S:与规范冲突时先更新 ADR 和本规范，再改代码
+WWORKBENCH_STYLE.md[SG7M]: F:WWorkbench 参考源码的目录、调用链与风格分析（历史记录） | R:code:docs/WWORKBENCH-CODING-STANDARD.md | A:- | S:已降级为历史记录，当前验收依据只有 WWORKBENCH-CODING-STANDARD.md
+
+===/<repository>/docs/adr/===
+ADR-001-persistence.md[SG6T]: F:ADR：主机/分组/设置持久化——modernc SQLite、显式 SQL、user_version 迁移与 Wails 服务边界 | R:- | A:- | S:不引入 ORM；数据库版本高于程序支持时拒绝启动；Unix 数据库文件权限 0600
+ADR-002-local-credential-vault.md[SG7S]: F:ADR：本地凭据保险库——DEK 派生独立子密钥、系统钥匙串作便利层、Argon2id 自定义 key 与恢复包 | R:- | A:- | S:DEK 不得进入普通数据库、日志或 Wails 返回值；设置自定义 key 只原子替换 DEK 包装，不逐条重写密文
+ADR-003-terminal-renderer.md[SG6T]: F:ADR：xterm.js 渲染、Wails Stream 二元通道、v1 帧格式与 256K/64K 应用级背压 | R:- | A:- | S:终端页面禁止运行时加载 CDN/远程脚本；传给 StreamConn.Send 的字节切片必须移交所有权
+ADR-004-ssh-sftp-stack.md[SG7S]: F:ADR：SSH/SFTP 选型、host key 校验与 known_hosts 信任、keepalive 15s/10s/3 次与取消粒度 | R:- | A:- | S:生产代码禁止 ssh.InsecureIgnoreHostKey；取消 SFTP 子系统只关闭本次 ssh.Session，不关父连接
+ADR-008-local-terminal.md[SG6T]: F:ADR：本机终端用 go-pty v0.2.3 真 PTY，会话 kind=local 复用既有 SessionManager 与终端通道 | R:- | A:- | S:对 POSIX 登录 Shell 追加 -l；TERM/COLORTERM 必须替换而非追加；本地会话不提供 SFTP 与重连
+ADR-009-settings-center.md[SG6T]: F:ADR：设置中心改为 80%×80% 左侧分类弹窗，并把主题/字号/字体偏好存为本地界面偏好 | R:- | A:- | S:-
+ADR-010-local-font-enumeration.md[SG6T]: F:ADR：终端字体改由后端枚举本机等宽家族并标注 Nerd 图标，浏览器预览退化为候选探测 | R:- | A:- | S:浏览器无法枚举系统字体（queryLocalFonts 仅 Chromium，WKWebView 不提供）
+ADR-011-window-chrome.md[SG6T]: F:ADR：跨平台窗口 chrome——macOS 无原生标题栏留左侧控件位，Windows 保留系统按钮与边框行为 | R:- | A:- | S:macOS 顶栏与拖拽区高度须与 AppKit 原生栏 52px 对齐
+ADR-012-remote-file-editor.md[SG6S]: F:ADR：远端文件编辑的内嵌编辑器内核选型（方案 B 应用内编辑，带基线写回） | R:- | A:- | S:-
+ADR-014-rdp-integration.md[SG7M]: F:ADR：RDP 接入路线——自研 Go 引擎已完成传统桌面与键鼠，现重估为原生 IronRDP/FreeRDP Helper 双路线 | R:- | A:- | S:凡直接派生自 gopher-rdp 的文件必须保留其 MIT 版权与许可声明；P0 通过前不删除现有实现
+ADR-015-rdp-incremental-frame-stream.md[SG6T]: F:ADR：远程桌面画面改为脏矩形增量 + Wails Stream 二进制推送，替代持锁整屏 PNG 轮询 | R:- | A:- | S:禁止持长锁编码整屏 PNG、禁止 base64 JSON 作高频图像通道、禁止无界更新队列
+ADR-016-telnet-integration.md[SG6T]: F:ADR：Telnet 作为终端协议接入（RFC 1143 Q-method 协商、NAWS、TERMINAL-TYPE、ECHO） | R:- | A:- | S:协议白名单与端口 23 需与模型层同步放行；能力门禁与前端协议裁剪须一致
+ADR-017-vnc-integration.md[SG7S]: F:ADR：VNC 接入走路线 C——RFB 由嵌入的 noVNC 实现，Go 只做字节桥、一次性令牌与外壳 | R:- | A:- | S:不提供 16bpp 入口；VNC 标签动作栏只保留重连/断开
+ADR-018-vnc-websocket-tls-transport.md[SG8L]: F:ADR：VNC 传输扩展 WebSocket over TLS，正式支持 KasmVNC 类服务端，含凭据边界与 UI 警示 | R:code:docs/adr/ADR-017-vnc-integration.md | A:- | S:证据分级（实测/源码核对/文档记载/未验证）必须显式标注，推断不得与实测混排
+ADR-019-docker-panel-cli-over-exec.md[SG7M]: F:ADR：Docker 面板走 CLI over SSH Exec，命令面按 tab 最小化（容器/镜像/卷/网络） | R:- | A:- | S:命令面只允许固定白名单；真机与真实远端端到端未验证前不得声称已验收
+ADR-020-jump-host-and-proxy-chain.md[SG7S]: F:ADR：跳板机=引用另一台主机，代理与跳板同批，进程内逐跳 ProxyJump 建链 | R:code:docs/adr/ADR-004-ssh-sftp-stack.md | A:- | S:本期只覆盖终端与 SFTP；RDP/VNC 走跳板前必须先修订 ADR-014
+ADR-021-route-layers.md[SG5T]: F:ADR（已否决）：把主机路由改为有序层列表以支持多段代理与跳板组合 | R:code:docs/adr/ADR-020-jump-host-and-proxy-chain.md | A:- | S:已否决且未实现任何改动，不要据此改数据结构
+ADR-022-proxy-library.md[SG6T]: F:ADR：代理库集中管理 + 主机引用；代理认证收敛为用户名加代理自身加密密码 | R:code:docs/adr/ADR-020-jump-host-and-proxy-chain.md | A:- | S:代理只作用于路由第一段；自定义内联代理仅在用户显式选择时展开
+ADR-023-app-lock-touch-id.md[SG6S]: F:ADR：应用锁新增 Touch ID 解锁开关与锁屏按钮（macOS 真机为验收依据） | R:- | A:- | S:口令通道必须保留，生物识别只是并列入口
+ADR-024-ai-toolset-expansion.md[SG6T]: F:ADR：AI 工具集从两工具扩成按副作用分级的工具注册表 | R:code:docs/development/ai-toolset-expansion-plan.md | A:- | S:破坏性操作永远人工确认；秘密不得进入快照与审计
+ADR-025-bastion-and-rdp-proxy.md[SG6S]: F:ADR：NextTerminal 堡垒机接入与 RDP 代理/RemoteApp 的路线提议 | R:code:docs/development/next-terminal-and-rdp-proxy-design.md | A:- | S:第三方堡垒机资产口令无法同步，不能设计成同步后直连
+
+===/<repository>/docs/development/===
+Qterm 同步输入与批量发送完整方案.md[SG7M]: F:产品设计与技术方案：同步输入（实时同步组）与批量发送两个独立功能 | R:- | A:- | S:本文是目标设计，不代表现有代码已具备这些接口；实现前须复核 SessionManager 与 xterm 输入链路
+ai-assistant-ui-design-plan.md[SG6S]: F:设计规划：AI 助手侧栏与设置页，Ask 与 Agent 共用一套连续多轮会话界面 | R:- | A:- | S:模式是「下一轮如何处理」的选择，不做两套历史或两套会话身份
+ai-recovery-2026-11-04.md[SG5T]: F:开发记录：AI 重生成、SSH 断线作废审批与草稿凭据只在单请求内存使用 | R:- | A:- | S:草稿 Key 不得写入钥匙串或共享 lookup，只有显式保存才更新凭据
+ai-toolset-expansion-plan.md[SG7M]: F:计划：AI 工具集扩容的分期任务与对标范围（资产查询、文件读写、网页读取） | R:code:docs/adr/ADR-024-ai-toolset-expansion.md | A:- | S:扩容不得破坏单动作、目标不越界、破坏性操作人工确认、秘密不进审计四条不变量
+commit-convention.md[SG5T]: F:提交规范说明：Conventional Commits 结构、commitlint 校验与 czg 交互式提交 | R:code:commitlint.config.mjs | A:- | S:不装根依赖时 commit-msg 钩子不生效，但提交信息仍需遵守规范
+decisions-01.md[SG6S]: F:决策日志：逐轮记录窗口形态、X11 转发、主机高级设置与编码等决策及放弃理由 | R:- | A:- | S:被撤回的决策保留原文与撤回原因，不要据此恢复实现
+host-tags-and-rdp-clipboard-design.md[SG6S]: F:设计：主机标签展示与检索、RDP 高级设置与文件剪贴板选项（已实现） | R:- | A:- | S:给 RDP 打开 advanced 分区会连带显示终端专属项，需加协议门槛
+i18n-copy-guide.md[SL6M]: F:国际化文案规范：术语唯一、占位符原样保留、说人话，附七语术语表与审查清单 | R:- | A:- | S:新增或修改任何可见文案前必须先读本文；占位符名字与数量必须逐一对应
+jump-host-and-proxy-design.md[SG7L]: F:设计稿：跳板机与 SOCKS5/HTTP 代理的连接链、分期实施与验收判据 | R:code:docs/adr/ADR-020-jump-host-and-proxy-chain.md | A:- | S:全仓唯一 SSH 拨号入口是先取 net.Conn 再 ssh.NewClientConn，代理与跳板都必须在这一点接入
+jump-host-and-proxy-p1-contract.md[SG7M]: F:P1+P2 实施契约：跳板机与代理的命名、列名、签名、错误键与文件所有权冻结口径 | R:code:docs/adr/ADR-020-jump-host-and-proxy-chain.md | A:- | S:与设计稿冲突时以实现期契约本文为准，完成后再回写设计稿
+macos-adhoc-signing.md[SG5T]: F:开发记录：macOS ad-hoc 签名补全与发布校验（嵌套顺序签名、codesign 复验） | R:- | A:- | S:必须由内向外显式签名，不得用 codesign --deep 代替顺序
+next-01.md[SW6T]: F:下一步清单：终端通道与资源治理、真机验收项与遗留测试债 | R:- | A:- | S:ack 停滞 watchdog 必须放 Go 侧，前端自己检测不了主线程卡死
+next-terminal-and-rdp-proxy-design.md[SG7L]: F:设计稿：NextTerminal 堡垒机接入与 RDP 代理/RemoteApp 的分期方案 | R:code:docs/adr/ADR-025-bastion-and-rdp-proxy.md | A:- | S:第三方堡垒机同步不到口令，资产不能同步后直连
+nyaagent-migration-plan.md[SG6S]: F:计划：修复 Markdown 渲染并把 NyaAgent 完整接入 Qterm AI 面板（P0–P5） | R:- | A:- | S:正文围栏触发的自动执行不得在真实主机上执行命令
+p0-smoke-2026-11.md[SG6S]: F:P0 真机冒烟验收记录：SSH+SFTP、RDP、VNC 三条链路在 macOS 原生的判据与结果 | R:- | A:- | S:Windows/Linux 无可用真机记为阻塞，不得写成已验证
+progress-01.md[SW6T]: F:进度总表（1）：早期里程碑任务（M0–M3）的进行中项、状态与验证证据 | R:- | A:- | S:编译或静态检查通过不等于真实平台验收，未实机验证不得标记完成
+progress-02.md[SW6T]: F:进度总表（2）：D/M/SYNC 系列任务的状态与验证证据 | R:- | A:- | S:同上：浏览器与本地验证不能替代 Wails 真机与跨平台验收
+public-mirror.md[OV6S]: F:公开仓快照流程：内部仓是唯一真相，GitHub 公开仓由脚本只放纯代码生成 | R:code:Taskfile.yml | A:- | S:不要在公开仓手改任何文件：下次生成会覆盖，手改分支会漂移成冲突
+rdp-frame-stream-protocol.md[SG6S]: F:RDP 画面二进制流协议 v1：帧编解码与最小 Stream 接口，每帧一个独立缓冲 | R:code:internal/remotedesktop/stream_protocol.go,code:internal/remotedesktop/hub.go,code:internal/remotedesktop/stream.go | A:- | S:协议与传输解耦，只依赖纯字节编解码与最小 Stream 接口
+reference.md[SG7M]: F:开发基线与工程约束：项目阶段、技术栈、目录约定与常用命令 | R:code:docs/DEVELOPMENT.md | A:- | S:阶段与版本目标随迭代更新，不要当永久有效
+style-inventory.md[SG7L]: F:样式清单与迁移盘点：CSS 文件、类名引用计数与重复度扫描结果 | R:code:docs/development/style-refactor-plan.md | A:- | S:本文件是任务输入材料不是规范，数值会随迁移推进而变化
+style-refactor-plan.md[SG7L]: F:样式整理执行方案（定稿）：P0 已完成，分期迁移与回写规范 §22/§23 | R:code:docs/development/style-inventory.md | A:- | S:规范性结论最终回写 WWORKBENCH-CODING-STANDARD.md，验收不以本文为准
+telnet-vnc-design.md[SG8L]: F:设计定稿：Telnet 与 VNC 接入——Telnet 传输层、VNC 由 noVNC 承担 RFB、VNC over WebSocket+TLS | R:code:docs/adr/ADR-016-telnet-integration.md,code:docs/adr/ADR-017-vnc-integration.md,code:docs/adr/ADR-018-vnc-websocket-tls-transport.md | A:- | S:本轮只做调研与设计未写产品代码；实施从 P1 传输层开始
+terminal-input-control-implementation.md[SU7T]: F:实现记录：同步输入与批量发送阶段 0-2（统一选择器、搜索与标签筛选、状态栏、发送预览、面板拖动） | R:code:docs/development/Qterm 同步输入与批量发送完整方案.md | A:- | S:仅 SSH 交互终端可选；0x07 只承载 xterm 本地输入，0x02 协议应答与批量任务不经同步扇出
+verification-01.md[SQ7S]: F:验证记录（1）：xterm 字距误测、终端弹窗一致性、WebGL 图集重建等修复的实测证据与未覆盖项 | R:code:docs/DEVELOPMENT.md | A:- | S:未覆盖项（Windows/Linux WebView 等）不得外推为已验证
+verification-02.md[SQ6T]: F:验证记录（2）：该轮改动的本地/真实浏览器验证证据与未覆盖项 | R:code:docs/DEVELOPMENT.md | A:- | S:未覆盖项不得外推
+verification-03.md[SQ6T]: F:验证记录（3）：该轮改动的验证证据与未覆盖项 | R:code:docs/DEVELOPMENT.md | A:- | S:未覆盖项不得外推
+verification-04.md[SQ5T]: F:验证记录（4）：该轮改动的验证证据与未覆盖项 | R:code:docs/DEVELOPMENT.md | A:- | S:-
+
+===/<repository>/docs/development/i18n-audit-2026-10-29/===
+README.md[SL5T]: F:i18n 审校总述：3,341 键 × 7 语言共 23,387 条文本的结论、修改统计与验证边界 | R:- | A:- | S:安全条件、否定、操作范围与占位符不得因精简丢失
+app.md[SL5L]: F:i18n 审校明细：应用设置域 293 键的七语原文、保留或修改判断与理由 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+applock.md[SL5L]: F:i18n 审校明细：应用锁域 43 键的七语原文与判断 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+changes.json[SL5L]: F:i18n 修改清单：1,449 条键×语言改动的旧值、新值与理由（结构化 JSON） | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+errors.md[SL5L]: F:i18n 审校明细：稳定错误域 421 键的七语原文与判断 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+preview.md[SL5S]: F:i18n 审校明细：浏览器预览域 9 键的七语原文与判断 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+remote-edit.md[SL5L]: F:i18n 审校明细：远程编辑域 54 键的七语原文与判断 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+settings.md[SL5L]: F:i18n 审校明细：设置域 950 键的七语原文与判断 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+sftp.md[SL5L]: F:i18n 审校明细：文件传输域 181 键的七语原文与判断 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+shell.md[SL5L]: F:i18n 审校明细：工作区与连接域 1,390 键的七语原文与判断 | R:code:docs/development/i18n-audit-2026-10-29/README.md | A:- | S:-
+source-files.txt[SL3T]: F:i18n 任务提交的产品源码文件清单（27 个 locale 文件路径） | R:- | A:- | S:-
+
+===/<repository>/docs/development/session-broadcast-groups/===
+README.md[SG5S]: F:会话广播组功能的回退说明、原因与按补丁恢复的步骤（实现存于提交 b28a4cbe） | R:code:docs/development/session-broadcast-groups/feature.patch | A:- | S:功能已从主线回退；恢复前先确认用户是否仍需要
+feature.patch[SG8L]: F:会话广播组的完整实现补丁与测试快照，用于按需恢复该功能 | R:code:docs/development/session-broadcast-groups/README.md | A:- | S:补丁来自已回退实现，应用前需核对与当前主线的冲突
+
+===/<repository>/docs/development/tasks/===
+audit-01.md[SQ6T]: F:audit-01：全仓严苛安全/设计审计记录（只读，未修任何代码） | R:- | A:- | S:审计结论只给证据与风险，改动须另立任务
+frontend-01.md[SU5T]: F:前端超长组件职责拆分任务记录 | R:code:docs/development/tasks/frontend-02.md | A:- | S:-
+frontend-02.md[SU5T]: F:前端长组件职责拆分（续）任务记录 | R:code:docs/development/tasks/frontend-01.md | A:- | S:-
+frontend-03.md[SU6T]: F:弹窗遮罩在 macOS dev 环境不模糊的根因与修复（@supports 变体被 WKWebView 整条丢弃） | R:- | A:- | S:WKWebView 会整条丢弃 dev 版 @supports 变体，不能用 dev 分支模拟线上样式
+frontend-04.md[SU6T]: F:图标来源与落盘规范落地记录：lucide 优先、iconify 兜底、本地 Icon 组件与 barrel 生成 | R:code:AGENTS.md | A:- | S:不要手改 icon/index.ts，也不引入 iconify 运行时依赖
+hosts-01.md[SB5T]: F:任务记录 · 主机、资产与会话（1）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+hosts-02.md[SB5T]: F:任务记录 · 主机、资产与会话（2）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+hosts-03.md[SB5T]: F:任务记录 · 主机、资产与会话（3）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+hosts-04.md[SB5T]: F:任务记录 · 主机、资产与会话（4）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+hosts-05.md[SB5T]: F:任务记录 · 主机、资产与会话（5）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+hosts-06.md[SB6M]: F:任务记录 · 主机、资产与会话（6）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+hosts-07.md[SB5S]: F:任务记录 · 主机、资产与会话（7）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+infra-01.md[SG5T]: F:任务记录 · 工程与架构（1）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+infra-02.md[SG5T]: F:任务记录 · 工程与架构（2）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+other-01.md[SU5T]: F:任务记录 · 界面与其他（1）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+other-02.md[SU5T]: F:任务记录 · 界面与其他（2）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+other-03.md[SU5T]: F:任务记录 · 界面与其他（3）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+other-04.md[SU6S]: F:任务记录 · 界面与其他（4）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+other-05.md[SU6S]: F:任务记录 · 界面与其他（5）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+other-06.md[SU6M]: F:任务记录 · 界面与其他（6）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+other-07.md[SU6M]: F:任务记录 · 界面与其他（7）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+rdp-01.md[SB8L]: F:RDP 接入任务记录 01：P0 spike 与 P1 本机桥（FreeRDP helper 构建、dylib 依赖与实测） | R:code:docs/adr/ADR-014-rdp-integration.md | A:- | S:helper 依赖按 @loader_path 解析；构建警告需区分来自 winpr 头文件还是自身 main.c
+release-all.md[SV6T]: F:六目标本地发布入口：按平台/架构批量出包的本地命令与产物约定 | R:code:Taskfile.yml | A:- | S:-
+security-01.md[SS5T]: F:任务记录 · 安全与凭据（1）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+security-02.md[SS5T]: F:任务记录 · 安全与凭据（2）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+security-03.md[SS5S]: F:任务记录 · 安全与凭据（3）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+sftp-01.md[SB5T]: F:任务记录 · SFTP 与文件传输（1）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+sftp-02.md[SB6M]: F:任务记录 · SFTP 与文件传输（2）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+sftp-03.md[SB6M]: F:任务记录 · SFTP 与文件传输（3）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+snippets-01.md[SB5T]: F:任务记录 · 快捷命令（1）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+snippets-02.md[SB6M]: F:任务记录 · 快捷命令（2）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+snippets-03.md[SU5T]: F:快捷命令内容编辑器升级任务记录 | R:- | A:- | S:-
+snippets-04.md[SU5T]: F:快捷命令编辑器滚动条主题适配任务记录 | R:- | A:- | S:-
+terminal-01.md[SU5T]: F:任务记录 · 终端与回放（1）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-02.md[SU5T]: F:任务记录 · 终端与回放（2）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-03.md[SU5T]: F:任务记录 · 终端与回放（3）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-04.md[SU5T]: F:任务记录 · 终端与回放（4）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-05.md[SU6M]: F:任务记录 · 终端与回放（5）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-06.md[SU5T]: F:任务记录 · 终端与回放（6）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-07.md[SU5T]: F:任务记录 · 终端与回放（7）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-08.md[SU5S]: F:任务记录 · 终端与回放（8）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-09.md[SU5S]: F:任务记录 · 终端与回放（9）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-10.md[SU5S]: F:任务记录 · 终端与回放（10）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+terminal-11.md[SU5S]: F:任务记录 · 终端与回放（11）：该批任务的实现结论、验证证据与未覆盖项 | R:- | A:- | S:未覆盖项不得外推为已验证
+
+===/<repository>/docs/progress/===
+hosts-1.md[SW6S]: F:进度记录（hosts-1）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+hosts-2.md[SW6M]: F:进度记录（hosts-2）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+infra.md[SW5T]: F:进度记录（infra）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+other-1.md[SW6M]: F:进度记录（other-1）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+other-2.md[SW5T]: F:进度记录（other-2）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+security.md[SW6S]: F:进度记录（security）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+sftp.md[SW6M]: F:进度记录（sftp）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+snippets.md[SW6M]: F:进度记录（snippets）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+terminal-1.md[SW6S]: F:进度记录（terminal-1）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+terminal-2.md[SW6S]: F:进度记录（terminal-2）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+terminal-3.md[SW6L]: F:进度记录（terminal-3）：逐任务的进行中/已完成状态、验证证据与遗留 | R:- | A:- | S:未做真实平台验证的条目不得标记已完成
+
+===/<repository>/docs/reference/===
+architecture.md[SG8S]: F:参考资料：架构与安全——技术栈、分层调用链、凭据存储与传输边界 | R:code:docs/adr/ADR-001-persistence.md | A:- | S:架构变更须先改 ADR 与规范再改代码
+overview.md[SG7T]: F:参考资料：项目概览——定位、核心能力与目录速览 | R:code:README.md | A:- | S:-
+progress.md[SW9L]: F:参考资料：进度总表、验证记录与决策的汇总索引 | R:code:docs/DEVELOPMENT.md | A:- | S:汇总索引不能替代 DEVELOPMENT.md 的进度表
+roadmap.md[SW7S]: F:参考资料：路线图与工作流约定 | R:code:docs/DEVELOPMENT.md | A:- | S:-
+termark-feature-parity-2026-11.md[SG8M]: F:Qterm × Termark 功能对照复核：能力项、差距与 P0/P1 优先级 | R:code:docs/development/p0-smoke-2026-11.md | A:- | S:对照结论需注明复核日期，不作为功能已实现的证据
+
+===/<repository>/frontend/===
+Inter Font License.txt[FV4T]: F:Inter 字体的 SIL Open Font License 1.1 文本 | R:- | A:- | S:分发前端产物时必须随附本许可与保留声明
+README.md[SG6T]: F:前端说明：Vue3+TS+Vite 结构、与 Wails 壳的关系、绑定与运行时延迟注入约定 | R:code:frontend/src/services/runtime.ts | A:- | S:组件不得直接 import bindings，一律经 services 薄封装；运行时网关不要缓存首次判定
+components.json[FV3T]: F:shadcn-vue 组件生成配置（风格、别名与 Tailwind 路径） | R:code:frontend/tailwind.config.ts | A:- | S:别名改动要同步 tsconfig 与 vite 别名
+eslint.config.mjs[XQ5T]: F:前端 ESLint 扁平配置：Vue/TS/Prettier 规则与忽略范围 | R:- | A:- | S:提 PR 前目标目录须 --max-warnings=0
+gen-icons.mjs[XV5T]: F:图标 barrel 生成脚本：扫描 common/icon 下的 Icon 组件并重写 index.ts | R:code:frontend/src/components/common/icon/index.ts | A:- | S:index.ts 由脚本生成，禁止手改；新增图标后必须重跑本脚本
+index.html[FV3T]: F:Vite 入口 HTML：挂载点与静态资源引用 | R:code:frontend/src/main.ts | A:- | S:-
+kc-temp.html[FZ2T]: F:临时调色/主题预览页残留文件 | R:- | A:- | S:临时产物，不应被产品引用
+kc.mjs[XZ4T]: F:临时脚本：主题色板计算/预览用 | R:- | A:- | S:临时脚本，不属产品链路
+kc.temp.mjs[XZ3T]: F:临时脚本残留（色板调试） | R:- | A:- | S:临时产物，不应被产品引用
+package.json[FV6T]: F:前端依赖、脚本与引擎约束清单 | R:code:frontend/pnpm-workspace.yaml | A:dev,build,test,e2e,lint | S:锁定版本以 lockfile 为准，不要手改版本换取通过
+playwright.config.ts[XQ5T]: F:Playwright e2e 配置：测试目录、浏览器与 dev server 复用 | R:code:frontend/e2e | A:- | S:e2e 断言真实布局，不要用 jsdom 快照替代
+pnpm-workspace.yaml[FV3T]: F:pnpm 工作区声明（仅前端自身） | R:code:frontend/package.json | A:- | S:-
+prettier.config.mjs[XQ4T]: F:Prettier 格式化配置 | R:- | A:- | S:格式化改动不要与功能改动混在同一提交
+tsconfig.json[FV5T]: F:TypeScript 配置：路径别名与编译目标 | R:- | A:- | S:路径别名改这里，不要在代码里写相对回退
+tsconfig.tsbuildinfo[ZV2T]: F:TypeScript 增量构建缓存（生成产物） | R:- | A:- | S:构建缓存，不要提交或手工编辑
+vite.config.ts[FV6T]: F:Vite 构建配置：别名、分包与开发代理 | R:- | A:- | S:-
+vitest.config.ts[FV5T]: F:Vitest 测试配置：环境与覆盖率 | R:- | A:- | S:-
+
+===/<repository>/frontend/bindings/changeme/internal/ai/===
+index.ts[CA3T]: F:Wails 生成的 ai 域绑定汇总：枚举与类型再导出（AgentRun/AgentStep/ToolCall 等类型） | R:- | A:- | S:自动生成，禁止手改；改 Go 侧后重跑 wails 生成
+models.ts[CA5L]: F:Wails 生成的 ai 域数据模型（Go 结构体的 TS 映射，AgentRun/AgentStep/ToolCall 等类型） | R:code:frontend/bindings/changeme/internal/ai/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/app/===
+index.ts[CG4T]: F:Wails 生成的 app 域绑定汇总：枚举与类型再导出（facade 方法代理） | R:- | A:- | S:自动生成，禁止手改；改 Go 侧后重跑 wails 生成
+models.ts[CG6M]: F:Wails 生成的 app 域数据模型（Go 结构体的 TS 映射，facade 方法代理） | R:code:frontend/bindings/changeme/internal/app/index.ts | A:- | S:自动生成，禁止手改
+service.ts[CG6L]: F:Wails 生成的 app facade 方法代理：每个绑定方法的 TS 调用入口 | R:code:internal/app | A:- | S:自动生成，禁止手改；签名以 Go facade 为唯一真相
+
+===/<repository>/frontend/bindings/changeme/internal/applock/===
+index.ts[CS2T]: F:Wails 生成的 applock 域绑定汇总：枚举与类型再导出（应用锁模型） | R:- | A:- | S:自动生成，禁止手改；改 Go 侧后重跑 wails 生成
+models.ts[CS4T]: F:Wails 生成的 applock 域数据模型（Go 结构体的 TS 映射，应用锁模型） | R:code:frontend/bindings/changeme/internal/applock/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/credential/===
+index.ts[CI3T]: F:Wails 生成的 credential 域绑定汇总：枚举与类型再导出（凭据模型） | R:- | A:- | S:自动生成，禁止手改；改 Go 侧后重跑 wails 生成
+models.ts[CI5S]: F:Wails 生成的 credential 域数据模型（Go 结构体的 TS 映射，凭据模型） | R:code:frontend/bindings/changeme/internal/credential/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/hostimport/===
+index.ts[CB2T]: F:Wails 生成的 hostimport 域绑定汇总：枚举与类型再导出（导入模型） | R:- | A:- | S:自动生成，禁止手改；改 Go 侧后重跑 wails 生成
+models.ts[CB4T]: F:Wails 生成的 hostimport 域数据模型（Go 结构体的 TS 映射，导入模型） | R:code:frontend/bindings/changeme/internal/hostimport/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/model/===
+index.ts[CD5S]: F:Wails 生成的 model 域绑定汇总：枚举与类型再导出（主机/分组/设置等核心模型） | R:- | A:- | S:自动生成，禁止手改；改 Go 侧后重跑 wails 生成
+models.ts[CD7L]: F:Wails 生成的 model 域数据模型（Go 结构体的 TS 映射，主机/分组/设置等核心模型） | R:code:frontend/bindings/changeme/internal/model/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/security/===
+index.ts[CS1T]: F:Wails 生成的 security 域绑定汇总：枚举与类型再导出（安全模型） | R:- | A:- | S:自动生成，禁止手改；改 Go 侧后重跑 wails 生成
+models.ts[CS3T]: F:Wails 生成的 security 域数据模型（Go 结构体的 TS 映射，安全模型） | R:code:frontend/bindings/changeme/internal/security/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/session/===
+index.ts[CB4T]: F:Wails 生成的 session 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CB6T]: F:Wails 生成的 session 域数据模型（会话模型） | R:code:frontend/bindings/changeme/internal/session/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/sftp/===
+index.ts[CB3T]: F:Wails 生成的 sftp 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CB5S]: F:Wails 生成的 sftp 域数据模型（文件传输模型） | R:code:frontend/bindings/changeme/internal/sftp/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/terminal/===
+index.ts[CU3T]: F:Wails 生成的 terminal 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CU5S]: F:Wails 生成的 terminal 域数据模型（终端模型） | R:code:frontend/bindings/changeme/internal/terminal/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/tmux/===
+index.ts[CB2T]: F:Wails 生成的 tmux 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CB4T]: F:Wails 生成的 tmux 域数据模型（tmux 模型） | R:code:frontend/bindings/changeme/internal/tmux/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/translate/===
+index.ts[CA2T]: F:Wails 生成的 translate 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CA4T]: F:Wails 生成的 translate 域数据模型（翻译模型） | R:code:frontend/bindings/changeme/internal/translate/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/trzszfiles/===
+index.ts[CB2T]: F:Wails 生成的 trzszfiles 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CB4T]: F:Wails 生成的 trzszfiles 域数据模型（trzsz 文件模型） | R:code:frontend/bindings/changeme/internal/trzszfiles/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/update/===
+index.ts[CV3T]: F:Wails 生成的 update 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CV5S]: F:Wails 生成的 update 域数据模型（更新模型） | R:code:frontend/bindings/changeme/internal/update/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/webfetch/===
+index.ts[CA2T]: F:Wails 生成的 webfetch 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CA4T]: F:Wails 生成的 webfetch 域数据模型（网页抓取模型） | R:code:frontend/bindings/changeme/internal/webfetch/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/x11/===
+index.ts[CN2T]: F:Wails 生成的 x11 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CN4T]: F:Wails 生成的 x11 域数据模型（X11 模型） | R:code:frontend/bindings/changeme/internal/x11/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/changeme/internal/zmodem/===
+index.ts[CB2T]: F:Wails 生成的 zmodem 域绑定汇总：枚举与类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CB4T]: F:Wails 生成的 zmodem 域数据模型（zmodem 模型） | R:code:frontend/bindings/changeme/internal/zmodem/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/encoding/json/===
+index.ts[CG3T]: F:Wails 生成的 encoding/json 绑定类型再导出 | R:- | A:- | S:自动生成，禁止手改
+models.ts[CG3T]: F:Wails 生成的 encoding/json 模型类型 | R:code:frontend/bindings/encoding/json/index.ts | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/events/===
+index.ts[CG3T]: F:Wails 生成的 events 绑定类型再导出 | R:- | A:- | S:自动生成，禁止手改
+
+===/<repository>/frontend/bindings/github.com/wailsapp/wails/v3/internal/===
+eventcreate.ts[CG3T]: F:Wails 运行时内部事件创建辅助函数的类型声明 | R:- | A:- | S:属第三方生成产物，升级 Wails 时随版本更新
+eventdata.d.ts[CG2T]: F:Wails 内部事件数据类型声明（仅类型） | R:- | A:- | S:属第三方生成产物，不要手改
+
+===/<repository>/frontend/build/===
+wails-bindings.ts[XV4T]: F:Wails v3 构建钩子：把 Go facade 生成到 bindings/ 的配置入口 | R:code:frontend/wailsjs | A:- | S:改了 facade 后需重新生成绑定，否则前端类型与运行时不一致
+
+===/<repository>/frontend/public/novnc/===
+LICENSE.txt[FV4T]: F:noVNC 的 MPL-2.0 许可文本 | R:- | A:- | S:分发时须保留本许可与文件头声明
+UPSTREAM.md[FV4T]: F:noVNC 上游版本来源与本地改动说明 | R:- | A:- | S:升级前先读本文，避免覆盖本地补丁
+
+===/<repository>/frontend/public/novnc/core/===
+base64.js[LU5S]: F:noVNC 的 base64 编解码工具（RFB 认证数据用） | R:- | A:- | S:属第三方上游文件，本地改动需在 UPSTREAM.md 记录
+clipboard.js[LU4T]: F:noVNC 剪贴板事件适配层 | R:- | A:- | S:属第三方上游文件，本地改动需记录
+deflator.js[LG3T]: F:zlib 压缩流封装 | R:code:frontend/public/novnc/vendor/pako/lib/zlib/adler32.js | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+display.js[LN6L]: F:画布渲染与帧呈现、缩放与光标合成 | R:code:frontend/public/novnc/core/rfb.js | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+encodings.js[LN3T]: F:RFB 编码类型常量表 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+inflator.js[LG3T]: F:zlib 解压流封装 | R:code:frontend/public/novnc/vendor/pako/lib/zlib/adler32.js | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+ra2.js[LS6M]: F:RSA-AES 认证（RFB 安全类型 ra2） | R:code:frontend/public/novnc/core/crypto/rsa.js,code:frontend/public/novnc/core/crypto/dh.js | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+rfb.js[LN8L]: F:RFB 协议主实现：握手、认证、通道与编解码分派 | R:code:frontend/public/novnc/core/display.js,code:frontend/public/novnc/core/websock.js | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+websock.js[LN6M]: F:WebSocket 二进制收发与缓冲 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+
+===/<repository>/frontend/public/novnc/core/crypto/===
+aes.js[LS5S]: F:noVNC 的 AES 实现（RFB 加密认证与 VNC 密码解密） | R:- | A:- | S:属第三方上游文件；加密实现不得随意替换
+bigint.js[LS4T]: F:noVNC 的大整数实现（DH 密钥交换用） | R:- | A:- | S:属第三方上游文件
+crypto.js[LS4T]: F:noVNC 的加密算法集合（DH/des/AES 选择） | R:- | A:- | S:属第三方上游文件
+des.js[LS4M]: F:DES 加密实现，供 VNC 旧式认证使用 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+dh.js[LS3T]: F:Diffie-Hellman 密钥交换 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+md5.js[LS3T]: F:MD5 摘要实现 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+rsa.js[LS3S]: F:RSA 公钥解密与签名校验 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+
+===/<repository>/frontend/public/novnc/core/decoders/===
+copyrect.js[LN3T]: F:CopyRect 编码：服务端复制已有矩形 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+h264.js[LN4M]: F:H.264 视频编码解码（依赖浏览器解码能力） | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+hextile.js[LN4S]: F:Hextile 编码解码 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+jpeg.js[LN4S]: F:JPEG 编码解码 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+raw.js[LN3T]: F:Raw 原始像素编码解码 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+rre.js[LN3T]: F:RRE 编码解码 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+tight.js[LN5M]: F:Tight 编码解码（含调色板与渐变压缩） | R:code:frontend/public/novnc/core/deflator.js | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+tightpng.js[LN3T]: F:Tight PNG 变体编码解码 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+zlib.js[LN3T]: F:Zlib 编码解码 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+zrle.js[LN4S]: F:ZRLE 编码解码 | R:code:frontend/public/novnc/core/inflator.js | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+
+===/<repository>/frontend/public/novnc/core/input/===
+domkeytable.js[LN4M]: F:DOM 键盘事件到 keysym 的映射表 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+fixedkeys.js[LN3S]: F:固定功能键（修饰键/功能键）映射 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+gesturehandler.js[LN4L]: F:手势事件（拖动/点击）处理 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+keyboard.js[LN5M]: F:键盘输入事件到 RFB 按键消息 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+keysym.js[LN4L]: F:keysym 与 Unicode 转换 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+keysymdef.js[LN4L]: F:X11 keysym 定义表 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+util.js[LN4S]: F:输入事件通用工具 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+vkeys.js[LN3S]: F:虚拟键盘布局定义 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+xtscancodes.js[LN4S]: F:XT 扫描码映射表 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+
+===/<repository>/frontend/public/novnc/core/util/===
+browser.js[LG4M]: F:浏览器能力探测 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+cursor.js[LG4M]: F:远端光标解析与绘制 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+element.js[LG3T]: F:DOM 元素查找辅助 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+events.js[LG3S]: F:事件收发与冒泡辅助 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+eventtarget.js[LG3T]: F:EventTarget 基类实现 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+int.js[LG3T]: F:整数读取辅助 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+logging.js[LG3T]: F:日志级别与输出封装 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+strings.js[LG3T]: F:字符串辅助函数 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+
+===/<repository>/frontend/public/novnc/vendor/pako/===
+LICENSE[LG3T]: F:pako 的许可证文本 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+README.md[LG3T]: F:pako 来源与版本说明 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+
+===/<repository>/frontend/public/novnc/vendor/pako/lib/utils/===
+common.js[LG3T]: F:pako 通用工具函数 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+
+===/<repository>/frontend/public/novnc/vendor/pako/lib/zlib/===
+adler32.js[LG3T]: F:Adler-32 校验和 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+constants.js[LG3T]: F:zlib 常量定义 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+crc32.js[LG3T]: F:CRC-32 校验和 | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换并核对上游版本
+deflate.js[LG8L]: F:DEFLATE 压缩核心（LZ77 与哈夫曼编码） | R:- | A:- | S:S:-
+gzheader.js[LG4T]: F:gzip 头解析与校验 | R:- | A:- | S:S:-
+inffast.js[LG6M]: F:快速解压路径（inffast 优化分支） | R:- | A:- | S:S:-
+inflate.js[LG8L]: F:INFLATE 解压核心（位流与哈夫曼解码） | R:- | A:- | S:S:-
+inftrees.js[LG5M]: F:解压码表构建 | R:- | A:- | S:S:-
+messages.js[LG3T]: F:zlib 错误信息文本表 | R:- | A:- | S:S:-
+trees.js[LG6L]: F:哈夫曼树构建与码表生成 | R:- | A:- | S:S:-
+zstream.js[LG4T]: F:z_stream 结构占位定义 | R:- | A:- | S:S:-
+
+===/<repository>/frontend/public/===
+style.css[CU4M]: F:公开目录静态样式：Neon-night 设计令牌（颜色/玻璃拟态/圆角/渐变）与应用外壳基础样式 | R:- | A:- | S:S:设计令牌以 :root 变量为准，改色先改令牌再改引用处
+
+===/<repository>/frontend/scripts/===
+verify-directory-follow.mjs[XQ4T]: F:校验脚本：断言后端唯一目录跟随配置块内容，并在真实 bash 下验证动态 PWD 上报 | R:- | A:- | S:S:配置块只在 Go 侧维护一份，脚本只做一致性断言
+wait-for-dev-server.mjs[XQ3T]: F:开发脚本：轮询等待 Vite dev server 就绪后再继续 | R:- | A:- | S:S:-
+
+===/<repository>/frontend/src/===
+App.vue[EU5T]: F:前端入口：按 URL 参数选择独立窗口（SFTP/RDP/VNC/主机编辑）或主壳，各入口异步分包加载 | R:- | A:- | S:S:每个 WebView 只加载自身入口，不要把全部窗口塞进同一 chunk
+__probe.ts[XZ2T]: F:热更新探针占位：导出一个标识 HMR 冷/热态的常量 | R:- | A:- | S:S:-
+main.ts[EU4T]: F:前端入口脚本：创建应用、挂载样式与启动运行时 | R:- | A:- | S:-
+vite-env.d.ts[CU2T]: F:Vite 环境类型声明 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/app/===
+HostEditorWindow.vue[AU7L]: F:主机编辑独立窗口：按 URL/事件决定编辑目标，装配 useHostEditor 并在内容就绪后显示 | R:- | A:- | S:S:窗口不预创建、关闭即销毁；单实例换目标，不要重建窗口
+QtermShell.vue[AU8L]: F:主窗口壳：多标签与分屏工作区、会话窗口编排、传输进度与冲突对话框、窗口几何持久化 | R:- | A:- | S:S:该文件是最大单文件组件，改动前先确认职责边界与既有拆分计划
+RdpWindow.vue[AU6S]: F:RDP 独立窗口：注册会话、接管既有 RDP 会话并渲染画布面板 | R:- | A:- | S:S:-
+SftpWindow.vue[AU4T]: F:SFTP 独立窗口入口：按 sftpSession 参数挂载 SFTP 面板 | R:- | A:- | S:S:-
+VncWindow.vue[AU6S]: F:VNC 独立窗口：按主机新开一条 RFB 会话（自行握手与认证），可移回主窗口标签 | R:- | A:- | S:S:VNC 的 TCP 连接无法交接，不能像 RDP 那样接管既有会话
+
+===/<repository>/frontend/src/components/ai-elements/attachment/===
+Attachment.vue[CA3T]: F:附件条容器（size/orientation/state 变体） | R:- | A:- | S:S:-
+AttachmentAction.vue[CA2T]: F:附件条单个操作按钮 | R:- | A:- | S:S:-
+AttachmentActions.vue[CA2T]: F:附件条操作按钮组 | R:- | A:- | S:S:-
+AttachmentContent.vue[CA2T]: F:附件条内容区容器 | R:- | A:- | S:S:-
+AttachmentDescription.vue[CA2T]: F:附件条说明文案 | R:- | A:- | S:S:-
+AttachmentGroup.vue[CA2T]: F:多附件分组容器 | R:- | A:- | S:S:-
+AttachmentMedia.vue[CA2T]: F:附件图标/预览媒体位 | R:- | A:- | S:S:-
+AttachmentTitle.vue[CA2T]: F:附件标题 | R:- | A:- | S:S:-
+AttachmentTrigger.vue[CA2T]: F:附件触发按钮 | R:- | A:- | S:S:-
+index.ts[CA2T]: F:附件组件 barrel 导出与 attachmentVariants 变体定义 | R:- | A:- | S:S:-
+
+===/<repository>/frontend/src/components/ai-elements/code-block/===
+CodeBlock.vue[CA3T]: F:代码块容器 | R:- | A:- | S:S:-
+CodeBlockActions.vue[CA2T]: F:代码块操作区容器 | R:- | A:- | S:S:-
+CodeBlockContent.vue[CA3T]: F:代码内容与逐行渲染 | R:- | A:- | S:S:-
+CodeBlockCopyButton.vue[CA3T]: F:代码复制按钮（含复制反馈） | R:- | A:- | S:S:-
+CodeBlockFooter.vue[CA2T]: F:代码块尾部插槽 | R:- | A:- | S:S:-
+CodeBlockHeader.vue[CA2T]: F:代码块头部插槽 | R:- | A:- | S:S:-
+CodeBlockLine.vue[CA3T]: F:代码块单行渲染 | R:- | A:- | S:S:-
+CodeBlockTitle.vue[CA2T]: F:代码块标题 | R:- | A:- | S:S:-
+CodeBlockToken.vue[CA2T]: F:单个高亮 token 渲染 | R:- | A:- | S:S:-
+highlighter.ts[CA6S]: F:Shiki 高亮器封装：按需动态加载语言与主题，输出可用 HTML 样式的 token | R:- | A:- | S:S:语言与主题走动态 import，不要改成静态全量引入
+index.ts[CA2T]: F:代码块组件 barrel 导出 | R:- | A:- | S:S:-
+useHighlightedCode.ts[CA4T]: F:异步高亮 composable：语言切换与增量重算 | R:- | A:- | S:S:-
+
+===/<repository>/frontend/src/components/ai-elements/item/===
+Item.vue[CA2T]: F:AI 消息项原子组件（列表项容器） | R:- | A:- | S:S:-
+ItemActions.vue[CA2T]: F:对话项操作区 | R:- | A:- | S:-
+ItemContent.vue[CA2T]: F:对话项内容区 | R:- | A:- | S:-
+ItemDescription.vue[CA2T]: F:对话项描述文案 | R:- | A:- | S:-
+ItemFooter.vue[CA2T]: F:对话项尾部插槽 | R:- | A:- | S:-
+ItemGroup.vue[CA2T]: F:对话项分组 | R:- | A:- | S:-
+ItemHeader.vue[CA2T]: F:对话项头部插槽 | R:- | A:- | S:-
+ItemMedia.vue[CA2T]: F:对话项媒体位 | R:- | A:- | S:-
+ItemSeparator.vue[CA2T]: F:对话项分隔线 | R:- | A:- | S:-
+ItemTitle.vue[CA2T]: F:对话项标题 | R:- | A:- | S:-
+index.ts[CA2T]: F:对话项组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ai-elements/message/===
+Message.vue[CA2T]: F:消息容器（角色/状态变体） | R:- | A:- | S:-
+MessageAvatar.vue[CA2T]: F:消息头像 | R:- | A:- | S:-
+MessageContent.vue[CA2T]: F:消息内容区 | R:- | A:- | S:-
+MessageFooter.vue[CA2T]: F:消息尾部插槽 | R:- | A:- | S:-
+MessageGroup.vue[CA2T]: F:消息分组 | R:- | A:- | S:-
+MessageHeader.vue[CA2T]: F:消息头部插槽 | R:- | A:- | S:-
+index.ts[CA2T]: F:消息组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ai-elements/reasoning/===
+Reasoning.vue[CA4T]: F:思考过程折叠容器（默认展开状态由上下文控制） | R:- | A:- | S:-
+ReasoningContent.vue[CA2T]: F:思考内容区渲染 | R:- | A:- | S:-
+ReasoningTrigger.vue[CA3T]: F:思考折叠触发器：显示思考中/已完成与耗时 | R:- | A:- | S:-
+context.ts[CA3T]: F:思考组件注入上下文：展开状态与流式标记 | R:- | A:- | S:-
+index.ts[CA2T]: F:思考组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ai-elements/response/===
+Response.vue[CA3T]: F:流式响应正文渲染（Markdown 与代码块） | R:- | A:- | S:-
+index.ts[CA2T]: F:响应组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ai-elements/task/===
+Task.vue[CA3T]: F:任务项展示：标题、状态图标与可折叠明细 | R:- | A:- | S:-
+index.ts[CA2T]: F:任务组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ai-elements/tool/===
+Tool.vue[CA4T]: F:工具调用展示：名称、参数、状态与结果预览 | R:- | A:- | S:-
+index.ts[CA2T]: F:工具调用组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ai-elements/trace/===
+Trace.vue[CA2T]: F:执行轨迹时间线容器 | R:- | A:- | S:-
+TraceCollapsible.vue[CA2T]: F:轨迹可折叠分组 | R:- | A:- | S:-
+TraceCollapsibleContent.vue[CA2T]: F:轨迹折叠内容 | R:- | A:- | S:-
+TraceCollapsibleTrigger.vue[CA2T]: F:轨迹折叠触发器 | R:- | A:- | S:-
+TraceDescription.vue[CA2T]: F:轨迹描述文案 | R:- | A:- | S:-
+TraceIcon.vue[CA2T]: F:轨迹状态图标 | R:- | A:- | S:-
+TraceLine.vue[CA2T]: F:轨迹单行 | R:- | A:- | S:-
+TraceTitle.vue[CA2T]: F:轨迹标题 | R:- | A:- | S:-
+index.ts[CA2T]: F:执行轨迹组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/ai/===
+index.ts[CA3T]: F:AI 相关公共组件统一导出入口 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/button/===
+IconButton.vue[CU5S]: F:纯图标按钮：尺寸变体、tooltip 与无障碍标签 | R:- | A:- | S:图标按钮必须提供可访问名称，禁止只靠 title 属性
+QtermButton.vue[CU6S]: F:统一按钮组件：变体（主/次/危险/幽灵）与尺寸、加载态 | R:- | A:- | S:业务按钮优先用它，不要各自手写 class 组合
+RefreshIconButton.vue[CU5S]: F:刷新图标按钮：旋转态、禁用与无障碍名称 | R:- | A:- | S:刷新中必须禁用并可访问，不要只靠动画表达状态
+
+===/<repository>/frontend/src/components/common/collapse/===
+CollapseTransition.vue[CU6S]: F:高度折叠/展开过渡：先量真实高度再动画，v-show 保留节点 | R:- | A:- | S:不能改成 grid-template-rows 纯 CSS：内容高度由行数与嵌套展开态共同决定
+
+===/<repository>/frontend/src/components/common/===
+control-primitives.ts[CU4T]: F:基础布局与辅助控件统一出口：scroll-area/tabs/tooltip 等 ui 组件再导出 | R:- | A:- | S:业务组件不直接依赖 components/ui，主题覆盖集中在公共层
+index.ts[CU4T]: F:公共组件统一出口（按钮/图标/布局/表单/反馈/设置行） | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/data/===
+QtermInfoList.vue[CU4S]: F:信息列表：键值对只读展示（详情面板用） | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/dialog/===
+QtermDialog.vue[CU5T]: F:对话框壳：遮罩、焦点与关闭行为统一 | R:- | A:- | S:-
+QtermDialogContent.vue[CU4T]: F:对话框内容区：尺寸与内边距变体 | R:- | A:- | S:-
+QtermDialogFooter.vue[CU3T]: F:对话框底部操作区 | R:- | A:- | S:-
+QtermDialogHeader.vue[CU4T]: F:对话框头部：标题、说明与关闭按钮 | R:- | A:- | S:-
+index.ts[CU3T]: F:对话框组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/editor/===
+RemoteTextEditor.vue[CU7S]: F:可替换编辑器外壳：按内核懒加载适配器、Monaco 失败回退 CodeMirror、向上暴露 focus/dispose | R:- | A:- | S:保存快捷键必须走应用快捷键注册表，不要在编辑器内部另挂 keydown
+RemoteTextEditorCodeMirror.vue[CU6M]: F:CodeMirror 6 适配器：保底编辑器内核，与 Monaco 适配器行为等价 | R:- | A:- | S:配色与 Monaco 刻意不同，不要为一致性强行统一
+RemoteTextEditorMonaco.vue[CU6L]: F:Monaco 适配器：默认编辑器内核（内置 vs/vs-dark 主题） | R:- | A:- | S:Monaco 会创建 module worker，打包器与 WKWebView 有额外要求
+index.ts[CU5T]: F:编辑器契约唯一出口：业务只 import 这里，不直接引用具体适配器 | R:- | A:- | S:业务组件不得直接 import Monaco/CodeMirror 适配器
+types.ts[CU6S]: F:编辑器可替换契约：props/events/暴露方法与语言归一 | R:- | A:- | S:两个内核必须逐项等价，改契约要同时改两份适配器
+
+===/<repository>/frontend/src/components/common/feedback/===
+DingToaster.vue[CU4T]: F:操作提示音与消息提示 toast 的组合反馈组件 | R:- | A:- | S:-
+QtermEmptyState.vue[CU4T]: F:空状态占位：图标、标题、说明与操作 | R:- | A:- | S:-
+QtermFormMessage.vue[CU4T]: F:表单校验信息：错误/警告/提示级别与图标 | R:- | A:- | S:-
+QtermHint.vue[CU3T]: F:行内提示文本（次要说明） | R:- | A:- | S:-
+TransferProgressPanel.vue[CU6M]: F:传输进度面板：多任务上传/下载、暂停/继续/重试/取消与阶段文案 | R:- | A:- | S:阶段文案只覆盖显示，不参与状态机与百分比
+
+===/<repository>/frontend/src/components/common/form-controls/===
+ColorTagField.vue[CU4T]: F:颜色标签选择字段：色板与自定义值 | R:- | A:- | S:-
+FormField.vue[CU5T]: F:表单字段包装：标签、说明与错误信息布局 | R:- | A:- | S:-
+QtermCheckbox.vue[CU3T]: F:复选框控件（含不确定态） | R:- | A:- | S:-
+QtermCombobox.vue[CU6M]: F:可搜索下拉选择：键盘导航、分组与空态 | R:- | A:- | S:-
+QtermInput.vue[CU4T]: F:文本输入框基础控件 | R:- | A:- | S:-
+QtermLabel.vue[CU5T]: F:标签包装：拦掉点标题误触展开选择器的默认行为 | R:- | A:- | S:不要去掉这里的点击拦截：否则点标签会展开下拉
+QtermNumberField.vue[CU5S]: F:数字输入：步进、范围与格式化 | R:- | A:- | S:-
+QtermSecretInput.vue[CU6S]: F:密码输入骨架：显示/隐藏切换与既有 CSS 钩子保留 | R:- | A:- | S:根节点必须保留 password-input-group 类：它是 styles/dialogs-settings.css 的契约钩子
+QtermSelect.vue[CU4T]: F:下拉选择根组件（Reka 组合件） | R:- | A:- | S:-
+QtermSelectItem.vue[CU3T]: F:下拉选项 | R:- | A:- | S:-
+QtermSelectTrigger.vue[CU4T]: F:下拉触发器：尺寸与占位样式 | R:- | A:- | S:-
+QtermSwitch.vue[CU3T]: F:开关控件 | R:- | A:- | S:-
+QtermTagsInput.vue[CU5S]: F:标签输入：回车/逗号提交、去重与删除 | R:- | A:- | S:-
+QtermTextarea.vue[CU3T]: F:多行文本输入 | R:- | A:- | S:-
+SelectContent.vue[CU4T]: F:下拉内容浮层（定位与滚动） | R:- | A:- | S:-
+index.ts[CU3T]: F:表单控件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/icon/===
+AnthropicIcon.vue[CU2T]: F:Anthropic/Claude 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+CPUIcon.vue[CU2T]: F:处理器/芯片语义图标 | R:- | A:- | S:-
+ChatStarIcon.vue[CU2T]: F:对话星标图标 | R:- | A:- | S:-
+CohereIcon.vue[CU2T]: F:Cohere 厂商图标 | R:- | A:- | S:-
+DeepSeekIcon.vue[CU2T]: F:DeepSeek 厂商图标 | R:- | A:- | S:-
+DockerIcon.vue[CU2T]: F:Docker 容器工具品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+ElectermIcon.vue[CU2T]: F:Electerm 终端品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+ExportIcon.vue[CU2T]: F:导出动作图标 | R:- | A:- | S:-
+FinalShellIcon.vue[CU2T]: F:FinalShell 品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+GPUIcon.vue[CU2T]: F:GPU/显卡语义图标 | R:- | A:- | S:-
+GeminiIcon.vue[CU2T]: F:Gemini 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+HostIcon.vue[CU2T]: F:主机语义图标 | R:- | A:- | S:-
+ImportIcon.vue[CU2T]: F:导入动作图标 | R:- | A:- | S:-
+JsonIcon.vue[CU2T]: F:JSON 文件类型图标 | R:- | A:- | S:-
+KimiIcon.vue[CU2T]: F:Kimi 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+ListCollapseIcon.vue[CU2T]: F:列表折叠图标 | R:- | A:- | S:-
+ListExtendIcon.vue[CU2T]: F:列表展开图标 | R:- | A:- | S:-
+LoadingIcon.vue[CU2T]: F:加载旋转图标 | R:- | A:- | S:-
+MemoryIcon.vue[CU2T]: F:内存/上下文用量图标 | R:- | A:- | S:-
+MimoIcon.vue[CU2T]: F:MiMo 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+MobaXtermIcon.vue[CU2T]: F:MobaXterm 品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+MorphingIcon.vue[CU5T]: F:可变形图标：基于 morphicons 在两枚图标间做弹簧路径动画 | R:- | A:- | S:变形图标依赖 morphicons，替换图标需同时提供起始与结束路径
+OllamaIcon.vue[CU2T]: F:Ollama 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+OpenAIIcon.vue[CU2T]: F:OpenAI 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+OpenCodeIcon.vue[CU2T]: F:OpenCode 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+OpenRouterIcon.vue[CU2T]: F:OpenRouter 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+PuTTYIcon.vue[CU2T]: F:PuTTY 品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+QwenIcon.vue[CU2T]: F:Qwen 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+SecureCRTIcon.vue[CU2T]: F:SecureCRT 品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+SortAZIcon.vue[CU2T]: F:升序排序图标 | R:- | A:- | S:-
+SortZAIcon.vue[CU2T]: F:降序排序图标 | R:- | A:- | S:-
+TerminalIcon.vue[CU2T]: F:终端语义图标 | R:- | A:- | S:-
+TermiusIcon.vue[CU2T]: F:Termius 品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+WindTermIcon.vue[CU2T]: F:WindTerm 品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+XShellIcon.vue[CU2T]: F:XShell 品牌图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+ZAIIcon.vue[CU2T]: F:Z.ai 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+chevronMorphIcons.ts[CU3T]: F:折叠箭头变形图标对（chevron 上下切换） | R:- | A:- | S:变形图标依赖 morphicons，替换图标需同时提供起始与结束路径
+index.ts[CU4T]: F:图标 barrel 导出（本地组件，不含运行时依赖） | R:- | A:- | S:-
+listMorphIcons.ts[CU3T]: F:列表折叠/展开变形图标对 | R:- | A:- | S:变形图标依赖 morphicons，替换图标需同时提供起始与结束路径
+simplifyMorphPath.ts[CU4T]: F:变形路径简化：压缩 SVG path 点数以降低动画开销 | R:- | A:- | S:变形图标依赖 morphicons，替换图标需同时提供起始与结束路径
+sortMorphIcons.ts[CU3T]: F:排序方向变形图标对（A→Z / Z→A） | R:- | A:- | S:变形图标依赖 morphicons，替换图标需同时提供起始与结束路径
+xAIIcon.vue[CU2T]: F:xAI 厂商图标 | R:- | A:- | S:品牌图标来自 iconify 并落成本地组件，不引入运行时依赖
+
+===/<repository>/frontend/src/components/common/layout/===
+QtermLoadMore.vue[CU4T]: F:加载更多：触底/手动触发与加载态 | R:- | A:- | S:-
+QtermSearchField.vue[CU4S]: F:搜索输入框：图标、清除与快捷键提示 | R:- | A:- | S:-
+QtermSearchToolbar.vue[CU4T]: F:搜索工具条：搜索框与筛选/操作插槽 | R:- | A:- | S:-
+ResizeHandle.vue[CU5S]: F:可拖拽分隔条：命中区、最小/最大尺寸与键盘调整 | R:- | A:- | S:-
+SegmentedTabs.vue[CU5T]: F:分段标签切换（radiogroup 语义，键盘可达） | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/overlay-controls/===
+AssetContextMenu.vue[CU5T]: F:资产右键菜单：连接/编辑/复制/删除等动作 | R:- | A:- | S:-
+SessionOverlay.vue[CU6M]: F:会话面板中央提示层：mask 遮罩与可操作浮层两种变体 | R:- | A:- | S:-
+index.ts[CU2T]: F:overlay-controls barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/common/settings/===
+QtermSettingsRow.vue[CU4T]: F:设置行：标题/说明/控件三段布局 | R:- | A:- | S:-
+QtermSettingsSectionHeader.vue[CU3T]: F:设置分区标题 | R:- | A:- | S:-
+SettingsGroupHeader.vue[CU4T]: F:设置分组头（可折叠组标题） | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/dialogs/===
+AiChatDialog.vue[CU5T]: F:AI 助手对话弹窗外壳（会话本体在 features/ai/AiPanel） | R:- | A:- | S:-
+AiCommandConfirmDialog.vue[CU6T]: F:AI 命令执行确认弹窗：展示命令与风险后由用户确认 | R:- | A:- | S:-
+AiHistoryDialog.vue[CU5S]: F:AI 会话历史列表与恢复 | R:- | A:- | S:-
+AiProviderDialog.vue[CU7L]: F:AI 供应商配置弹窗：端点、模型与密钥 | R:- | A:- | S:-
+AssetPickerDialog.vue[CU6M]: F:资产选择弹窗：搜索、分组与多选 | R:- | A:- | S:-
+CommandPaletteDialog.vue[CU6S]: F:命令面板：模糊搜索命令与快捷入口 | R:- | A:- | S:-
+CredentialCreateDialog.vue[CU7L]: F:凭据新建/编辑弹窗：类型、密钥与校验 | R:- | A:- | S:-
+CredentialQuickCreateMenu.vue[CU4T]: F:凭据快速新建菜单（从主机表单直接建） | R:- | A:- | S:-
+DeleteAssetDialog.vue[CU4T]: F:删除资产确认弹窗 | R:- | A:- | S:-
+DeleteConfirmDialog.vue[CU5T]: F:通用删除确认弹窗（危险操作） | R:- | A:- | S:-
+ExportConfigDialog.vue[CU5S]: F:配置导出弹窗：范围选择与口令保护 | R:- | A:- | S:-
+GroupEditorDialog.vue[CU4T]: F:分组新建/编辑弹窗 | R:- | A:- | S:-
+HostEditorDialog.vue[CU8L]: F:主机编辑表单（弹窗与独立窗口共用同一实现） | R:- | A:- | S:-
+HostIconPicker.vue[CU4M]: F:主机图标选择器：预设图标与搜索 | R:- | A:- | S:-
+HostKeyDialog.vue[CU7M]: F:主机密钥弹窗：known_hosts 指纹确认与信任 | R:- | A:- | S:-
+ImportConfigDialog.vue[CU7L]: F:配置导入：来源识别、预览与冲突处理 | R:- | A:- | S:-
+LaunchIntentDialog.vue[CU7S]: F:外部启动意图（qterm:// / ssh://）确认弹窗，确认后才拨号 | R:- | A:- | S:-
+ProxyEditorDialog.vue[CU5M]: F:代理编辑弹窗：类型、地址与认证 | R:- | A:- | S:-
+ProxyQuickCreateButton.vue[CU3T]: F:代理快速新建入口按钮 | R:- | A:- | S:-
+QuickConnectDialog.vue[CU5M]: F:快速连接弹窗：地址/用户/端口一次输入 | R:- | A:- | S:-
+SSHAuthenticationDialog.vue[CU7L]: F:SSH 认证弹窗：密码/密钥/键盘交互与重试 | R:- | A:- | S:-
+SerialConnectDialog.vue[CU5S]: F:串口连接弹窗：设备、波特率与数据位 | R:- | A:- | S:-
+SettingsDialog.vue[CU7L]: F:设置弹窗：分区导航与各设置页装配 | R:- | A:- | S:-
+SftpTransferConflicts.vue[CU6S]: F:SFTP 传输冲突处理（覆盖/跳过/重命名） | R:- | A:- | S:-
+SshHandshakeAlgorithms.vue[CU6S]: F:SSH 握手算法协商展示与覆盖设置 | R:- | A:- | S:-
+TransferConflictDialog.vue[CU5S]: F:传输冲突对话框（单次冲突决策） | R:- | A:- | S:-
+ZmodemDialog.vue[CU5S]: F:Zmodem 传输进度与取消（复用传输进度面板） | R:- | A:- | S:-
+index.ts[CU2T]: F:对话框 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/layout/===
+AppToolbar.vue[CU5S]: F:主工具栏：窗口控制、侧栏开关、主题与设置入口 | R:- | A:- | S:-
+AssetDragGhost.vue[CU4M]: F:资产拖拽跟随预览（主机地址/标签摘要） | R:- | A:- | S:-
+AssetHostRow.vue[CU5S]: F:资产列表主机行：状态点、地址与操作 | R:- | A:- | S:-
+AssetLibraryView.vue[CU8L]: F:资产库视图：分组树、主机列表、搜索与批量操作 | R:- | A:- | S:-
+AssetSidebar.vue[CU7M]: F:资产侧栏：分组/主机树与筛选 | R:- | A:- | S:-
+AssetTreeGroup.vue[CU5S]: F:资产树分组节点：展开态、主机计数与右键菜单挂载 | R:- | A:- | S:-
+index.ts[CU2T]: F:layout 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/accordion/===
+Accordion.vue[CU2T]: F:Accordion 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+AccordionContent.vue[CU2T]: F:AccordionContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+AccordionItem.vue[CU2T]: F:AccordionItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+AccordionTrigger.vue[CU2T]: F:AccordionTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:accordion 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/button/===
+Button.vue[CU2T]: F:Button 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU3T]: F:按钮 barrel 导出与 buttonVariants 变体定义（cva） | R:- | A:- | S:按钮样式变体只在这里定义，业务侧不要复制 class 组合
+
+===/<repository>/frontend/src/components/ui/checkbox/===
+Checkbox.vue[CU2T]: F:Checkbox 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:checkbox 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/collapsible/===
+Collapsible.vue[CU2T]: F:Collapsible 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+CollapsibleContent.vue[CU2T]: F:CollapsibleContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+CollapsibleTrigger.vue[CU2T]: F:CollapsibleTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:collapsible 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/combobox/===
+Combobox.vue[CU2T]: F:Combobox 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxAnchor.vue[CU2T]: F:ComboboxAnchor 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxEmpty.vue[CU2T]: F:ComboboxEmpty 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxGroup.vue[CU2T]: F:ComboboxGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxInput.vue[CU2T]: F:ComboboxInput 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxItem.vue[CU2T]: F:ComboboxItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxItemIndicator.vue[CU2T]: F:ComboboxItemIndicator 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxLabel.vue[CU2T]: F:ComboboxLabel 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxList.vue[CU2T]: F:ComboboxList 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxSeparator.vue[CU2T]: F:ComboboxSeparator 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxTrigger.vue[CU2T]: F:ComboboxTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ComboboxViewport.vue[CU2T]: F:ComboboxViewport 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:combobox 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/context-menu/===
+ContextMenu.vue[CU2T]: F:ContextMenu 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuCheckboxItem.vue[CU2T]: F:ContextMenuCheckboxItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuContent.vue[CU2T]: F:ContextMenuContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuGroup.vue[CU2T]: F:ContextMenuGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuItem.vue[CU2T]: F:ContextMenuItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuLabel.vue[CU2T]: F:ContextMenuLabel 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuPortal.vue[CU2T]: F:ContextMenuPortal 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuRadioGroup.vue[CU2T]: F:ContextMenuRadioGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuRadioItem.vue[CU2T]: F:ContextMenuRadioItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuSeparator.vue[CU2T]: F:ContextMenuSeparator 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuShortcut.vue[CU2T]: F:ContextMenuShortcut 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuSub.vue[CU2T]: F:ContextMenuSub 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuSubContent.vue[CU2T]: F:ContextMenuSubContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuSubTrigger.vue[CU2T]: F:ContextMenuSubTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ContextMenuTrigger.vue[CU2T]: F:ContextMenuTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:context-menu 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/dialog/===
+Dialog.vue[CU2T]: F:Dialog 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogClose.vue[CU2T]: F:DialogClose 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogContent.vue[CU2T]: F:DialogContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogDescription.vue[CU2T]: F:DialogDescription 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogFooter.vue[CU2T]: F:DialogFooter 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogHeader.vue[CU2T]: F:DialogHeader 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogOverlay.vue[CU2T]: F:DialogOverlay 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogScrollContent.vue[CU2T]: F:DialogScrollContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogTitle.vue[CU2T]: F:DialogTitle 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DialogTrigger.vue[CU2T]: F:DialogTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:dialog 目录 barrel 导出 | R:- | A:- | S:-
+initialFocus.ts[CU5S]: F:对话框初始焦点策略：按 data-autofocus 与可聚焦元素回退选择 | R:- | A:- | S:焦点顺序改动要同时回归键盘可达性用例
+themeContext.ts[CU3T]: F:对话框主题注入上下文（供浮层继承弹窗深浅色） | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/dropdown-menu/===
+DropdownMenu.vue[CU2T]: F:DropdownMenu 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuCheckboxItem.vue[CU2T]: F:DropdownMenuCheckboxItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuContent.vue[CU2T]: F:DropdownMenuContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuGroup.vue[CU2T]: F:DropdownMenuGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuItem.vue[CU2T]: F:DropdownMenuItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuLabel.vue[CU2T]: F:DropdownMenuLabel 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuRadioGroup.vue[CU2T]: F:DropdownMenuRadioGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuRadioItem.vue[CU2T]: F:DropdownMenuRadioItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuSeparator.vue[CU2T]: F:DropdownMenuSeparator 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuShortcut.vue[CU2T]: F:DropdownMenuShortcut 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuSub.vue[CU2T]: F:DropdownMenuSub 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuSubContent.vue[CU2T]: F:DropdownMenuSubContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuSubTrigger.vue[CU2T]: F:DropdownMenuSubTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+DropdownMenuTrigger.vue[CU2T]: F:DropdownMenuTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:dropdown-menu 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/input-group/===
+InputGroup.vue[CU2T]: F:InputGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+InputGroupAddon.vue[CU2T]: F:InputGroupAddon 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+InputGroupButton.vue[CU2T]: F:InputGroupButton 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+InputGroupInput.vue[CU2T]: F:InputGroupInput 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+InputGroupText.vue[CU2T]: F:InputGroupText 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+InputGroupTextarea.vue[CU2T]: F:InputGroupTextarea 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:input-group 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/input/===
+Input.vue[CU2T]: F:Input 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:input 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/label/===
+Label.vue[CU2T]: F:Label 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:label 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/number-field/===
+NumberField.vue[CU2T]: F:NumberField 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+NumberFieldContent.vue[CU2T]: F:NumberFieldContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+NumberFieldDecrement.vue[CU2T]: F:NumberFieldDecrement 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+NumberFieldIncrement.vue[CU2T]: F:NumberFieldIncrement 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+NumberFieldInput.vue[CU2T]: F:NumberFieldInput 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:number-field 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/popover/===
+Popover.vue[CU2T]: F:Popover 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+PopoverAnchor.vue[CU2T]: F:PopoverAnchor 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+PopoverContent.vue[CU2T]: F:PopoverContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+PopoverDescription.vue[CU2T]: F:PopoverDescription 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+PopoverHeader.vue[CU2T]: F:PopoverHeader 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+PopoverTitle.vue[CU2T]: F:PopoverTitle 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+PopoverTrigger.vue[CU2T]: F:PopoverTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:popover 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/radio-group/===
+RadioGroup.vue[CU2T]: F:RadioGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+RadioGroupItem.vue[CU2T]: F:RadioGroupItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:radio-group 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/scroll-area/===
+ScrollArea.vue[CU2T]: F:ScrollArea 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+ScrollBar.vue[CU2T]: F:ScrollBar 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:scroll-area 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/select/===
+Select.vue[CU2T]: F:Select 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectContent.vue[CU2T]: F:SelectContent 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectGroup.vue[CU2T]: F:SelectGroup 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectItem.vue[CU2T]: F:SelectItem 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectItemText.vue[CU2T]: F:SelectItemText 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectLabel.vue[CU2T]: F:SelectLabel 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectScrollDownButton.vue[CU2T]: F:SelectScrollDownButton 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectScrollUpButton.vue[CU2T]: F:SelectScrollUpButton 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectSeparator.vue[CU2T]: F:SelectSeparator 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectTrigger.vue[CU2T]: F:SelectTrigger 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+SelectValue.vue[CU2T]: F:SelectValue 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:select 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/separator/===
+Separator.vue[CU2T]: F:Separator 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:separator 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/slider/===
+Slider.vue[CU2T]: F:Slider 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:slider 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/sonner/===
+Sonner.vue[CU3T]: F:全局 toast 容器（sonner）主题与位置配置，导出为 QtermToaster | R:- | A:- | S:-
+index.ts[CU2T]: F:sonner 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/switch/===
+Switch.vue[CU2T]: F:Switch 的 Qterm 封装：基于 reka-ui 透传 props/emits 并叠加 Tailwind 样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:switch 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/tabs/===
+Tabs.vue[CU2T]: F:Tabs 根组件（值绑定与键盘切换） | R:- | A:- | S:-
+TabsContent.vue[CU2T]: F:Tabs 面板内容 | R:- | A:- | S:-
+TabsList.vue[CU2T]: F:Tabs 标签列表容器 | R:- | A:- | S:-
+TabsTrigger.vue[CU3T]: F:Tabs 标签触发器（激活态样式） | R:- | A:- | S:-
+index.ts[CU2T]: F:tabs 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/tags-input/===
+TagsInput.vue[CU3T]: F:标签输入根组件（值与去重策略） | R:- | A:- | S:-
+TagsInputClear.vue[CU2T]: F:标签输入清空按钮 | R:- | A:- | S:-
+TagsInputInput.vue[CU3T]: F:标签输入文本框 | R:- | A:- | S:-
+TagsInputItem.vue[CU2T]: F:单个标签项 | R:- | A:- | S:-
+TagsInputItemDelete.vue[CU2T]: F:标签项删除按钮 | R:- | A:- | S:-
+TagsInputItemText.vue[CU2T]: F:标签项文本 | R:- | A:- | S:-
+index.ts[CU2T]: F:tags-input 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/textarea/===
+Textarea.vue[CU2T]: F:Textarea 的 Qterm 封装：透传 props 并叠加样式 | R:- | A:- | S:-
+index.ts[CU2T]: F:textarea 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/ui/tooltip/===
+Tooltip.vue[CU2T]: F:Tooltip 根组件 | R:- | A:- | S:-
+TooltipContent.vue[CU3T]: F:Tooltip 浮层内容（延迟与定位） | R:- | A:- | S:-
+TooltipProvider.vue[CU2T]: F:Tooltip 全局提供者（延迟配置） | R:- | A:- | S:-
+TooltipTrigger.vue[CU2T]: F:Tooltip 触发器 | R:- | A:- | S:-
+index.ts[CU2T]: F:tooltip 目录 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/components/workspace/===
+AsciinemaReplay.vue[CU7L]: F:asciinema 录制回放：事件流喂给播放器，主题与网格按录制元数据适配 | R:- | A:- | S:回放跟随当前终端主题并写入 asciicast 头，否则播放器色板不全
+CommandHistoryContextMenu.vue[CU4T]: F:命令历史右键菜单（复制/再次执行） | R:- | A:- | S:-
+ReplayTerminal.vue[CU6S]: F:纯文本回放终端：按录制行列与主题重放静态输出 | R:- | A:- | S:网格算法来自 replayGeometry 的最终决策，不要在组件内另算
+ResourceSparkline.vue[CU4S]: F:资源迷你走势图（CPU/内存等小图） | R:- | A:- | S:-
+SessionContextMenu.vue[CU5M]: F:会话标签右键菜单：重连/复制/分屏/关闭等 | R:- | A:- | S:-
+SessionWindowTitlebar.vue[CU4T]: F:独立会话窗口标题栏（拖拽区与窗口控制） | R:- | A:- | S:-
+SessionWorkspace.vue[CU8L]: F:会话工作区主渲染：分屏布局、标签、状态页与工具面板装配 | R:- | A:- | S:该文件是工作区主渲染，改动前先确认与拆分计划的边界
+SnippetContextMenu.vue[CU4T]: F:快捷命令右键菜单 | R:- | A:- | S:-
+TerminalMetricTooltip.vue[CU3T]: F:终端指标悬浮提示 | R:- | A:- | S:-
+TerminalMetricsCharts.vue[CU5S]: F:终端资源指标图表（采样序列渲染） | R:- | A:- | S:-
+ToolPanel.vue[CU8L]: F:右侧工具面板：SFTP/监控/AI/历史等面板容器与切换 | R:- | A:- | S:AI 面板与 AiChatDialog 共用 features/ai/AiPanel 实现，不要在此分叉
+ToolRail.vue[CU6M]: F:工具面板竖排图标栏：入口与激活态 | R:- | A:- | S:-
+index.ts[CU2T]: F:workspace 目录 barrel 导出 | R:- | A:- | S:-
+replayGeometry.ts[CU6M]: F:回放终端几何契约：固定 12px 字号、网格公式与轴向安全余量 | R:- | A:- | S:字号固定 12px 与公式是最终决策，改动需实测超宽/超高录制
+
+===/<repository>/frontend/src/composables/===
+useAiAgentTurn.ts[CU7M]: F:AI Agent 轮次生命周期：启动、轮询、审批决定与取消 | R:- | A:- | S:组件卸载只停轮询不取消后端运行；迟到快照按原始会话身份落盘
+useCredentialState.ts[CU7L]: F:凭据库前端状态：列表、主密码、自动解锁与导入导出 | R:- | A:- | S:凭据明文与主密码不得写入日志或前端持久化
+useQtermShell.ts[CU8L]: F:主壳状态编排：主机/会话/凭据/录制/更新等网关的聚合与事件订阅 | R:- | A:- | S:这里是前端编排唯一入口，组件不要绕过它直接调网关
+useRdpWindowHandover.ts[CU5T]: F:RDP 会话移交到独立窗口的状态处理 | R:- | A:- | S:-
+useResourceHistory.ts[CU4S]: F:资源采样历史环形缓冲与摘要 | R:- | A:- | S:-
+useSessionHandover.ts[CU6S]: F:会话在标签/分屏/独立窗口之间移交的状态处理 | R:- | A:- | S:-
+useSessionState.ts[CU8L]: F:会话状态单一来源：标签、认证挑战、主机密钥与关闭原因 | R:- | A:- | S:会话快照只在这里维护，组件不要各自缓存
+useSessionWindowHandover.ts[CU5M]: F:会话移交独立窗口的窗口侧状态与回传 | R:- | A:- | S:-
+useTransferState.ts[CU5S]: F:传输任务状态：进度、冲突与重试 | R:- | A:- | S:-
+useWindowTheme.ts[CU5S]: F:独立窗口主题同步：读取全局主题并应用到当前 WebView | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/ai/===
+AiCommandCard.vue[CU6M]: F:AI 命令卡片：命令、风险提示与执行入口 | R:- | A:- | S:执行前必须走确认流，不在卡片内直接执行
+AiComposer.vue[CU6M]: F:AI 输入区：多行输入、附件与主机/文件提及 | R:- | A:- | S:-
+AiConfirmation.vue[CU5S]: F:AI 通用确认卡（是/否与取消） | R:- | A:- | S:-
+AiContextDialog.vue[CU5S]: F:AI 上下文用量明细弹窗 | R:- | A:- | S:-
+AiContextSourcesDialog.vue[CU6M]: F:AI 上下文来源选择：会话/文件/主机等来源勾选 | R:- | A:- | S:-
+AiConversation.vue[CU9L]: F:AI 会话时间线：消息、工具调用、审批与流式渲染 | R:- | A:- | S:该文件是 AI 面板最大单文件，改动前确认拆分边界
+AiDiffPreview.vue[CU4T]: F:AI 改动预览（行级 diff 渲染） | R:- | A:- | S:-
+AiHostMentionMenu.vue[CU5S]: F:AI 输入的主机提及菜单 | R:- | A:- | S:-
+AiMarkdownCodeBlock.vue[CU5S]: F:AI 消息里的代码块渲染（含复制与高亮） | R:- | A:- | S:-
+AiMarkdownImage.vue[CU3T]: F:AI 消息里的图片渲染 | R:- | A:- | S:-
+AiMarkdownLink.vue[CU4T]: F:AI 消息里的链接渲染（外链安全处理） | R:- | A:- | S:-
+AiMarkdownMath.vue[CU3T]: F:AI 消息里的数学公式渲染 | R:- | A:- | S:-
+AiMessageText.vue[CU6M]: F:AI 消息正文渲染：Markdown 管线与插件装配 | R:- | A:- | S:-
+AiPanel.vue[CU6T]: F:安全面板外的 AI 助手容器：Ask/Agent 共用同一会话时间线 | R:- | A:- | S:模式只决定下一轮后端能力，不得因切换模式卸载对话或丢历史
+AiToolCard.vue[CU6S]: F:AI 工具调用卡片：参数、输出与状态 | R:- | A:- | S:-
+AiToolConfirmation.vue[CU7S]: F:AI 工具调用确认卡：展示参数与影响范围 | R:- | A:- | S:确认流是安全边界，不得自动通过
+AiUserQuestion.vue[CU5S]: F:AI 反向提问卡片（向用户收集补充信息） | R:- | A:- | S:-
+markdownFootnotes.ts[CU3T]: F:Markdown 脚注语法扩展 | R:- | A:- | S:-
+markdownMath.ts[CU3T]: F:Markdown 数学公式语法扩展 | R:- | A:- | S:-
+markdownPolicy.ts[CU6S]: F:Markdown 渲染白名单策略：允许标签与属性裁减 | R:- | A:- | S:白名单只收紧不放宽，放宽前先评估 XSS
+providerLogos.ts[CU3T]: F:AI 供应商标识映射（名称→图标/颜色） | R:- | A:- | S:-
+textDiff.ts[CU5S]: F:审批卡行级差异计算：LCS 实现与规模上限退化 | R:- | A:- | S:超过单元数上限退化为整文件替换并标记 truncated，不要改成阻塞式全量比较
+
+===/<repository>/frontend/src/features/applock/===
+AppLockScreen.vue[CU7M]: F:应用锁锁屏界面：密码输入与解锁 | R:- | A:- | S:锁屏期间不得允许绕过进入设置或会话
+AppLockSettings.vue[CU6M]: F:应用锁设置：启用、超时与修改密码 | R:- | A:- | S:-
+useAppLock.ts[CU7M]: F:应用锁全局状态单例：锁定态、启用与自动锁定 | R:- | A:- | S:必须模块级单例：锁屏与设置两处共享同一份状态
+
+===/<repository>/frontend/src/features/docker/===
+DockerContainerDetailDialog.vue[CU5M]: F:容器详情弹窗：状态、端口、挂载与日志入口 | R:- | A:- | S:-
+DockerContainerMenu.vue[CU5S]: F:容器操作菜单：启动/停止/重启/删除 | R:- | A:- | S:破坏性操作需二次确认
+DockerGroupMenu.vue[CU4T]: F:容器分组菜单 | R:- | A:- | S:-
+DockerImageDetailDialog.vue[CU5M]: F:镜像详情弹窗 | R:- | A:- | S:-
+DockerImageRow.vue[CU4T]: F:镜像列表行 | R:- | A:- | S:-
+DockerNetworkDetailDialog.vue[CU4S]: F:网络详情弹窗 | R:- | A:- | S:-
+DockerNetworkRow.vue[CU4T]: F:网络列表行 | R:- | A:- | S:-
+DockerPanel.vue[CU8L]: F:Docker 面板：容器/镜像/网络/卷四类资源浏览与操作 | R:- | A:- | S:该文件是 Docker 面板主渲染，改动前确认拆分边界
+DockerResourceDetailDialog.vue[CU4S]: F:Docker 资源详情通用弹窗（网络/卷共用） | R:- | A:- | S:-
+DockerVolumeDetailDialog.vue[CU4T]: F:卷详情弹窗 | R:- | A:- | S:-
+DockerVolumeRow.vue[CU4T]: F:卷列表行 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/forwards/===
+PortForwardEditorDialog.vue[CU7L]: F:端口转发规则编辑弹窗：类型、监听与目标 | R:- | A:- | S:-
+PortForwardGroupDialog.vue[CU4T]: F:端口转发分组编辑弹窗 | R:- | A:- | S:-
+PortForwardPanel.vue[CU7L]: F:端口转发面板：规则列表、状态与操作 | R:- | A:- | S:-
+PortForwardSettingsPanel.vue[CU7L]: F:设置内的端口转发页（与工具面板共用展示规则） | R:- | A:- | S:展示规则统一来自 forwardView.ts，不要另写一份
+forwardView.ts[CU5S]: F:端口转发展示层纯函数：名称回退、摘要、分组与排序 | R:- | A:- | S:不依赖 Vue/i18n，文案键由调用方翻译，保证两处界面一致
+usePortForwardActions.ts[CU4T]: F:端口转发动作组合式：启动/停止/删除与错误提示 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/history/===
+RemoteHistoryPanel.vue[CU6M]: F:命令历史面板：搜索、筛选与再次执行 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/hosts/===
+assetBatch.ts[CU4T]: F:资产批量操作：多选动作与结果汇总 | R:- | A:- | S:批量删除等破坏性动作必须二次确认
+assetDrag.ts[CU7L]: F:资产拖拽状态机：主机/分组拖拽、落点判定与展开悬停 | R:- | A:- | S:-
+assetTree.ts[CU5S]: F:资产分组树构建（分组嵌套与排序） | R:- | A:- | S:-
+assetTreeExpansion.ts[CU4S]: F:资产树展开态持久化 | R:- | A:- | S:-
+builtinIcons.ts[CU5M]: F:内置主机图标库（品牌/系统图标清单） | R:- | A:- | S:-
+bulkConnect.ts[CU5S]: F:批量连接编排：并发上限、失败汇总 | R:- | A:- | S:-
+customHostIcon.ts[CU4S]: F:自定义主机图标：校验、尺寸与落盘 | R:- | A:- | S:-
+hostDraft.ts[CU5S]: F:主机草稿模型：表单初值与脏检查 | R:- | A:- | S:-
+hostIcons.ts[CU5M]: F:主机图标解析：按协议/系统/标签匹配图标 | R:- | A:- | S:-
+hostListMerge.ts[CU4T]: F:主机列表合并：本地更新与外部变更的去重策略 | R:- | A:- | S:-
+hostProtocols.ts[CU7M]: F:主机协议配置表：各协议需要的表单分区与默认值 | R:- | A:- | S:新增协议只改这一份配置，不要在模板里堆协议分支
+hostSummary.ts[CU4T]: F:主机摘要文本：地址、用户与端口拼接 | R:- | A:- | S:-
+index.ts[CU2T]: F:hosts 特性 barrel 导出 | R:- | A:- | S:-
+useAssetDeletion.ts[CU4T]: F:资产删除组合式：确认、级联与错误处理 | R:- | A:- | S:-
+useAssetState.ts[CU6S]: F:资产状态：主机/分组列表、选中与搜索 | R:- | A:- | S:-
+useGroupEditor.ts[CU4T]: F:分组编辑组合式（新建/重命名/移动） | R:- | A:- | S:-
+useHostClipboard.ts[CU3T]: F:主机复制粘贴（含分组内粘贴） | R:- | A:- | S:-
+useHostEditor.ts[CU8L]: F:主机编辑表单状态：草稿、校验、保存与凭据联动 | R:- | A:- | S:弹窗与独立窗口共用这一份表单逻辑，不要各写一份
+
+===/<repository>/frontend/src/features/monitor/===
+AcceleratorCards.vue[CU4S]: F:加速器/GPU 资源卡片 | R:- | A:- | S:-
+MonitorPanel.vue[CU7M]: F:系统监控面板：资源曲线、进程列表与加速器 | R:- | A:- | S:-
+ProcessDetailDialog.vue[CU5M]: F:进程详情弹窗（CPU/内存/命令行） | R:- | A:- | S:-
+gpuMemory.ts[CU3T]: F:GPU 显存数据归一化与格式化 | R:- | A:- | S:-
+networkMetrics.ts[CU3T]: F:网络指标采样换算 | R:- | A:- | S:-
+resourceFeed.ts[CU6S]: F:资源采样订阅：5s 轮询租约与历史环形缓冲 | R:- | A:- | S:空闲时不保留多余订阅，避免多窗口重复拉取
+resourceSelection.ts[CU4S]: F:监控面板的指标/主机选择状态 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/otp/===
+AuthenticationPanel.vue[CU4T]: F:认证面板容器（二次验证入口） | R:- | A:- | S:-
+OtpPanel.vue[CU7L]: F:OTP 令牌面板：账户列表、验证码与倒计时 | R:- | A:- | S:验证码不得进日志或剪贴板历史
+
+===/<repository>/frontend/src/features/remotedesktop/===
+RdpCanvasPane.vue[CU8L]: F:RDP 画布：帧流渲染、输入投递与画面缩放 | R:- | A:- | S:该文件是 RDP 主渲染，改动前确认与拆分计划的边界
+RdpCertificateDialog.vue[CU6S]: F:RDP 证书确认弹窗（指纹与信任） | R:- | A:- | S:证书异常必须显式确认，不得默认接受
+RdpLogDialog.vue[CU4T]: F:RDP 会话日志查看弹窗 | R:- | A:- | S:-
+RdpWorkspace.vue[CU6M]: F:RDP 工作区：连接装配、工具栏与画布容器 | R:- | A:- | S:-
+keymap.ts[CU6S]: F:浏览器键位到 RDP 扫描码的映射 | R:- | A:- | S:-
+rdpProtocol.ts[CU8L]: F:RDP 帧协议前端镜像编解码：帧头、矩形描述符与 ACK | R:- | A:- | S:batchId/sequence 是 u64，必须用 bigint；用 number 会在长会话丢精度导致丢帧
+rdpRenderer.ts[CU7M]: F:RDP 帧渲染：离屏底图 + 脏矩形增量绘制 | R:- | A:- | S:不要退回每帧整屏解码绘制，成本会随整屏面积增长
+rdpStream.ts[CU7M]: F:RDP 二进制流通道：帧读取、ACK 与背压 | R:- | A:- | S:-
+useRdpSession.ts[CU8L]: F:RDP 会话生命周期：连接、重连、分辨率与输入绑定 | R:- | A:- | S:-
+useRdpStream.ts[CU7M]: F:RDP 流订阅组合式：帧批次与 ACK 时序 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/remoteedit/===
+RemoteEditConflictDialog.vue[CU5S]: F:远端编辑冲突弹窗（本地已改/远端已改） | R:- | A:- | S:冲突必须让用户选择，不得静默覆盖远端
+RemoteTextEditDialog.vue[CU7L]: F:远端文件编辑弹窗：加载、编辑、保存与冲突处理 | R:- | A:- | S:-
+fileLanguage.ts[CU4S]: F:文件名到编辑器语言的映射 | R:- | A:- | S:-
+lineDiff.ts[CU4T]: F:行级差异计算（远端编辑冲突展示） | R:- | A:- | S:-
+remoteEditModel.ts[CU6M]: F:远端编辑纯逻辑：状态归一、冲突判定与 base64/UTF-8 往返 | R:- | A:- | S:不 import Vue/绑定/请求，只产出 locale key 与判定，便于单测
+remoteEditorFocus.ts[CU4T]: F:编辑器焦点跨窗口/标签的恢复 | R:- | A:- | S:-
+useRemoteEdits.ts[CU7L]: F:远端编辑会话管理：打开、状态轮询、保存与冲突 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/services/===
+ServiceDetailDialog.vue[CU5S]: F:服务详情弹窗（类型、状态与操作） | R:- | A:- | S:-
+ServiceLogsDialog.vue[CU5M]: F:服务日志查看弹窗（过滤与跟随） | R:- | A:- | S:-
+ServicePanel.vue[CU7L]: F:服务面板：清单、筛选与启停/重启操作 | R:- | A:- | S:启停/删除服务必须有二次确认与错误回显
+
+===/<repository>/frontend/src/features/sessions/===
+BatchCommandBar.vue[CU7S]: F:批量命令栏：向当前分屏组广播输入或发送快捷命令 | R:- | A:- | S:广播目标是当前分屏组，不要广播到其它标签
+SnippetPickerDialog.vue[CU5M]: F:快捷命令选择弹窗（搜索与插入） | R:- | A:- | S:-
+TerminalGutter.vue[CU4T]: F:终端左侧行标记槽（命令块标记） | R:- | A:- | S:-
+TerminalPane.vue[CU9L]: F:终端面板：xterm 装配、输入输出、渲染器切换与工具条 | R:- | A:- | S:该文件是终端主渲染（5000+ 行），任何改动前先确认拆分边界与验证路径
+credentialAutofill.ts[CU5S]: F:凭据自动填充规则：匹配主机/用户名与提示时机 | R:- | A:- | S:明文凭据只在内存短暂持有，不得写日志
+latency.ts[CU3T]: F:会话延迟采样换算 | R:- | A:- | S:-
+paneDrop.ts[CU4S]: F:分屏拖拽落点判定（上下左右与合并） | R:- | A:- | S:-
+recordingStore.ts[CU4T]: F:录制状态前端存储（进行中录制与开关） | R:- | A:- | S:-
+tabDrop.ts[CU4T]: F:标签拖拽排序与跨组分栏 | R:- | A:- | S:-
+terminalActionLinkActions.ts[CU3T]: F:终端动作链接的动作处理（打开/复制等） | R:- | A:- | S:-
+terminalActionLinks.ts[CU7M]: F:终端输出中的可点击动作链接识别（路径/URL/端口） | R:- | A:- | S:识别只在可见缓冲区间做，避免误伤二进制输出
+terminalCompletionInput.ts[CU4T]: F:命令补全的输入上下文解析 | R:- | A:- | S:-
+terminalCompletionPolicy.ts[CU5T]: F:补全推荐策略：按命令是否依赖进程状态决定是否推荐 | R:- | A:- | S:kill 类命令不得从历史反复推荐；引号内参数不能当作实际命令
+terminalDomFontMetrics.ts[CU6M]: F:终端字体度量诊断：DOM 与 canvas 的字宽测量对比 | R:- | A:- | S:WKWebView 下 OffscreenCanvas 测量会偏大，需按 DOM 测量校正
+terminalFont.ts[CU6S]: F:终端字体解析与回退链（字体族、字号、行高） | R:- | A:- | S:-
+terminalFontShortcut.ts[CU3T]: F:终端字号快捷键处理（放大/缩小/重置） | R:- | A:- | S:-
+terminalGutter.ts[CU5M]: F:终端行槽布局计算（标记与命令块对齐） | R:- | A:- | S:-
+terminalGutterTextWidth.ts[CU3T]: F:行槽文本宽度测量 | R:- | A:- | S:-
+terminalInput.ts[CU5T]: F:终端输入编码（按键到字节序列） | R:- | A:- | S:-
+terminalInputSource.ts[CU4T]: F:输入来源标记（键盘/IME/粘贴/脚本），用于同步扇出边界 | R:- | A:- | S:协议应答与脚本注入不得走同步扇出
+terminalPaneCommandBus.ts[CU4T]: F:终端面板命令总线（面板内外命令分发） | R:- | A:- | S:-
+terminalShellIntegration.ts[CU5T]: F:shell 集成脚本注入与标记解析 | R:- | A:- | S:-
+terminalTail.ts[CU3T]: F:终端尾部输出缓冲（最近 N 行） | R:- | A:- | S:-
+terminalThemes.ts[CU7L]: F:终端主题定义与持久化（内置主题、颜色校验、选中态 alpha） | R:- | A:- | S:颜色统一 #RRGGBB，selectionBackground 额外允许 #RRGGBBAA
+useSessionTabDrag.ts[CU6L]: F:会话标签拖拽：排序、跨窗口与分组 | R:- | A:- | S:-
+useSplitWorkspace.ts[CU8L]: F:分屏工作区模型：树结构、比例、拖拽与布局持久化 | R:- | A:- | S:分屏树是唯一布局真相，窗口尺寸变化要经它重算
+useTerminalCommandGutter.ts[CU6M]: F:命令块行槽组合式：块边界、折叠与复制 | R:- | A:- | S:-
+useTerminalGutter.ts[CU7L]: F:终端行槽组合式：标记、时间戳与提示符对齐 | R:- | A:- | S:-
+useTerminalKeywordHighlights.ts[CU6M]: F:终端关键字高亮（错误/警告/路径等） | R:- | A:- | S:-
+useTerminalLineTimestamps.ts[CU6L]: F:终端行时间戳记录与显示 | R:- | A:- | S:-
+webglContextPool.ts[CU5T]: F:WebGL 上下文池：可见性/活跃度驱动的复用与回收（上限 12） | R:- | A:- | S:超过上下文上限必须回收不可见终端，否则新终端会创建失败
+
+===/<repository>/frontend/src/features/settings/===
+AboutSettingsPanel.vue[CU5L]: F:关于页：版本、更新检查与法律信息 | R:- | A:- | S:-
+AiCommandRules.vue[CU6M]: F:AI 命令规则设置：允许/禁止模式与确认级别 | R:- | A:- | S:规则放宽会直接扩大自动执行面，需明确提示
+AiContextSettings.vue[CU5S]: F:AI 上下文设置：携带来源与预算 | R:- | A:- | S:-
+AiSettingsPanel.vue[CU7L]: F:AI 设置页：供应商、模型、审批与上下文 | R:- | A:- | S:-
+AppearanceSettingsPanel.vue[CU7L]: F:外观设置：主题、字体、终端样式与界面密度 | R:- | A:- | S:主题令牌改动要同步设计令牌，不要在组件里写死颜色
+ApplicationSettingsPanel.vue[CU6L]: F:应用设置页：启动行为、关闭策略与更新通道 | R:- | A:- | S:-
+AssetTransferPanel.vue[CU5M]: F:资产导入导出设置页（来源、目标与覆盖策略） | R:- | A:- | S:-
+CredentialPromptSettingsPanel.vue[CU6L]: F:凭据提示规则设置：自动填充匹配与提示开关 | R:- | A:- | S:-
+CredentialsSettingsPanel.vue[CU8L]: F:凭据库设置：主密码、自动解锁与导入导出 | R:- | A:- | S:主密码与密钥材料不得落日志
+GlobalShortcutSettings.vue[CU5S]: F:全局快捷键设置（系统级唤出） | R:- | A:- | S:注册失败要明确告知冲突来源
+HistorySettingsPanel.vue[CU8L]: F:历史设置页：命令历史、录制与回放策略 | R:- | A:- | S:该页体量大且涉及数据清理，改动需实测历史留存与回放
+KeywordHighlightSettingsPanel.vue[CU7L]: F:关键字高亮设置：规则、预设与预览 | R:- | A:- | S:-
+KnownHostsSettingsPanel.vue[CU6M]: F:已知主机设置：指纹列表与信任撤销 | R:- | A:- | S:撤销信任前必须提示后续连接会重新确认
+LocalDataEncryptionSettings.vue[CU8L]: F:本地数据加密设置：启用、改密钥与迁移 | R:- | A:- | S:改密钥涉及已有数据重加密，失败必须可回滚
+ProxySettingsPanel.vue[CU5M]: F:代理设置页：代理列表与默认代理 | R:- | A:- | S:-
+RdpSettingsPanel.vue[CU5S]: F:RDP 设置页：显示参数与默认行为 | R:- | A:- | S:-
+ShortcutKeycaps.vue[CU4T]: F:快捷键键帽渲染（跨平台显示 ⌘/Ctrl） | R:- | A:- | S:-
+ShortcutsSettingsPanel.vue[CU7L]: F:快捷键设置页：命令列表、键位绑定与冲突检测 | R:- | A:- | S:键位是唯一事实来源，别处不得硬编码快捷键
+SnippetContentEditor.vue[CU5S]: F:快捷命令内容编辑器（CodeMirror 6） | R:- | A:- | S:与远端编辑器共用 CodeMirror 经验，但不要合并两份实现
+SnippetHostTree.vue[CU3T]: F:快捷命令作用主机树选择 | R:- | A:- | S:-
+SnippetsSettingsPanel.vue[CU8L]: F:快捷命令设置页：列表、分组、排序与编辑 | R:- | A:- | S:-
+TerminalColorPicker.vue[CU5S]: F:终端颜色选择器（主题色与校验） | R:- | A:- | S:颜色格式受终端主题契约约束（#RRGGBB/#RRGGBBAA）
+TerminalSettingsPanel.vue[CU8L]: F:终端设置页：字体、渲染器、光标与回滚缓冲 | R:- | A:- | S:字号/字重改动要回归 WebGL 图集重建路径
+TranslationCredentials.vue[CU5M]: F:翻译服务凭据配置 | R:- | A:- | S:密钥不得明文落盘或写日志
+backgroundImage.ts[CU3T]: F:背景图片设置读写与尺寸约束 | R:- | A:- | S:-
+categories.ts[CU4T]: F:设置页分类目录与图标 | R:- | A:- | S:-
+index.ts[CU2T]: F:settings 特性 barrel 导出 | R:- | A:- | S:-
+keywordHighlightPresets.ts[CU4T]: F:关键字高亮预设规则集 | R:- | A:- | S:-
+rdpDisplayPreferences.ts[CU4T]: F:RDP 显示偏好（缩放、质量与多显示器） | R:- | A:- | S:-
+settingsStore.ts[CU8L]: F:设置全局存储：读写、缓存与跨窗口同步 | R:- | A:- | S:设置是唯一事实来源，组件不要各自持久化
+shortcutDispatch.ts[CU7S]: F:快捷键派发器：window 级匹配与消费 | R:- | A:- | S:编辑器内的保存等动作必须走这里，别处另挂 keydown 会绕开键位设置
+shortcutStore.ts[CU8L]: F:快捷键绑定存储：默认值、用户覆盖与冲突检测 | R:- | A:- | S:-
+useHistoryReplay.ts[CU6M]: F:历史回放组合式：录制加载、播放控制与网格适配 | R:- | A:- | S:-
+useSettingsState.ts[CU6M]: F:设置页状态组合：草稿、保存与脏检查 | R:- | A:- | S:-
+useTerminalFontFamilies.ts[CU5S]: F:终端字体族探测与可用性判断 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/sftp/===
+ImagePreviewDialog.vue[CU6L]: F:图片预览弹窗：缩放、旋转与下载 | R:- | A:- | S:大图需限制解码尺寸，避免占用过多内存
+SftpBrowserPane.vue[CU9L]: F:SFTP 浏览面板：目录树、文件列表、上传下载与右键菜单 | R:- | A:- | S:-
+SftpFavoritesMenu.vue[CU5M]: F:SFTP 收藏目录菜单（增删与跳转） | R:- | A:- | S:-
+SftpFileIcon.vue[CU3T]: F:文件类型图标渲染 | R:- | A:- | S:-
+SftpFileInfoDialog.vue[CU4S]: F:文件信息弹窗（大小、权限、时间） | R:- | A:- | S:-
+SftpPanel.vue[CU8L]: F:SFTP 面板：双栏浏览器与传输队列 | R:- | A:- | S:-
+SftpWorkspace.vue[CU8L]: F:SFTP 独立窗口工作区：双栏、工具栏与状态栏 | R:- | A:- | S:-
+SftpWorkspaceToolbar.vue[CU5S]: F:SFTP 工作区工具栏（路径、刷新与操作） | R:- | A:- | S:-
+fileIcon.ts[CU4T]: F:文件扩展名到图标的解析 | R:- | A:- | S:-
+fileIconAssets.ts[CU3T]: F:文件图标资源清单 | R:- | A:- | S:-
+materialFileExtensionsToIcons.ts[CU5L]: F:Material 图标扩展名映射表（生成式数据） | R:- | A:- | S:该文件是映射数据表，不要在这里加逻辑
+materialFolderNamesToIcons.ts[CU5L]: F:Material 文件夹名到图标映射表（数据表） | R:- | A:- | S:映射数据表，不要在此加逻辑
+previewableImage.ts[CU4T]: F:可预览图片类型判定与大小限制 | R:- | A:- | S:-
+remotePrincipals.ts[CU4T]: F:远端用户/属主展示与解析 | R:- | A:- | S:-
+useSftpBrowserList.ts[CU6M]: F:SFTP 列表组合式：加载、排序、筛选与刷新 | R:- | A:- | S:-
+useSftpPanelTransfers.ts[CU6M]: F:SFTP 面板传输队列组合式：入队、进度与冲突 | R:- | A:- | S:-
+useSftpWorkspacePane.ts[CU4T]: F:SFTP 工作区面板状态（当前路径、选中项） | R:- | A:- | S:-
+useSftpWorkspaceTransfers.ts[CU6M]: F:SFTP 工作区传输组合式：双栏拖拽与队列联动 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/snippets/===
+SnippetIcon.vue[CU3T]: F:快捷命令图标渲染 | R:- | A:- | S:-
+appearance.ts[CU2T]: F:快捷命令外观常量 | R:- | A:- | S:-
+snippetListMerge.ts[CU4S]: F:快捷命令列表合并与去重 | R:- | A:- | S:-
+useSnippetGroupPagination.ts[CU3T]: F:快捷命令分组分页 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/terminal-control/components/===
+BatchSendPanel.vue[CU7L]: F:批量发送面板：目标选择、预览与发送 | R:- | A:- | S:发送前必须预览目标与内容，避免误发给生产主机
+SessionPicker.vue[CU5S]: F:会话选择器（多选与按组筛选） | R:- | A:- | S:-
+SyncStatusBar.vue[CU4T]: F:同步输入状态栏（开关与目标数） | R:- | A:- | S:-
+SyncTargetPicker.vue[CU5S]: F:同步输入目标选择器 | R:- | A:- | S:同步扇出目标变更需即时反映在状态栏
+index.ts[CU2T]: F:terminal-control 组件 barrel 导出 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/terminal-control/composables/===
+useTerminalControl.ts[CU6M]: F:终端同步输入/批量发送控制组合式 | R:- | A:- | S:0x07 通道只承载 xterm 本地输入，批量与协议应答不走扇出
+
+===/<repository>/frontend/src/features/terminal-control/===
+index.ts[CU2T]: F:terminal-control 特性 barrel 导出 | R:- | A:- | S:-
+types.ts[CU4T]: F:同步输入与批量发送的类型定义 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/tmux/===
+TmuxHelp.vue[CU4S]: F:tmux 帮助面板（快捷键与常用命令） | R:- | A:- | S:-
+TmuxPanel.vue[CU7L]: F:tmux 面板：会话/窗口/窗格浏览与操作 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/features/updates/===
+UpdateBell.vue[CU5S]: F:更新提示铃（新版本检测与入口） | R:- | A:- | S:-
+updateError.ts[CU3T]: F:更新错误文案映射 | R:- | A:- | S:-
+updateStore.ts[CU6M]: F:更新状态：检查、下载、校验与安装 | R:- | A:- | S:下载产物必须校验后再安装
+
+===/<repository>/frontend/src/features/vnc/===
+VncCanvasPane.vue[CU8L]: F:VNC 画布：RFB 帧渲染、输入投递与缩放 | R:- | A:- | S:VNC 连接无法像 RDP 那样移交，别按 RDP 的接管逻辑实现
+kasmVncCompat.ts[CU7L]: F:KasmVNC 兼容层：扩展消息与能力协商 | R:- | A:- | S:兼容逻辑按服务端能力探测启用，不要无条件下发扩展
+kasmVncIdentity.ts[CU6S]: F:KasmVNC 服务端身份识别 | R:- | A:- | S:-
+kasmVncServerMessages.ts[CU7L]: F:KasmVNC 服务端消息处理（剪贴板/分辨率等） | R:- | A:- | S:-
+useVncSession.ts[CU8L]: F:VNC 会话生命周期：连接、认证、分辨率与重连 | R:- | A:- | S:-
+vncClipboardBridge.ts[CU6M]: F:VNC 剪贴板桥接（双向、去重与大小限制） | R:- | A:- | S:剪贴板内容不得落盘或写日志
+vncProtocol.ts[CU7M]: F:RFB 协议前端实现（握手、认证与消息编解码） | R:- | A:- | S:认证失败要区分密码错误与协议不兼容
+vncTabHandover.ts[CU5T]: F:VNC 标签在主窗口与独立窗口间的移交 | R:- | A:- | S:VNC 连接不可交接，移交需重建会话
+
+===/<repository>/frontend/src/lib/===
+async.ts[CU4T]: F:异步工具：并发限制、重试与超时 | R:- | A:- | S:-
+colorTag.ts[CU3T]: F:标签颜色解析与对比度选择 | R:- | A:- | S:-
+datetime.ts[CU3T]: F:日期时间格式化（相对时间与本地化） | R:- | A:- | S:-
+format.ts[CU3T]: F:数值与字节单位格式化 | R:- | A:- | S:-
+geometry.ts[CU3T]: F:几何计算工具（矩形、命中与缩放） | R:- | A:- | S:-
+platform.ts[CU4T]: F:平台判定封装（macOS/Windows/Linux 与 WebView 差异） | R:- | A:- | S:平台判定集中在此，组件内不要散落 userAgent 判断
+utils.ts[CU3T]: F:cn 类名合并工具（clsx + tailwind-merge） | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/app/===
+en-US.ts[CL8L]: F:英文语言包（应用界面文案） | R:- | A:- | S:新增文案必须先加 en-US，其它语言缺失会回退到此
+fr-FR.ts[CL6L]: F:法文语言包 | R:- | A:- | S:-
+index.ts[CL6T]: F:语言包聚合与类型导出 | R:- | A:- | S:-
+ja-JP.ts[CL6L]: F:日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL6L]: F:应用界面 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL6L]: F:应用界面 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL6M]: F:应用界面 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL6M]: F:应用界面 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/applock/===
+en-US.ts[CL4T]: F:应用锁 英文语言包 | R:- | A:- | S:-
+fr-FR.ts[CL4T]: F:应用锁 法文语言包 | R:- | A:- | S:-
+index.ts[CL3T]: F:应用锁语言包聚合（按语言合并并做类型约束） | R:- | A:- | S:-
+ja-JP.ts[CL4T]: F:应用锁 日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL4T]: F:应用锁 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL4T]: F:应用锁 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL4T]: F:应用锁 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL4T]: F:应用锁 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/===
+errors.ts[CL7L]: F:错误码到用户文案的映射表（含各错误码的本地化文案） | R:- | A:- | S:新增错误码必须同时补全此处文案，否则会露出原始错误
+i18n.ts[CL6T]: F:i18n 实例初始化：语言解析、回退与持久化 | R:- | A:- | S:语言回退顺序固定，缺失语言回退到 zh-CN/en-US
+index.ts[CL6T]: F:语言包入口：聚合各命名空间、语言切换与导出 translate/useI18n | R:- | A:- | S:全局单例，不要在多处重复初始化 i18n
+messages.ts[CL5T]: F:消息字典聚合与键类型校验 | R:- | A:- | S:键缺失应在类型层报错，不要运行时静默回退
+
+===/<repository>/frontend/src/locales/preview/===
+en-US.ts[CL4T]: F:文件预览 英文语言包 | R:- | A:- | S:-
+fr-FR.ts[CL4T]: F:文件预览 法文语言包 | R:- | A:- | S:-
+index.ts[CL3T]: F:文件预览语言包聚合（按语言合并并做类型约束） | R:- | A:- | S:-
+ja-JP.ts[CL4T]: F:文件预览 日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL4T]: F:文件预览 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL4T]: F:文件预览 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL4T]: F:文件预览 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL4T]: F:文件预览 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/remote-edit/===
+en-US.ts[CL4T]: F:远端编辑 英文语言包 | R:- | A:- | S:-
+fr-FR.ts[CL4T]: F:远端编辑 法文语言包 | R:- | A:- | S:-
+index.ts[CL3T]: F:远端编辑语言包聚合（按语言合并并做类型约束） | R:- | A:- | S:-
+ja-JP.ts[CL4T]: F:远端编辑 日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL4T]: F:远端编辑 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL4T]: F:远端编辑 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL4T]: F:远端编辑 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL4T]: F:远端编辑 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/settings/===
+en-US.ts[CL6L]: F:设置 英文语言包 | R:- | A:- | S:-
+fr-FR.ts[CL6L]: F:设置 法文语言包 | R:- | A:- | S:-
+index.ts[CL3T]: F:设置语言包聚合（按语言合并并做类型约束） | R:- | A:- | S:-
+ja-JP.ts[CL6L]: F:设置 日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL6L]: F:设置 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL6L]: F:设置 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL6L]: F:设置 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL6L]: F:设置 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/sftp/===
+en-US.ts[CL5M]: F:SFTP 英文语言包 | R:- | A:- | S:-
+fr-FR.ts[CL5M]: F:SFTP 法文语言包 | R:- | A:- | S:-
+index.ts[CL3T]: F:SFTP语言包聚合（按语言合并并做类型约束） | R:- | A:- | S:-
+ja-JP.ts[CL5M]: F:SFTP 日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL5M]: F:SFTP 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL5M]: F:SFTP 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL4M]: F:SFTP 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL4M]: F:SFTP 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/shell/===
+en-US.ts[CL7L]: F:主窗口 英文语言包 | R:- | A:- | S:-
+fr-FR.ts[CL7L]: F:主窗口 法文语言包 | R:- | A:- | S:-
+index.ts[CL3T]: F:主窗口语言包聚合 | R:- | A:- | S:-
+ja-JP.ts[CL7L]: F:主窗口 日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL7L]: F:主窗口 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL7L]: F:主窗口 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL7L]: F:主窗口 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL7L]: F:主窗口 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/locales/terminal-control/===
+en-US.ts[CL4T]: F:终端同步控制 英文语言包 | R:- | A:- | S:-
+errors.ts[CL5S]: F:终端同步控制错误码文案映射 | R:- | A:- | S:新增错误码必须同步补文案
+fr-FR.ts[CL4T]: F:终端同步控制 法文语言包 | R:- | A:- | S:-
+index.ts[CL3T]: F:终端同步控制语言包聚合 | R:- | A:- | S:-
+ja-JP.ts[CL4T]: F:终端同步控制 日文语言包 | R:- | A:- | S:-
+ko-KR.ts[CL4T]: F:终端同步控制 韩文语言包 | R:- | A:- | S:-
+ru-RU.ts[CL4T]: F:终端同步控制 俄文语言包 | R:- | A:- | S:-
+zh-CN.ts[CL4T]: F:终端同步控制 简体中文语言包 | R:- | A:- | S:-
+zh-Hant.ts[CL4T]: F:终端同步控制 繁体中文语言包 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/services/===
+adhocSession.ts[CU5M]: F:临时会话（不落盘的主机连接）服务封装 | R:- | A:- | S:临时会话不得写入主机库
+ai.ts[CU7M]: F:AI 基础服务封装：供应商调用与流式事件 | R:- | A:- | S:-
+aiAgent.ts[CU7L]: F:AI Agent 运行封装：启动、步骤事件与中止 | R:- | A:- | S:中止只停前端轮询，后端运行可能继续，需显式取消
+aiAgentLaunch.ts[CU4T]: F:AI Agent 启动参数组装 | R:- | A:- | S:-
+aiApproval.ts[CU6S]: F:AI 工具调用审批服务：挂起、批准与拒绝 | R:- | A:- | S:审批是安全边界，任何执行路径都不得绕过
+aiAudit.ts[CU4T]: F:AI 操作审计记录 | R:- | A:- | S:审计内容不得包含密钥等敏感值
+aiCommandCapture.ts[CU4T]: F:AI 命令捕获（从终端取最近命令） | R:- | A:- | S:-
+aiCommandRules.ts[CU6S]: F:AI 命令规则匹配与确认级别判定 | R:- | A:- | S:规则放宽等于扩大自动执行面，改动需明确告知
+aiContext.ts[CU5S]: F:AI 上下文预算与裁剪 | R:- | A:- | S:-
+aiContextSources.ts[CU6M]: F:AI 上下文来源采集（终端、文件、会话） | R:- | A:- | S:上下文采集范围要可控，避免把密钥送进模型
+aiConversationStore.ts[CU6L]: F:AI 会话存储：历史、分支与恢复 | R:- | A:- | S:-
+aiProviders.ts[CU7L]: F:AI 供应商配置与能力表 | R:- | A:- | S:密钥只经后端保管，前端不落明文
+aiStructuredOutput.ts[CU5T]: F:AI 结构化输出解析与校验 | R:- | A:- | S:解析失败必须显式报错，不得静默降级成文本
+appInfo.ts[CU4T]: F:应用信息（版本、构建与运行环境） | R:- | A:- | S:-
+appLock.ts[CU7M]: F:应用锁服务：设置、解锁与自动锁定 | R:- | A:- | S:解锁失败须限速，且不得记录输入内容
+assetEvents.ts[CU4T]: F:资产变更事件订阅 | R:- | A:- | S:-
+clipboard.ts[CU3T]: F:剪贴板封装（读写与失败降级） | R:- | A:- | S:-
+command-history.ts[CU6M]: F:命令历史服务：查询、追加与清理 | R:- | A:- | S:-
+credentialPromptRules.ts[CU5M]: F:凭据提示规则（匹配主机与提示条件） | R:- | A:- | S:-
+credentials.ts[CU8L]: F:凭据服务：增删改查、解锁与引用计数 | R:- | A:- | S:凭据材料不得出现在日志、错误详情或测试快照
+diagnostics.ts[CU5T]: F:诊断信息采集（环境、版本与日志导出） | R:- | A:- | S:导出前必须脱敏
+directory-follow.ts[CU4T]: F:目录跟随：终端 PWD 变化同步 SFTP 路径 | R:- | A:- | S:配置块只在 Go 侧维护，前端只读
+docker.ts[CU7L]: F:Docker 服务封装：容器/镜像/网络操作 | R:- | A:- | S:破坏性操作必须确认
+errors.ts[CU4T]: F:服务层错误归一与错误码映射 | R:- | A:- | S:错误信息不得透传敏感细节
+externalLink.ts[CU4T]: F:外部链接打开与白名单校验 | R:- | A:- | S:只允许 http(s)/mailto 等安全协议
+file-dialogs.ts[CU4S]: F:系统文件对话框封装（打开/保存/多选） | R:- | A:- | S:-
+fileDropOwnership.ts[CU3T]: F:拖放所有权判定（避免多窗口重复处理同一拖放） | R:- | A:- | S:-
+fonts.ts[CU3T]: F:字体枚举与可用性检测 | R:- | A:- | S:-
+forwards.ts[CU4S]: F:端口转发服务封装（增删与状态） | R:- | A:- | S:-
+globalShortcut.ts[CU4S]: F:全局快捷键注册与注销 | R:- | A:- | S:注册失败需回传冲突信息
+globalShortcutKeyMap.ts[CU5S]: F:全局快捷键键位映射表 | R:- | A:- | S:-
+history.ts[CU6M]: F:会话历史服务：列表、搜索、删除与回放数据 | R:- | A:- | S:-
+hostImport.ts[CU4T]: F:第三方终端配置导入服务封装 | R:- | A:- | S:导入需先预览再写入，不要直接覆盖现有主机
+hostRoute.ts[CU5S]: F:主机路由判定（直连/代理/跳板） | R:- | A:- | S:-
+hosts.ts[CU8L]: F:主机服务：CRUD、分组、图标与批量操作 | R:- | A:- | S:-
+knownHosts.ts[CU5T]: F:已知主机指纹服务 | R:- | A:- | S:指纹变更必须重新确认
+launchIntent.ts[CU6M]: F:外部启动意图解析（qterm:// / ssh://） | R:- | A:- | S:解析结果只用于展示与确认，不得自动拨号
+monitor.ts[CU5S]: F:资源监控服务封装（快照与订阅） | R:- | A:- | S:-
+otp.ts[CU6S]: F:OTP 令牌服务（密钥保管、生成与校验） | R:- | A:- | S:密钥与验证码不得落日志
+otpQr.ts[CU4S]: F:OTP 二维码生成与解析 | R:- | A:- | S:-
+preferences.ts[CU6M]: F:偏好设置读写与缓存 | R:- | A:- | S:-
+preview.ts[CU5S]: F:文件预览服务（类型判定与内容获取） | R:- | A:- | S:预览内容按大小限制加载
+proxies.ts[CU5M]: F:代理服务：CRUD 与连通性检测 | R:- | A:- | S:-
+quitConfirm.ts[CU5S]: F:退出确认（未结束会话/传输时拦截） | R:- | A:- | S:-
+recordings.ts[CU6M]: F:会话录制服务（列表、播放数据与删除） | R:- | A:- | S:-
+remote-edit-events.ts[CU3T]: F:远端编辑事件订阅 | R:- | A:- | S:-
+remote-edit.ts[CU5S]: F:远端文件编辑服务封装（读取、保存与冲突） | R:- | A:- | S:保存前必须校验远端版本，避免覆盖他人改动
+remoteHistory.ts[CU4S]: F:远端命令历史拉取 | R:- | A:- | S:-
+remotedesktop.ts[CU6M]: F:远程桌面服务封装（RDP 会话与画面流） | R:- | A:- | S:-
+runtime.ts[CU6T]: F:运行时网关工厂：延迟判定真后端或内存兜底 | R:- | A:- | S:不要在创建时一次性判定后缓存结果，运行时可能延迟注入
+serialSession.ts[CU4T]: F:串口会话服务封装 | R:- | A:- | S:-
+sessionAdoptionChannel.ts[CU6M]: F:会话接管通道（窗口间移交会话） | R:- | A:- | S:-
+sessionRestore.ts[CU4T]: F:会话恢复入口 | R:- | A:- | S:-
+sessionServices.ts[CU5S]: F:会话相关服务聚合 | R:- | A:- | S:-
+sessionWindows.ts[CU7L]: F:独立会话窗口管理：创建、定位与关闭 | R:- | A:- | S:-
+sessions.ts[CU9L]: F:会话服务核心：连接、输入输出、尺寸与生命周期 | R:- | A:- | S:终端输入路径要与 0x07 扇出边界保持一致
+settingsSync.ts[CU4T]: F:设置跨窗口同步（广播变更与合并） | R:- | A:- | S:设置是唯一事实来源，别处不要缓存副本
+sftp.ts[CU8L]: F:SFTP 服务封装：目录、传输、权限与冲突 | R:- | A:- | S:-
+sftpFavorites.ts[CU4S]: F:SFTP 收藏目录服务 | R:- | A:- | S:-
+sftpWindows.ts[CU3T]: F:SFTP 独立窗口打开 | R:- | A:- | S:-
+snippetCreator.ts[CU3T]: F:从命令创建快捷命令 | R:- | A:- | S:-
+snippets.ts[CU4T]: F:快捷命令服务 CRUD | R:- | A:- | S:-
+sshHandshake.ts[CU4T]: F:SSH 握手算法信息查询 | R:- | A:- | S:-
+terminal.ts[CU7L]: F:终端服务封装：输入注入、尺寸与主题下发 | R:- | A:- | S:注入输入与用户输入来源不同，不得走同一扇出路径
+terminalControl.ts[CU5S]: F:终端同步控制服务封装 | R:- | A:- | S:-
+themeSync.ts[CU4T]: F:主题跨窗口同步 | R:- | A:- | S:-
+tmux.ts[CU4T]: F:tmux 服务封装 | R:- | A:- | S:-
+tmuxRuntime.ts[CU5S]: F:tmux 运行时探测与版本能力 | R:- | A:- | S:-
+toast.ts[CU4M]: F:toast 通知服务（分级与去重） | R:- | A:- | S:-
+transfer-conflicts.ts[CU4T]: F:传输冲突服务（冲突登记与决策） | R:- | A:- | S:-
+transferOwnership.ts[CU6L]: F:传输所有权：跨窗口任务归属与进度路由 | R:- | A:- | S:同一传输只能有一个所有者，否则进度会重复更新
+transferQueue.ts[CU4T]: F:传输队列前端聚合 | R:- | A:- | S:-
+translate.ts[CU5S]: F:翻译服务封装（文本翻译与语言检测） | R:- | A:- | S:密钥不得落日志
+tray.ts[CU4T]: F:系统托盘菜单与状态同步 | R:- | A:- | S:-
+trzsz.ts[CU6M]: F:trzsz 传输服务（ZMODEM 变体协议） | R:- | A:- | S:-
+updates.ts[CU5S]: F:更新检查与下载服务封装 | R:- | A:- | S:安装前必须校验产物
+vnc.ts[CU4T]: F:VNC 服务封装 | R:- | A:- | S:-
+webFetchSettings.ts[CU4T]: F:网页抓取设置（User-Agent/代理等） | R:- | A:- | S:-
+x11.ts[CU4T]: F:X11 转发服务封装 | R:- | A:- | S:-
+zmodem-files.ts[CU4S]: F:ZMODEM 接收文件落盘与命名 | R:- | A:- | S:落盘路径必须限制在下载目录内
+zmodem-policy.ts[CU4T]: F:ZMODEM 自动接收策略 | R:- | A:- | S:自动接收默认关闭
+zmodem.ts[CU7L]: F:ZMODEM 协议前端处理：握手、进度与取消 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/base/===
+01-foundation.css[CU4S]: F:基础层样式：01-foundation 分组规则 | R:- | A:- | S:-
+02-globals.css[CU5M]: F:基础层样式：02-globals 分组规则 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/dialogs/===
+01-credentials.css[CU5L]: F:对话框样式：01-credentials 分组规则 | R:- | A:- | S:覆盖层只在必要时用，能写成 Tailwind 原子类就不要再写 CSS
+02-settings-forms.css[CU5M]: F:对话框样式：02-settings-forms 分组规则 | R:- | A:- | S:覆盖层只在必要时用，能写成 Tailwind 原子类就不要再写 CSS
+03-host-security.css[CU5L]: F:对话框样式：03-host-security 分组规则 | R:- | A:- | S:覆盖层只在必要时用，能写成 Tailwind 原子类就不要再写 CSS
+04-settings-history.css[CU4M]: F:对话框样式：04-settings-history 分组规则 | R:- | A:- | S:覆盖层只在必要时用，能写成 Tailwind 原子类就不要再写 CSS
+
+===/<repository>/frontend/src/styles/enhancements/===
+01-session-metrics.css[CU4S]: F:会话增强样式：01-session-metrics 分组规则 | R:- | A:- | S:-
+02-session-terminal.css[CU4M]: F:会话增强样式：02-session-terminal 分组规则 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/===
+index.css[CU5T]: F:样式入口：按层引入 tokens/base/nav/workspace/dialogs/tools 等 | R:- | A:- | S:层顺序决定覆盖优先级，调整顺序会影响全站样式
+input-appearance.css[CU5S]: F:输入控件外观统一（去原生样式） | R:- | A:- | S:-
+responsive.css[CU4T]: F:响应式断点与窄窗口布局 | R:- | A:- | S:-
+shell-theme.css[CU4T]: F:主外壳主题变量 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/nav/===
+01-sidebar-topbar.css[CU4S]: F:导航与侧栏样式：01-sidebar-topbar 分组规则 | R:- | A:- | S:-
+02-hosts-assets.css[CU4S]: F:导航与侧栏样式：02-hosts-assets 分组规则 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/overrides/===
+01-terminal-theme.css[CU5L]: F:覆盖第三方/深层结构样式：01-terminal-theme 分组规则 | R:- | A:- | S:覆盖层只在必要时用，能写成 Tailwind 原子类就不要再写 CSS
+02-terminal-sftp.css[CU5L]: F:覆盖第三方/深层结构样式：02-terminal-sftp 分组规则 | R:- | A:- | S:覆盖层只在必要时用，能写成 Tailwind 原子类就不要再写 CSS
+03-shell-dialog.css[CU5L]: F:覆盖第三方/深层结构样式：03-shell-dialog 分组规则 | R:- | A:- | S:覆盖层只在必要时用，能写成 Tailwind 原子类就不要再写 CSS
+
+===/<repository>/frontend/src/styles/snippets/===
+01-editor-tree.css[CU5M]: F:快捷命令样式：01-editor-tree 分组规则 | R:- | A:- | S:-
+02-panel-cards.css[CU5M]: F:快捷命令样式：02-panel-cards 分组规则 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/tokens/===
+dialog.css[CU4T]: F:设计令牌：dialog 分组规则 | R:- | A:- | S:-
+root.css[CU4S]: F:设计令牌：root 分组规则 | R:- | A:- | S:-
+shell.css[CU4T]: F:设计令牌：shell 分组规则 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/tools/===
+01-history-replay.css[CU5L]: F:工具面板样式：01-history-replay 分组规则 | R:- | A:- | S:-
+02-terminal-resource.css[CU4M]: F:工具面板样式：02-terminal-resource 分组规则 | R:- | A:- | S:-
+03-sftp-path.css[CU4M]: F:工具面板样式：03-sftp-path 分组规则 | R:- | A:- | S:-
+04-list-row-hover.css[CU4T]: F:工具面板样式：04-list-row-hover 分组规则 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/styles/workspace/===
+01-session-tabs.css[CU4S]: F:工作区与终端样式：01-session-tabs 分组规则 | R:- | A:- | S:-
+02-terminal-xterm.css[CU4S]: F:工作区与终端样式：02-terminal-xterm 分组规则 | R:- | A:- | S:-
+
+===/<repository>/frontend/src/test/===
+setup.ts[CU4T]: F:测试环境初始化（jsdom 补丁与全局 mock） | R:- | A:- | S:-
+
+===/<repository>/frontend/src/types/===
+novnc.d.ts[CU3T]: F:noVNC 无类型模块的声明 | R:- | A:- | S:-
+qterm.ts[CU7S]: F:前端核心类型定义（会话、主机、面板与传输） | R:- | A:- | S:类型是契约，改动需同步前后端 DTO
+
+===/<repository>/frontend/src/vendor/===
+qrcode-generator.d.ts[CU2T]: F:qrcode-generator 的本地类型声明 | R:- | A:- | S:-
+qrcode-generator.js[CU5L]: F:qrcode-generator 第三方库（vendored） | R:- | A:- | S:第三方 vendored 代码：不要就地修改，升级须整体替换
+
+===/<repository>/internal/===
+README.md[SG6M]: F:后端导航：按功能找包、app 是唯一 facade、共享基础设施说明 | R:- | A:- | S:分层与错误码规则以 WORKSBENCH 编码规范为准
+
+===/<repository>/internal/ai/===
+agent_answer_preview.go[DA4T]: F:Agent 回答预览文本截取 | R:- | A:- | S:-
+agent_audit.go[DA6S]: F:Agent 审计记录：工具调用与决策留痕 | R:- | A:- | S:审计不得写入密钥或完整命令输出中的敏感值
+agent_context.go[DA6S]: F:Agent 上下文组装（系统提示、历史与工具结果） | R:- | A:- | S:-
+agent_debug.go[DA4T]: F:Agent 调试信息采集 | R:- | A:- | S:调试输出不得含密钥
+agent_errors.go[DA4T]: F:Agent 错误定义与归一 | R:- | A:- | S:-
+agent_extra_context.go[DA4T]: F:附加上下文（选中文本/文件片段）注入 | R:- | A:- | S:-
+agent_host_connect.go[DA5T]: F:Agent 发起主机连接的工具实现 | R:- | A:- | S:连接动作需用户确认后方可执行
+agent_loop.go[DA8L]: F:Agent 主循环：步骤推进、工具调用与终止条件 | R:- | A:- | S:循环必须有步数/预算上限，否则会无限调用工具
+agent_manager.go[DA8L]: F:Agent 运行管理器：并发运行、取消与快照 | R:- | A:- | S:取消要能传导到正在执行的工具
+agent_policy.go[DA7M]: F:Agent 策略：命令审批级别与危险动作拦截 | R:- | A:- | S:策略放宽等于扩大自动执行面，改动需显式评审
+agent_protocol.go[DA7L]: F:Agent 协议类型：步骤、事件与工具调用编解码 | R:- | A:- | S:协议字段是对前端的契约，改名需同步前端
+agent_provider.go[DA7L]: F:Agent 供应商适配（请求构造与响应解析） | R:- | A:- | S:-
+agent_snapshot.go[DA5T]: F:Agent 快照结构（恢复与展示） | R:- | A:- | S:-
+agent_tools.go[DA8L]: F:工具注册表：schema、解析、白名单与提示词集中定义 | R:- | A:- | S:新增工具只改这里；分散到多处会漏掉白名单或提示词
+agent_types.go[DA6M]: F:Agent 领域类型定义 | R:- | A:- | S:-
+command_rules.go[DA6S]: F:命令规则匹配（允许/禁止/需确认） | R:- | A:- | S:规则命中必须可解释，便于用户理解为何被拦
+compact.go[DA6M]: F:上下文压缩：历史摘要与裁剪 | R:- | A:- | S:压缩不得丢失工具调用结果的关键约束
+context_budget.go[DA5S]: F:上下文预算计算与分配 | R:- | A:- | S:-
+images.go[DA5M]: F:图片输入处理（编码、尺寸与格式校验） | R:- | A:- | S:大图需降采样，避免超出供应商限制
+service.go[DA8L]: F:AI 服务：三类协议形状（openai/openai-response/anthropic）与地址口径 | R:- | A:- | S:base 是含版本段的 API 根；非流式设计，第一版不做 SSE
+stream.go[DA6L]: F:AI 流式响应解析与增量派发 | R:- | A:- | S:-
+
+===/<repository>/internal/app/===
+agent.go[AA7M]: F:AI 功能 facade：对话、Agent 运行与设置入口 | R:- | A:- | S:facade 只做装配与边界适配，领域逻辑放 internal/ai
+agent_audit.go[AA4T]: F:AI 审计 facade | R:- | A:- | S:-
+agent_debug.go[AA4T]: F:AI 调试 facade | R:- | A:- | S:-
+agent_draft_events.go[AA4T]: F:AI 草稿事件推送 | R:- | A:- | S:-
+agent_host_session.go[AA6S]: F:AI 主机会话桥接（Agent 借用用户会话） | R:- | A:- | S:借用的会话必须可随时收回
+agent_temp_session.go[AA7L]: F:AI 临时会话：创建、复用与销毁 | R:- | A:- | S:临时会话不得写入主机库
+agent_terminal.go[AA6S]: F:AI 终端交互 facade（读屏与注入） | R:- | A:- | S:注入输入必须走显式工具调用并经审批
+agent_tools.go[AA6M]: F:AI 工具执行 facade | R:- | A:- | S:-
+agent_tools_local.go[AA6M]: F:AI 本地工具执行（文件、命令） | R:- | A:- | S:命令执行受命令规则与审批约束
+agent_tools_sftp.go[AA7L]: F:AI SFTP 工具执行 | R:- | A:- | S:写入/删除远端文件必须确认
+agent_tools_web.go[AA5S]: F:AI 网页抓取工具 | R:- | A:- | S:外网抓取受设置与域名策略限制
+ai_command_rules.go[AA6L]: F:AI 命令规则 facade 与持久化 | R:- | A:- | S:-
+ai_compact.go[AA4T]: F:AI 上下文压缩 facade | R:- | A:- | S:-
+ai_context.go[AA5S]: F:AI 上下文 facade | R:- | A:- | S:-
+ai_stream.go[AA6M]: F:AI 流式事件转发 | R:- | A:- | S:-
+applock.go[AA7S]: F:应用锁 facade：设置、解锁与自动锁定 | R:- | A:- | S:解锁失败限速，输入内容不得记录
+applock_event.go[AA3T]: F:应用锁事件常量 | R:- | A:- | S:-
+cli.go[EA5S]: F:CLI 子命令入口：与 GUI 共用的命令行处理 | R:- | A:- | S:退出码契约需与 cmd 保持一致
+credential_prompt_rules.go[AA4T]: F:凭据提示规则 facade | R:- | A:- | S:-
+diagnostics.go[AA5T]: F:诊断 facade：采集与导出 | R:- | A:- | S:导出前脱敏
+docker.go[AA7L]: F:Docker facade：容器/镜像/网络操作 | R:- | A:- | S:破坏性操作必须确认，错误要带原始 stderr 摘要
+errors.go[CA3T]: F:facade 错误包装与错误码转换 | R:- | A:- | S:错误链需保留原因，便于前端定位
+facade_methods.go[AA8L]: F:Wails facade 方法表：把 feature 方法注册为前端可调用绑定 | R:- | A:- | S:唯一 facade；新增绑定方法只能在这里注册
+file_drop.go[AA5S]: F:文件拖放处理：落点与所有权判定 | R:- | A:- | S:拖放可能被多窗口收到，需按所有权只处理一次
+forward.go[AA4T]: F:端口转发 facade | R:- | A:- | S:-
+global_shortcut.go[AA6M]: F:全局快捷键注册与事件派发 | R:- | A:- | S:-
+global_shortcut_accelerator.go[AA5S]: F:快捷键加速器字符串解析（跨平台） | R:- | A:- | S:解析失败要明确报冲突，不要静默忽略
+history.go[AA7L]: F:历史 facade：命令历史、录制与回放数据 | R:- | A:- | S:-
+host_editor_window.go[AA6M]: F:主机编辑独立窗口生命周期 | R:- | A:- | S:窗口单实例换目标，不要重复创建
+launch_intent.go[AA6M]: F:外部启动意图（深链接）解析与排队 | R:- | A:- | S:必须经用户确认后才拨号，且不在解析阶段收密码
+menu.go[AA4T]: F:应用菜单构建 | R:- | A:- | S:-
+monitor.go[AA4T]: F:系统监控 facade | R:- | A:- | S:-
+otp.go[AA4T]: F:OTP facade | R:- | A:- | S:-
+preferences.go[AA5S]: F:偏好设置 facade | R:- | A:- | S:-
+preview.go[AA3T]: F:文件预览 facade | R:- | A:- | S:-
+proxies.go[AA4T]: F:代理 facade | R:- | A:- | S:-
+rdp.go[AA7L]: F:RDP facade：连接、输入与画面控制 | R:- | A:- | S:-
+rdp_cert.go[AA6S]: F:RDP 证书校验与信任决策 | R:- | A:- | S:证书不匹配必须显式确认，不得默认接受
+rdp_host.go[AA5M]: F:RDP 目标主机解析与连接参数 | R:- | A:- | S:-
+rdp_route.go[AA6M]: F:RDP 路由选择（直连/代理/跳板） | R:- | A:- | S:-
+rdp_route_bridge.go[AA6M]: F:RDP 路由桥接（本地端口转发到目标） | R:- | A:- | S:桥接监听只绑本地回环
+rdp_stream.go[AA5T]: F:RDP 二进制画面流桥 | R:- | A:- | S:画面走真二进制 Stream，不要退回 base64
+rdp_window.go[AA7L]: F:RDP 独立窗口生命周期与画面接管 | R:- | A:- | S:-
+recording_settings.go[AA5S]: F:录制设置读写 | R:- | A:- | S:-
+relaunch_executable.go[AA3T]: F:重启自身可执行文件（Unix） | R:- | A:- | S:-
+relaunch_executable_windows.go[AA3T]: F:重启自身可执行文件（Windows） | R:- | A:- | S:-
+remote_edit.go[AA4T]: F:远端编辑 facade | R:- | A:- | S:-
+resource_bundle.go[CA6M]: F:内嵌前端资源装载（dist 文件系统） | R:- | A:- | S:资源路径与 go:embed 约定绑定，改目录要同步
+result.go[CA2T]: F:facade 统一结果类型 | R:- | A:- | S:-
+run.go[EA8L]: F:应用启动：窗口、托盘、单实例与生命周期装配 | R:- | A:- | S:启动失败要给出可诊断信息，而不是静默退出
+runtime.go[CA3T]: F:运行时环境信息 | R:- | A:- | S:-
+service.go[AA7L]: F:服务（systemd/launchd 等）管理与状态 | R:- | A:- | S:启停失败需回传原始错误摘要
+services.go[AA5T]: F:服务列表 facade | R:- | A:- | S:-
+settings_event.go[CA4T]: F:设置变更事件推送 | R:- | A:- | S:-
+sftp_archive_download.go[AA4T]: F:SFTP 目录打包下载 | R:- | A:- | S:-
+sftp_bridge.go[AA6S]: F:SFTP 桥接（会话借用与路径映射） | R:- | A:- | S:-
+sftp_elevated.go[AA4T]: F:SFTP 提权操作（sudo 场景） | R:- | A:- | S:提权命令需显式确认
+sftp_favorites.go[AA4S]: F:SFTP 收藏目录 facade | R:- | A:- | S:-
+sftp_operations.go[AA5S]: F:SFTP 文件操作 facade（增删改移） | R:- | A:- | S:破坏性操作必须确认
+sftp_settings.go[AA4T]: F:SFTP 设置 facade | R:- | A:- | S:-
+single_instance.go[CA5S]: F:单实例锁与第二实例唤醒 | R:- | A:- | S:锁文件路径需与用户配置目录一致
+snippets.go[AA4T]: F:快捷命令 facade | R:- | A:- | S:-
+sources.go[AA6M]: F:数据来源汇总（主机/会话/服务等） | R:- | A:- | S:-
+ssh_handshake.go[AA4T]: F:SSH 握手算法信息 facade | R:- | A:- | S:-
+terminal_control.go[AA5S]: F:终端同步输入控制 facade | R:- | A:- | S:-
+terminal_stream.go[AA5T]: F:终端二进制流桥 | R:- | A:- | S:-
+tmux.go[AA4S]: F:tmux facade | R:- | A:- | S:-
+tmux_runner.go[AA4T]: F:tmux 命令执行封装 | R:- | A:- | S:-
+translate.go[AA5S]: F:翻译服务 facade | R:- | A:- | S:密钥不得写日志
+tray.go[AA7L]: F:系统托盘：菜单、状态与事件 | R:- | A:- | S:托盘菜单与窗口状态需保持一致
+trzsz.go[AA3T]: F:trzsz 传输 facade | R:- | A:- | S:-
+update_helper.go[AA5T]: F:更新安装辅助程序入口（替换二进制） | R:- | A:- | S:替换前必须校验签名/哈希，失败要能回滚
+update_helper_log.go[AA4M]: F:更新辅助程序日志 | R:- | A:- | S:日志不得含用户路径以外的敏感信息
+update_helper_other.go[AA2T]: F:更新辅助程序平台占位（非 Windows） | R:- | A:- | S:-
+update_helper_windows.go[AA5M]: F:更新辅助程序 Windows 实现（文件占用处理） | R:- | A:- | S:Windows 下运行中的二进制无法直接替换，必须走辅助进程
+update_rollback.go[AA5T]: F:更新回滚逻辑 | R:- | A:- | S:回滚必须可用，否则升级失败会让应用无法启动
+updates.go[AA5S]: F:更新检查 facade | R:- | A:- | S:-
+vnc.go[AA7L]: F:VNC facade：连接、认证与输入 | R:- | A:- | S:VNC 连接不可像 RDP 那样在窗口间交接
+vnc_stream.go[AA5T]: F:VNC 画面流桥 | R:- | A:- | S:-
+vnc_window.go[AA5T]: F:VNC 独立窗口生命周期 | R:- | A:- | S:-
+webfetch.go[AA4T]: F:网页抓取 facade | R:- | A:- | S:-
+windows.go[AA8L]: F:窗口管理：创建、定位、显示与关闭 | R:- | A:- | S:窗口几何与状态需持久化，恢复时校验屏幕边界
+zmodem.go[AA4T]: F:ZMODEM facade | R:- | A:- | S:-
+
+===/<repository>/internal/applock/===
+applock.go[DA7L]: F:应用锁领域实现：密码派生、解锁与自动锁定计时 | R:- | A:- | S:解锁失败需限速；密码只在内存取派生结果
+
+===/<repository>/internal/assetdata/===
+data.go[DA5L]: F:资产库内置数据（默认分组/示例与迁移种子） | R:- | A:- | S:内置数据只在首次初始化写入，不要覆盖用户改动
+
+===/<repository>/internal/biometric/===
+biometric.go[CA4T]: F:生物识别抽象接口 | R:- | A:- | S:-
+darwin.go[CA5S]: F:生物识别 macOS 实现（Touch ID） | R:- | A:- | S:识别失败回退到主密码，不得自行绕过
+other.go[CA2T]: F:生物识别平台占位 | R:- | A:- | S:-
+
+===/<repository>/internal/cliapi/===
+handlers.go[CA7L]: F:CLI HTTP/WS 处理器：与 GUI 共享的能力入口 | R:- | A:- | S:CLI 与 GUI 必须复用同一 service，不要另写一套逻辑
+handshake.go[CA6S]: F:CLI 握手与鉴权 | R:- | A:- | S:握手令牌只在本机回环使用并限时
+protocol.go[CA5S]: F:CLI 协议消息定义 | R:- | A:- | S:协议字段变更需同步 cmd/qterm 客户端
+server.go[CA6M]: F:CLI 服务端：监听、路由与关闭 | R:- | A:- | S:只绑回环地址
+shell.go[CA6M]: F:CLI shell 子命令实现（PTY 操作） | R:- | A:- | S:raw 模式必须在连接成功后再切换，否则终端会残留状态
+
+===/<repository>/internal/credential/===
+assets.go[CA4S]: F:凭据与资产的引用关系 | R:- | A:- | S:-
+auto_unlock.go[CA6M]: F:自动解锁（钥匙串便利层） | R:- | A:- | S:便利层只存 DEK 的包装，不能存明文凭据
+credential.go[CA6M]: F:凭据实体与类型定义 | R:- | A:- | S:-
+keys.go[CA7M]: F:密钥材料处理（DEK 与派生） | R:- | A:- | S:密钥材料不得出现在日志、错误链或测试快照
+lifecycle.go[CA6M]: F:凭据生命周期：创建、轮换与失效 | R:- | A:- | S:-
+manager.go[CA7M]: F:凭据管理器：加解密与存取编排 | R:- | A:- | S:-
+password.go[CA7M]: F:主密码处理：Argon2id 派生与校验 | R:- | A:- | S:派生参数变更需保留旧数据可解密路径
+private_key.go[CA5T]: F:私钥导入与格式校验 | R:- | A:- | S:私钥不得明文落盘
+records.go[CA6L]: F:凭据记录存储与索引 | R:- | A:- | S:-
+recovery.go[CA7L]: F:恢复码与数据恢复流程 | R:- | A:- | S:恢复流程必须能在主密码丢失时安全重建，且不可降级加密强度
+security.go[CA6M]: F:凭据安全策略（锁定、超时与失败计数） | R:- | A:- | S:-
+status.go[CA5S]: F:凭据库状态（已初始化/已解锁/已锁定） | R:- | A:- | S:-
+user_certificate.go[CA4T]: F:用户证书导入 | R:- | A:- | S:-
+vault_files.go[CA6S]: F:保险库文件读写与原子替换 | R:- | A:- | S:写入必须原子替换，避免断电损坏
+
+===/<repository>/internal/diagnostics/===
+async_handler.go[CA4S]: F:诊断异步日志处理器 | R:- | A:- | S:-
+manager.go[CA6M]: F:诊断管理器：日志缓冲、导出与级别 | R:- | A:- | S:导出必须脱敏
+schema_handler.go[CA4T]: F:诊断结构化日志字段定义 | R:- | A:- | S:-
+switch_handler.go[CA4T]: F:诊断运行时开关 | R:- | A:- | S:-
+
+===/<repository>/internal/docker/===
+commands.go[DA7L]: F:Docker 命令构造与执行 | R:- | A:- | S:命令参数必须转义，禁止拼接用户输入
+inuse.go[DA5S]: F:Docker 资源占用检测（删除前校验） | R:- | A:- | S:删除前必须检查是否被容器占用
+parse.go[DA7L]: F:Docker 输出解析（容器/镜像/网络） | R:- | A:- | S:解析失败需保留原始输出摘要便于诊断
+service.go[DA7L]: F:Docker 服务：连接、操作与事件 | R:- | A:- | S:-
+
+===/<repository>/internal/errno/===
+errno.go[CA6T]: F:统一错误码定义 | R:- | A:- | S:错误码是对前端契约，新增需同步前端映射
+
+===/<repository>/internal/host/===
+assets.go[DA4T]: F:主机资产聚合 | R:- | A:- | S:-
+command_history.go[DA5S]: F:主机命令历史 | R:- | A:- | S:-
+credential_prompt_rules.go[DS5S]: F:凭据提示规则持久化：读取/写入与默认规则合并 | R:- | A:- | S:-
+credentials.go[DI6S]: F:凭据仓储：加密写入、校验与删除（复用 credential 包） | R:- | A:- | S:-
+groups.go[DB5S]: F:主机分组仓储：树结构、排序与级联删除 | R:- | A:- | S:-
+host.go[DB7M]: F:主机领域服务：增删改查、批量操作与事件派发 | R:- | A:- | S:-
+hosts.go[DB7L]: F:主机仓储与查询：分页、搜索与导入落库 | R:- | A:- | S:-
+jumpchain.go[DB6S]: F:跳板链解析与校验：按顺序展开跳转，拒绝环与自引用 | R:- | A:- | S:-
+proxies.go[DB5T]: F:代理仓储：CRUD 与引用计数 | R:- | A:- | S:-
+recording_settings.go[DC4T]: F:录制设置读写（全局开关、保留策略） | R:- | A:- | S:-
+session_history.go[DD6S]: F:会话历史记录：写入、查询与分页 | R:- | A:- | S:-
+session_history_export.go[DD6M]: F:会话历史导出（CSV/JSON），脱敏与字段选择 | R:- | A:- | S:-
+snippet_groups.go[DB4T]: F:快捷命令分组仓储 | R:- | A:- | S:-
+snippets.go[DB5T]: F:快捷命令仓储：变量占位与分组关联 | R:- | A:- | S:-
+terminal_recording_export.go[DD6L]: F:终端录制导出：asciinema 转码与打包下载 | R:- | A:- | S:-
+terminal_recordings.go[DD6M]: F:终端录制索引：列表、删除与元数据 | R:- | A:- | S:-
+
+===/<repository>/internal/hostimport/===
+electerm.go[DC5S]: F:Electerm 配置导入器：解析其 JSON 结构并映射为 Qterm 主机 | R:- | A:- | S:-
+finalshell.go[DC5M]: F:FinalShell 配置导入器 | R:- | A:- | S:-
+jsonimport.go[DC5S]: F:通用 JSON 导入：按字段探测与容错映射 | R:- | A:- | S:-
+keychain_darwin.go[DI4T]: F:macOS 钥匙串读取（导入时取已保存密码） | R:- | A:- | S:-
+keychain_other.go[DI3T]: F:非 macOS 平台钥匙串空实现 | R:- | A:- | S:-
+legacy.go[DC5S]: F:旧版 Qterm 配置导入与字段升级 | R:- | A:- | S:-
+mobaxterm.go[DC5S]: F:MobaXterm 配置导入器 | R:- | A:- | S:-
+platform.go[DC3T]: F:平台判定小工具（darwin/windows） | R:- | A:- | S:-
+putty.go[DC5S]: F:PuTTY 会话导入（注册表/配置文件） | R:- | A:- | S:-
+securecrt.go[DC5S]: F:SecureCRT 配置导入器 | R:- | A:- | S:-
+securecrt_xml.go[DC5S]: F:SecureCRT XML 解析（会话树与密码字段） | R:- | A:- | S:-
+sshconfig.go[DC6M]: F:OpenSSH config 解析：Host/ProxyJump/IdentityFile 等指令映射 | R:- | A:- | S:-
+termius.go[DC5S]: F:Termius 导出 JSON 导入器 | R:- | A:- | S:-
+termius_db.go[DC7L]: F:Termius SQLite 数据库读取（表结构与解密字段） | R:- | A:- | S:-
+windterm.go[DC5M]: F:WindTerm 配置导入器 | R:- | A:- | S:-
+xshell.go[DC5S]: F:XShell 配置导入器 | R:- | A:- | S:-
+
+===/<repository>/internal/model/===
+ai_command_rule.go[DI5S]: F:AI 命令规则模型：允许/拒绝模式与审批级别 | R:- | A:- | S:-
+ai_context.go[DA4T]: F:AI 上下文来源与预算模型 | R:- | A:- | S:-
+bytes.go[DD3T]: F:字节数格式化（1024 进制、最多两位小数） | R:- | A:- | S:-
+command_history.go[DD3T]: F:命令历史条目模型 | R:- | A:- | S:-
+credential.go[DI5S]: F:凭据模型：类型、加密字段与元数据 | R:- | A:- | S:-
+credential_prompt_rule.go[DI4S]: F:凭据提示规则模型（按主机/协议匹配） | R:- | A:- | S:-
+docker.go[DD5M]: F:Docker 资源模型：容器/镜像/网络/卷 | R:- | A:- | S:-
+forward.go[DN4T]: F:端口转发模型（本地/远程/动态） | R:- | A:- | S:-
+host.go[DB7L]: F:主机领域服务：增删改查、批量操作与事件派发 | R:- | A:- | S:-
+hostkey.go[DI4T]: F:主机密钥指纹模型 | R:- | A:- | S:-
+launch_intent.go[DN3T]: F:外部启动意图模型（qterm://、ssh://） | R:- | A:- | S:-
+monitor.go[DD4T]: F:资源监控采样模型（CPU/内存/磁盘/网络） | R:- | A:- | S:-
+otp.go[DI4T]: F:OTP 条目模型（TOTP 参数与密钥） | R:- | A:- | S:-
+preview.go[DD3T]: F:文件预览模型（类型与内容） | R:- | A:- | S:-
+proxy.go[DN4T]: F:代理模型（SOCKS5/HTTP） | R:- | A:- | S:-
+rdp.go[DN5S]: F:RDP 会话模型：显示尺寸、认证与画质参数 | R:- | A:- | S:-
+remote_edit.go[DD4T]: F:远程编辑文档模型（内容、语言与版本） | R:- | A:- | S:-
+route.go[DN4T]: F:主机路由模型：直连/跳板/代理的路径表达 | R:- | A:- | S:-
+service.go[DD3T]: F:后台服务模型（服务名、状态与操作结果） | R:- | A:- | S:-
+session.go[DD7M]: F:会话模型：传输类型、状态机与分屏/标签归属 | R:- | A:- | S:-
+session_history.go[DD5S]: F:会话历史条目模型（连接结果与耗时） | R:- | A:- | S:-
+sftp.go[DD5S]: F:SFTP 会话模型（工作目录、编辑状态） | R:- | A:- | S:-
+sftp_favorite.go[DD4T]: F:SFTP 收藏路径模型 | R:- | A:- | S:-
+sftp_transfer.go[DD6M]: F:SFTP 传输任务模型（方向、进度、冲突策略） | R:- | A:- | S:-
+ssh_handshake.go[DN5S]: F:SSH 握手算法模型（KEX/加密/MAC 与协商结果） | R:- | A:- | S:-
+stored_credential.go[DI3T]: F:已存凭据引用类型（仅保存 ID 与来源） | R:- | A:- | S:-
+terminal_recording.go[DD4T]: F:终端录制元数据模型 | R:- | A:- | S:-
+transfer_name.go[DD3T]: F:传输文件名生成（重名后缀策略） | R:- | A:- | S:-
+user_certificate.go[DI5S]: F:用户证书模型（证书与私钥绑定） | R:- | A:- | S:-
+vnc.go[DN5S]: F:VNC 会话模型：编码偏好、画质与只读开关 | R:- | A:- | S:-
+
+===/<repository>/internal/otp/===
+otp.go[DI6M]: F:OTP 领域逻辑：TOTP/HOTP 计算与时间偏移校验 | R:- | A:- | S:-
+secret_store.go[DI6M]: F:OTP 密钥加密存储（复用 credential） | R:- | A:- | S:-
+service.go[DD3M]: F:OTP 服务：密钥加密落盘、验证码只在后端生成 | R:- | A:- | S:生成只在后端，明文密钥不返回前端；密钥加密存储
+
+===/<repository>/internal/preferences/===
+store.go[DC5S]: F:偏好设置存储（读写与默认值合并） | R:- | A:- | S:-
+
+===/<repository>/internal/preview/===
+errors.go[DD4S]: F:预览错误定义与映射 | R:- | A:- | S:-
+image.go[DD5S]: F:图片预览：缩放、格式判定与体积上限 | R:- | A:- | S:-
+service.go[DD3S]: F:SFTP 远端图片预览：先 stat 再按类型上限决定是否下载，只认扩展名白名单 | R:- | A:- | S:先 stat 再决定是否下载；只能走池化子系统，自开会静默读截断
+
+===/<repository>/internal/proxy/===
+service.go[DD3M]: F:代理库用例层（ADR-022）：可复用 SOCKS5/HTTP 代理的 CRUD 与主机引用校验 | R:- | A:- | S:本包不自己开库，须借用主机服务的 Store；代理密码不得返回或落列
+
+===/<repository>/internal/recording/===
+recording.go[DD6M]: F:录制服务：录制会话生命周期与落盘 | R:- | A:- | S:-
+
+===/<repository>/internal/recordingsdir/===
+recordingsdir.go[DD4T]: F:录制目录解析（默认位置与自定义） | R:- | A:- | S:-
+
+===/<repository>/internal/remotedesktop/===
+canvas.go[DD6L]: F:RDP 画布：帧合成、尺寸协商与光标绘制 | R:- | A:- | S:-
+certstore.go[DI6M]: F:RDP 证书存储：首次信任与指纹校验 | R:- | A:- | S:-
+clipboard.go[DN5S]: F:RDP 剪贴板通道（文本格式化与大小限制） | R:- | A:- | S:-
+dirty.go[DD5M]: F:脏矩形累积与合并（减少传输面积） | R:- | A:- | S:-
+helper.go[DN7L]: F:FreeRDP helper 进程管理：启动、帧读取与错误恢复 | R:- | A:- | S:-
+hub.go[DN6M]: F:RDP 帧推送中枢：会话订阅、背压与丢弃策略 | R:- | A:- | S:-
+manager.go[DD7L]: F:远程桌面会话管理：创建/接管/关闭与窗口绑定 | R:- | A:- | S:-
+metrics.go[DO5M]: F:远程桌面性能指标采集（帧率、延迟、丢帧） | R:- | A:- | S:-
+stream.go[DN5S]: F:RDP 会话与 Stream 绑定（每帧独立缓冲） | R:- | A:- | S:-
+stream_protocol.go[DN6M]: F:RDP 帧协议 v1 编解码（纯字节，无传输依赖） | R:- | A:- | S:-
+types.go[DD4T]: F:远程桌面共享类型（帧、区域、配置） | R:- | A:- | S:-
+update.go[DR5M]: F:helper/依赖更新检查与替换 | R:- | A:- | S:-
+
+===/<repository>/internal/remoteedit/===
+conflict.go[DD4T]: F:远程编辑冲突判定（外部修改与本地脏标记） | R:- | A:- | S:-
+content.go[DD5M]: F:远程编辑内容模型：编码、换行与哈希比对 | R:- | A:- | S:-
+editor.go[DD4T]: F:远程编辑会话绑定（文件与编辑器实例） | R:- | A:- | S:-
+errors.go[DD4S]: F:远程编辑错误码定义与错误映射 | R:- | A:- | S:-
+manager.go[DD7L]: F:远程桌面会话管理：创建/接管/关闭与窗口绑定 | R:- | A:- | S:-
+paths.go[DS5S]: F:远程路径规范化与安全校验（禁止越界） | R:- | A:- | S:-
+watch.go[DR5M]: F:远程文件变更监听（轮询与去抖） | R:- | A:- | S:-
+watchmachine.go[DR4S]: F:监听状态机（空闲/检测/确认） | R:- | A:- | S:-
+
+===/<repository>/internal/resourcebundle/===
+bundle.go[DC6L]: F:资源包加载：按语言与键读取内嵌文案 | R:- | A:- | S:-
+
+===/<repository>/internal/security/===
+custom_key_store.go[DI6L]: F:自定义密钥存储（用户主密码保护） | R:- | A:- | S:-
+doc.go[DS2T]: F:security 包说明 | R:- | A:- | S:-
+envelope.go[DI6M]: F:信封加密：DEK 包裹、AAD 与版本化格式 | R:- | A:- | S:-
+errors.go[DD4T]: F:安全层错误码定义与错误映射 | R:- | A:- | S:-
+file_replace_unix.go[DI3T]: F:Unix 原子替换文件（rename） | R:- | A:- | S:-
+file_replace_windows.go[DI3T]: F:Windows 文件替换（先改名再替换，规避占用） | R:- | A:- | S:-
+keyring.go[DI6M]: F:系统钥匙串集成（macOS/Windows/Linux 后端选择） | R:- | A:- | S:-
+keys.go[DI5S]: F:密钥派生与随机数工具（Argon2id 参数集中） | R:- | A:- | S:-
+manager.go[DI7L]: F:安全管理器：主密码、锁定状态与密钥轮换编排 | R:- | A:- | S:-
+payload.go[DI4T]: F:加密载荷结构（版本号与字段布局） | R:- | A:- | S:-
+recovery.go[DI5T]: F:恢复码生成与校验（绕过遗忘主密码） | R:- | A:- | S:-
+
+===/<repository>/internal/session/===
+ai_command.go[DD5S]: F:AI 命令在会话内执行（审批后注入） | R:- | A:- | S:-
+aux_terminal.go[DD5M]: F:辅助终端（后台通道，不占用户标签） | R:- | A:- | S:-
+connector.go[DD8L]: F:连接编排：按协议选择连接器、重试与错误归一 | R:- | A:- | S:-
+credential_injection.go[DI5S]: F:凭据注入：按规则填充密码/密钥到认证流程 | R:- | A:- | S:-
+detect_icon.go[DD4S]: F:按主机信息推断图标与协议标识 | R:- | A:- | S:-
+directory_follow.go[DD4T]: F:会话目录跟随上报（OSC 7 与提示符解析） | R:- | A:- | S:-
+forward_manager.go[DN6M]: F:端口转发管理器：生命期、重连与统计 | R:- | A:- | S:-
+forward_service.go[DN3T]: F:转发服务对外方法（列出/启停） | R:- | A:- | S:-
+local_connector.go[DD4T]: F:本地 Shell 连接器 | R:- | A:- | S:-
+managed_session.go[DD7L]: F:受管会话：状态、读写与关闭顺序 | R:- | A:- | S:-
+manager.go[DD8L]: F:会话管理器：注册表、并发与生命周期 | R:- | A:- | S:-
+monitor.go[DO5S]: F:会话资源监控采样 | R:- | A:- | S:-
+recordings.go[DD6M]: F:会话录制：开始/停止与落盘索引 | R:- | A:- | S:-
+remote_archive.go[DD5M]: F:远端归档压缩/解压（tar/zip 命令构造） | R:- | A:- | S:-
+remote_remove.go[DD4T]: F:远端删除（递归需显式确认） | R:- | A:- | S:-
+route.go[DN7L]: F:连接路由：直连/跳板/代理的决策与实现 | R:- | A:- | S:-
+route_dial.go[DN5S]: F:按路由拨号（逐跳建立并串联） | R:- | A:- | S:-
+serial_connector.go[DD5M]: F:串口连接器（波特率、数据位与流控） | R:- | A:- | S:-
+service.go[DD6L]: F:会话服务门面：对外方法聚合与错误映射 | R:- | A:- | S:-
+service_recording.go[DD5S]: F:录制相关服务方法 | R:- | A:- | S:-
+service_sessions.go[DD6L]: F:会话相关服务方法（打开/关闭/查询） | R:- | A:- | S:-
+services.go[DD5M]: F:服务依赖装配（连接器、转发、监控） | R:- | A:- | S:-
+session_interfaces.go[DD5M]: F:会话接口定义（读写、调整尺寸、元数据） | R:- | A:- | S:-
+telnet_connector.go[DN5M]: F:Telnet 连接器（IAC 协商与选项子集） | R:- | A:- | S:-
+terminal_hub.go[DN6L]: F:终端数据中枢：多订阅者扇出与背压 | R:- | A:- | S:-
+terminal_input.go[DD4T]: F:终端输入写入（含批量与同步扇出边界） | R:- | A:- | S:-
+test_connection.go[DD6L]: F:连接测试：探测可达性、认证与延迟 | R:- | A:- | S:-
+
+===/<repository>/internal/sftp/===
+agent_transfer.go[DD5S]: F:Agent 转发传输（借道已建会话） | R:- | A:- | S:-
+archive_download.go[DD6L]: F:远端归档下载：打包、进度与断点 | R:- | A:- | S:-
+archive_download_transfer.go[DD5S]: F:归档下载的传输适配层 | R:- | A:- | S:-
+archive_upload.go[DD6L]: F:本地打包上传并远端解压 | R:- | A:- | S:-
+directory_follow.go[DD3T]: F:SFTP 目录跟随（与终端同步当前目录） | R:- | A:- | S:-
+download_directory.go[DD5M]: F:目录递归下载（并发与冲突策略） | R:- | A:- | S:-
+dropped_files.go[DD5M]: F:拖入文件上传（路径校验与批量） | R:- | A:- | S:-
+elevated.go[DS5M]: F:提权操作（sudo 包装与错误识别） | R:- | A:- | S:-
+local_browser.go[DD5M]: F:本地文件浏览（列表、排序与筛选） | R:- | A:- | S:-
+local_directory.go[DD5M]: F:本地目录操作（新建/重命名/删除） | R:- | A:- | S:-
+local_operations.go[DD5S]: F:本地文件操作原语 | R:- | A:- | S:-
+operations.go[DD6L]: F:远端文件操作（读写、重命名、权限） | R:- | A:- | S:-
+remote_directory.go[DD5M]: F:远端目录列举与元数据 | R:- | A:- | S:-
+service.go[DD6L]: F:SFTP 服务门面：会话绑定与操作聚合 | R:- | A:- | S:-
+settings.go[DC5M]: F:SFTP 设置读写（默认路径、并发与编辑器偏好） | R:- | A:- | S:-
+transfer.go[DD7L]: F:传输任务模型与状态机（排队/进行/完成/失败） | R:- | A:- | S:-
+transfer_conflict.go[DD4T]: F:传输冲突策略判定（覆盖/跳过/重命名） | R:- | A:- | S:-
+transfer_executor.go[DD8L]: F:传输执行器：分块、重试、限速与取消 | R:- | A:- | S:-
+upload_directory.go[DD5S]: F:目录递归上传（软链与权限处理） | R:- | A:- | S:-
+workspace_queue.go[DD5M]: F:工作区传输队列：排序、暂停与批量开始 | R:- | A:- | S:-
+
+===/<repository>/internal/sqlitedsn/===
+dsn.go[DD3T]: F:SQLite DSN 构造（WAL、忙等待与外键） | R:- | A:- | S:-
+
+===/<repository>/internal/store/===
+assets.go[DD5S]: F:资产聚合读取（分组+主机视图） | R:- | A:- | S:-
+assets_replace.go[DD6M]: F:资产整体替换（导入覆盖时的事务重建） | R:- | A:- | S:-
+command_history.go[DD4S]: F:命令历史存储（写入、清理与去重） | R:- | A:- | S:-
+credential_prompt_rules.go[DD4S]: F:凭据提示规则存储 | R:- | A:- | S:-
+encrypted_hosts.go[DD7L]: F:加密主机字段存储（payload 加解密与迁移） | R:- | A:- | S:-
+encrypted_proxies.go[DD5M]: F:加密代理字段存储 | R:- | A:- | S:-
+groups.go[DD6L]: F:分组存储：树查询、父子关系与排序 | R:- | A:- | S:-
+hosts.go[DD8L]: F:主机存储：CRUD、搜索排序与批量导入 | R:- | A:- | S:-
+migrations.go[DD6S]: F:数据库迁移执行器：顺序应用、事务与版本记录 | R:- | A:- | S:-
+proxies.go[DD5M]: F:代理存储：CRUD 与加密字段 | R:- | A:- | S:-
+proxy_migration.go[DD4T]: F:代理数据迁移（旧凭据字段拆分） | R:- | A:- | S:-
+repair_groups.go[DD4T]: F:分组数据修复（孤儿分组归位） | R:- | A:- | S:-
+secure_payload.go[DD3T]: F:加密载荷读写原语 | R:- | A:- | S:-
+session_history.go[DD6M]: F:会话历史存储：写入、查询与归档 | R:- | A:- | S:-
+snippet_groups.go[DD4S]: F:快捷命令分组存储 | R:- | A:- | S:-
+snippet_order.go[DD4T]: F:快捷命令排序持久化 | R:- | A:- | S:-
+snippets.go[DD4T]: F:快捷命令存储 | R:- | A:- | S:-
+sqlite.go[DD5S]: F:SQLite 打开与初始化（PRAGMA、连接池） | R:- | A:- | S:-
+terminal_recordings.go[DD5M]: F:终端录制存储（索引与文件关联） | R:- | A:- | S:-
+values.go[DD3T]: F:行扫描与类型转换小工具 | R:- | A:- | S:-
+
+===/<repository>/internal/store/migrations/===
+001_initial.sql[DD3T]: F:数据库迁移 /mi：初始表结构（主机、分组、设置） | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+002_add_host_credential.sql[DD3T]: F:数据库迁移 /mi：为主机增加凭据关联列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+003_add_host_protocol_icon.sql[DD3T]: F:数据库迁移 /mi：为主机增加协议与图标列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+004_add_host_notes.sql[DD3T]: F:数据库迁移 /mi：为主机增加备注列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+005_group_parent.sql[DD3T]: F:数据库迁移 /mi：分组增加父分组列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+006_allow_ungrouped_hosts.sql[DD3T]: F:数据库迁移 /mi：允许主机不属任何分组 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+007_add_host_sort_order.sql[DD3T]: F:数据库迁移 /mi：主机增加排序序号 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+008_add_snippets.sql[DD3T]: F:数据库迁移 /mi：新增快捷命令表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+009_add_snippet_hosts.sql[DD3T]: F:数据库迁移 /mi：新增快捷命令与主机关联表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+010_snippet_groups.sql[DD3T]: F:数据库迁移 /mi：新增快捷命令分组 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+011_repair_snippet_scope.sql[DD3T]: F:数据库迁移 /mi：修复快捷命令作用域数据 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+012_snippet_order.sql[DD3T]: F:数据库迁移 /mi：快捷命令增加排序 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+013_session_history.sql[DD3T]: F:数据库迁移 /mi：新增会话历史表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+014_terminal_recordings.sql[DD3T]: F:数据库迁移 /mi：新增终端录制表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+015_session_history_note.sql[DD3T]: F:数据库迁移 /mi：会话历史增加备注 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+016_command_history.sql[DD3T]: F:数据库迁移 /mi：新增命令历史表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+017_terminal_recording_metadata.sql[DD3T]: F:数据库迁移 /mi：录制增加元数据 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+018_encrypted_host_payloads.sql[DD3T]: F:数据库迁移 /mi：新增主机加密载荷表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+019_session_history_archive.sql[DD3T]: F:数据库迁移 /mi：会话历史增加归档标记 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+020_terminal_recording_mode.sql[DD3T]: F:数据库迁移 /mi：录制增加模式列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+021_snippet_appearance.sql[DD3T]: F:数据库迁移 /mi：快捷命令增加外观字段 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+022_command_history_suppressed.sql[DD3T]: F:数据库迁移 /mi：命令历史增加抑制标记 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+023_host_connection_options.sql[DD3T]: F:数据库迁移 /mi：主机增加连接选项 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+024_repair_host_password_source.sql[DD3T]: F:数据库迁移 /mi：修复主机密码来源数据 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+025_credential_prompt_rules.sql[DD3T]: F:数据库迁移 /mi：新增凭据提示规则表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+026_host_sftp_options.sql[DD3T]: F:数据库迁移 /mi：主机增加 SFTP 选项 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+027_host_terminal_options.sql[DD3T]: F:数据库迁移 /mi：主机增加终端选项 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+028_host_x11.sql[DD3T]: F:数据库迁移 /mi：主机增加 X11 转发选项 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+029_host_post_login_delay.sql[DD3T]: F:数据库迁移 029：主机增加登录后延时 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+030_host_connection_type.sql[DD3T]: F:数据库迁移 030：主机增加连接类型 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+031_host_rdp_display.sql[DD3T]: F:数据库迁移 031：主机增加 RDP 显示参数 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+032_host_rdp_clipboard.sql[DD3T]: F:数据库迁移 032：主机增加 RDP 剪贴板选项 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+033_host_tags.sql[DD3T]: F:数据库迁移 033：主机增加标签列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+034_host_vnc_options.sql[DD3T]: F:数据库迁移 034：主机增加 VNC 选项 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+035_host_vnc_options_more.sql[DD3T]: F:数据库迁移 035：主机补充 VNC 选项 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+036_host_vnc_transport.sql[DD3T]: F:数据库迁移 036：主机增加 VNC 传输方式 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+037_host_vnc_rfb_password_mode.sql[DD3T]: F:数据库迁移 037：主机增加 VNC RFB 密码模式 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+038_host_jump_and_proxy.sql[DD3T]: F:数据库迁移 038：主机增加跳板与代理关联 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+039_host_color.sql[DD3T]: F:数据库迁移 039：主机增加颜色标记 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+040_proxies.sql[DD3T]: F:数据库迁移 040：新增代理表 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+041_proxy_encrypted_payload.sql[DD3T]: F:数据库迁移 041：代理增加加密载荷 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+042_remove_proxy_credential.sql[DD3T]: F:数据库迁移 042：移除代理凭据列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+043_remove_host_proxy_credential.sql[DD3T]: F:数据库迁移 043：移除主机代理凭据列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+044_host_ssh_otp.sql[DD3T]: F:数据库迁移 044：主机增加 SSH OTP 设置 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+045_host_alias.sql[DD3T]: F:数据库迁移 045：主机增加别名 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+046_host_custom_id.sql[DD3T]: F:数据库迁移 046：主机支持自定义 ID | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+047_drop_host_identifier_columns.sql[DD3T]: F:数据库迁移 047：删除主机旧标识列 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+048_host_ssh_handshake.sql[DD3T]: F:数据库迁移 048：主机增加 SSH 握手算法设置 | R:- | A:- | S:迁移只追加、不改历史文件：已发布版本号不可复用
+
+===/<repository>/internal/terminal/===
+batch.go[DD6L]: F:批量任务：队列、并发上限与结果汇总 | R:- | A:- | S:-
+manager.go[DD7L]: F:终端管理器：PTY 注册表与生命周期 | R:- | A:- | S:-
+models.go[DD5S]: F:终端模型（尺寸、模式与状态） | R:- | A:- | S:-
+terminal_protocol.go[DN5S]: F:终端流协议：帧类型与控制消息定义 | R:- | A:- | S:-
+terminal_stream.go[DN6L]: F:终端流：读写扇出、背压与重放缓冲 | R:- | A:- | S:-
+token_store.go[DI5S]: F:终端令牌存储（短时鉴权） | R:- | A:- | S:-
+writer.go[DD5M]: F:终端写入器：分片、顺序与错误处理 | R:- | A:- | S:-
+
+===/<repository>/internal/tmux/===
+actions.go[DD5S]: F:tmux 动作（新建/切换/清理会话） | R:- | A:- | S:-
+runtime.go[DD4T]: F:tmux 运行时探测（是否存在与服务端） | R:- | A:- | S:-
+service.go[DD6M]: F:tmux 服务：会话映射与代理通道 | R:- | A:- | S:-
+
+===/<repository>/internal/translate/===
+ali.go[DL5S]: F:阿里云机器翻译适配 | R:- | A:- | S:-
+baidu.go[DL4T]: F:百度翻译适配 | R:- | A:- | S:-
+credential_store.go[DI5M]: F:翻译凭据存储（加密与校验） | R:- | A:- | S:-
+deepl.go[RI5T]: F:DeepL 翻译适配器：请求构造、鉴权与结果解析 | R:- | A:- | S:密钥只从凭据存储读取，不落日志
+microsoft.go[RI5S]: F:微软翻译适配器：区域与密钥鉴权 | R:- | A:- | S:区域参数缺失会直接 401，不要省略
+provider_common.go[RI4T]: F:翻译供应商公共部分：HTTP 客户端、错误归并与超时 | R:- | A:- | S:-
+proxy_darwin.go[RI5M]: F:macOS 系统代理读取（scutil 输出解析） | R:- | A:- | S:解析失败必须回退直连，不能让翻译整体不可用
+proxy_other.go[RI3T]: F:非 macOS 平台的代理读取空实现 | R:- | A:- | S:-
+translate.go[RI6L]: F:翻译服务门面：语言判定、供应商选择与结果缓存 | R:- | A:- | S:供应商差异只在适配器内处理，门面不做协议分支
+youdao.go[RI5S]: F:有道翻译适配器（签名与截断规则） | R:- | A:- | S:-
+
+===/<repository>/internal/trzszfiles/===
+manager.go[RI6M]: F:trzsz 文件传输管理器：任务登记、进度与取消 | R:- | A:- | S:同一传输只能有一个所有者，重复登记必须拒绝
+
+===/<repository>/internal/tunnel/===
+agent.go[RI5T]: F:远端 agent 公共实现：脚本下发与执行 | R:- | A:- | S:-
+agent_unix.go[RI4T]: F:unix 端 agent 脚本与执行细节 | R:- | A:- | S:-
+agent_windows.go[RI4T]: F:windows 端 agent 脚本与执行细节 | R:- | A:- | S:-
+ai_command.go[RI5S]: F:AI 命令的远端执行包装：审计记录与超时 | R:- | A:- | S:AI 产生的命令必须走审批级别校验后才可执行
+chain.go[RI6M]: F:跳板链解析与逐跳拨号（拒绝环与自引用） | R:- | A:- | S:跳板链出现环或自引用必须直接失败，不能递归拨号
+connector.go[RI7L]: F:SSH 连接器：拨号、认证、会话建立与错误归类 | R:- | A:- | S:认证失败要区分凭据错误与主机密钥变化，两者处置不同
+dialer.go[RI6L]: F:底层拨号：超时、代理与地址族选择 | R:- | A:- | S:-
+directory_follow.go[RI4T]: F:目录跟随的 shell 集成片段（PWD 上报） | R:- | A:- | S:配置块只在 Go 侧维护一份
+docker_command.go[RI6L]: F:远端 docker 命令封装与参数转义 | R:- | A:- | S:所有用户输入必须转义后再拼命令，禁止字符串直拼
+forward.go[RI7L]: F:端口转发：本地/远程/动态转发生命周期 | R:- | A:- | S:-
+keepalive.go[RI6T]: F:SSH 心跳：15s 间隔、10s 超时、连续 3 次失败判定断线 | R:- | A:- | S:阈值变化要与 session 层超时联动，不能只改这里
+known_hosts.go[RI7L]: F:known_hosts 读写与主机指纹校验 | R:- | A:- | S:未知主机必须失焦失败并交由用户确认，不得静默接受
+local_command_integration.go[RI5L]: F:本地命令集成：shell 集成脚本安装与检查 | R:- | A:- | S:-
+local_shell.go[RI5S]: F:本地 shell 会话建立 | R:- | A:- | S:-
+local_shell_unix.go[RI3T]: F:unix 本地 shell 启动细节 | R:- | A:- | S:-
+local_shell_windows.go[RI3T]: F:windows 本地 shell 启动细节 | R:- | A:- | S:-
+local_terminal.go[RI6M]: F:本地终端会话：PTY 尺寸、读写与关闭 | R:- | A:- | S:-
+monitor_probe.go[RI7L]: F:远端监控采集：CPU/内存/磁盘/网络命令与解析 | R:- | A:- | S:命令要兼容 busybox 与 GNU 两套工具链
+os_release.go[RI6L]: F:远端系统识别：探测命令与发行版图标判定放在同一文件 | R:- | A:- | S:探测失败要给出未知系统而非猜测
+probe.go[RI5M]: F:连通性与端口可用性探测 | R:- | A:- | S:-
+process_action.go[RI4S]: F:远端进程操作（结束/信号） | R:- | A:- | S:危险操作需要调用方显式确认
+proxy.go[RI6L]: F:代理拨号：socks5/http 与认证 | R:- | A:- | S:代理密码不得出现在错误信息里
+proxycommand.go[RI5M]: F:ProxyCommand 执行与输出错误归类 | R:- | A:- | S:-
+proxycommand_unix.go[RI3T]: F:unix ProxyCommand 执行细节 | R:- | A:- | S:-
+proxycommand_windows.go[RI3T]: F:windows ProxyCommand 执行细节 | R:- | A:- | S:-
+remote_command.go[RI7L]: F:远端命令执行：超时、输出捕获与退出码 | R:- | A:- | S:必须带超时，否则一次卡死会占住整条会话
+resource_probe.go[RI6L]: F:资源指标解析（/proc 与系统命令输出） | R:- | A:- | S:-
+resources.go[RI4T]: F:资源数据结构定义 | R:- | A:- | S:-
+service_probe.go[RI7L]: F:远端服务与端口探测（systemd/进程/监听端口） | R:- | A:- | S:探测只读，不得启停服务
+sftp.go[RI6M]: F:SFTP 客户端封装：会话内复用与错误归类 | R:- | A:- | S:-
+sftp_operations.go[RI5M]: F:SFTP 文件操作：重命名、权限、目录创建 | R:- | A:- | S:-
+sftp_parallel.go[RI7L]: F:并行传输调度：分片与并发上限 | R:- | A:- | S:并发度受连接池容量约束，不能无限开分片
+sftp_parallel_transfer.go[RI6L]: F:并行分片传输执行与进度汇总 | R:- | A:- | S:-
+sftp_pool.go[RI7L]: F:SFTP 连接池：多连接复用、借还与失效重建 | R:- | A:- | S:借出的连接必须归还，否则池会耗尽
+sftp_resume.go[RI6M]: F:断点续传：偏移校验与追加写入 | R:- | A:- | S:远端文件被改动必须放弃续传并整体重传
+sftp_transfer.go[RI7L]: F:SFTP 传输执行：读写循环与进度回调 | R:- | A:- | S:-
+sftp_tuning.go[RI5S]: F:传输参数调优：缓冲区与并发默认值 | R:- | A:- | S:-
+shell_integration.go[RI6M]: F:shell 集成安装/卸载（bash/zsh/fish） | R:- | A:- | S:安装是幂等追加配置块，不能在用户 rc 文件里重复写
+telnet.go[RI6L]: F:Telnet 连接器：IAC 协商与数据清理 | R:- | A:- | S:Telnet 无法交接会话，窗口迁移要走重连
+telnet_negotiation.go[RI7L]: F:Telnet IAC 协商：选项状态机与子协商（NAWS/TTYPE 等） | R:- | A:- | S:协商必须逐字节处理，不能当普通文本过滤
+terminal.go[RI7L]: F:远端终端通道：PTY 申请、尺寸同步与读写循环 | R:- | A:- | S:窗口尺寸变化要节流，避免刷屏 resize
+terminal_encoding.go[RI4T]: F:终端字符编码转换（UTF-8/GBK 兼容） | R:- | A:- | S:-
+x11.go[RI5S]: F:X11 转发通道建立与生命周期 | R:- | A:- | S:未启用时不监听端口，避免本机暴露
+
+===/<repository>/internal/tunnel/testsupport/===
+sshd.go[RI6M]: F:测试用 sshd 支撑：拉起进程内/本地 sshd 与测试凭据 | R:- | A:- | S:只用于测试，不得被产品代码引用
+
+===/<repository>/internal/update/===
+apply_helper.go[RI6S]: F:更新应用助手：脱离主进程执行替换并回传结果 | R:- | A:- | S:替换期间主进程必须已退出，否则 Windows 会锁文件
+apply_staged.go[RI6S]: F:暂存包的应用流程：校验后落盘并交给 replacer | R:- | A:- | S:-
+cleanup_stub.go[RI2T]: F:无清理实现的平台占位 | R:- | A:- | S:-
+download.go[RI6M]: F:更新包下载：分块、校验与进度回调 | R:- | A:- | S:下载后必须校验签名与摘要，校验失败不得进入应用阶段
+download_guard.go[RI6S]: F:下载防护：URL 白名单与大小上限 | R:- | A:- | S:只允许官方发布域与 HTTPS，重定向需重新校验
+errors.go[RI4T]: F:更新错误定义与用户可读文案映射 | R:- | A:- | S:-
+github.go[RI5S]: F:GitHub Releases 查询：版本比较与资产选择 | R:- | A:- | S:-
+install_script.go[RI5S]: F:安装脚本生成与执行（macOS/Linux 安装路径） | R:- | A:- | S:-
+models.go[RI3T]: F:更新领域模型：版本、资产与状态 | R:- | A:- | S:-
+replacer_darwin.go[RI5T]: F:macOS 二进制替换（同卷 rename 原子替换） | R:- | A:- | S:必须同卷内 rename，跨卷会退化成复制并破坏原子性
+replacer_linux.go[RI4T]: F:Linux 二进制替换 | R:- | A:- | S:-
+replacer_windows.go[RI7M]: F:Windows 运行中二进制替换：改名旧文件后落新文件 | R:- | A:- | S:运行中的 exe 无法直接覆盖，必须先改名再替换，失败要能回滚
+rollback.go[RI7S]: F:更新回滚：备份恢复与一致性检查 | R:- | A:- | S:回滚必须可用，备份缺失即视为不可回滚并拒绝更新
+service.go[RI7L]: F:更新服务门面：检查、下载、应用与状态广播 | R:- | A:- | S:同一时刻只允许一个更新流程
+signature.go[RI7S]: F:更新包签名校验（公钥内置） | R:- | A:- | S:签名不通过一律中止，不做降级信任
+version.go[RI3T]: F:版本号解析与比较 | R:- | A:- | S:-
+
+===/<repository>/internal/vault/===
+auto_unlock.go[RI7L]: F:保险库自动解锁：生物识别/钥匙串路径与失败限速 | R:- | A:- | S:自动解锁失败必须回退主密码，不能无限重试
+credential_repository.go[RI6M]: F:凭据仓储：读写与敏感字段封装 | R:- | A:- | S:-
+crypto.go[RI7S]: F:保险库加密原语：信封加密与随机数 | R:- | A:- | S:不得自造加密原语，只用标准库与已审计实现
+file_replace_unix.go[RI4T]: F:unix 原子文件替换（rename） | R:- | A:- | S:-
+file_replace_windows.go[RI6S]: F:windows 原子文件替换（ReplaceFile/备份） | R:- | A:- | S:-
+identity.go[RI5S]: F:保险库身份与元数据 | R:- | A:- | S:-
+lifecycle_lock.go[RI6S]: F:保险库生命周期锁：跨进程互斥 | R:- | A:- | S:锁必须带超时，避免崩溃后永久占锁
+lifecycle_lock_unix.go[RI3T]: F:unix 生命周期锁实现（flock） | R:- | A:- | S:-
+lifecycle_lock_windows.go[RI3T]: F:windows 生命周期锁实现（命名互斥体） | R:- | A:- | S:-
+masterkey.go[RI7S]: F:主密钥装载与派生入口 | R:- | A:- | S:-
+masterkey_password.go[RI8L]: F:主密码流程：Argon2id 派生、校验与改密 | R:- | A:- | S:派生参数变更必须保留旧参数解锁路径，否则老库打不开
+masterkey_password_sync_unix.go[RI3T]: F:unix 主密码同步辅助（文件锁配合） | R:- | A:- | S:-
+masterkey_password_sync_windows.go[RI3T]: F:windows 主密码同步辅助 | R:- | A:- | S:-
+masterkey_portable.go[RI6M]: F:可移植主密钥（导出/导入与口令包装） | R:- | A:- | S:导出文件必须口令保护，且不得记录口令
+migrations.go[RI6S]: F:保险库迁移执行器：顺序执行与版本记录 | R:- | A:- | S:迁移只前进不回退，失败要中止整个事务
+password_hint.go[RI5S]: F:主密码提示：设置、校验与展示 | R:- | A:- | S:提示内容不等于口令信息，不得回显口令片段
+rekey.go[RI7S]: F:重加密：主密钥更换与数据重写 | R:- | A:- | S:重加密必须可中断续做，中途失败不能留下半新半旧数据
+replace_all.go[RI5T]: F:整库替换：全量重写与切换 | R:- | A:- | S:-
+store.go[RI7L]: F:保险库存储层：条目 CRUD、索引与事务 | R:- | A:- | S:所有写操作走同一事务入口，避免并发破坏一致性
+
+===/<repository>/internal/vault/migrations/===
+001_initial.sql[RI4T]: F:保险库初始表结构 | R:- | A:- | S:已发布的迁移不得修改，只能新增
+002_add_secret_name.sql[RI3T]: F:新增密钥名称列 | R:- | A:- | S:-
+003_add_vault_identity.sql[RI3T]: F:新增保险库身份列 | R:- | A:- | S:-
+004_add_agent_metadata.sql[RI3T]: F:新增 agent 元数据列 | R:- | A:- | S:-
+005_add_certificate_kind.sql[RI3T]: F:新增证书类型列 | R:- | A:- | S:-
+
+===/<repository>/internal/vnc/===
+identity.go[RI5M]: F:VNC 连接身份与能力探测记录 | R:- | A:- | S:-
+manager.go[RI7L]: F:VNC 会话管理：连接、重连与关闭 | R:- | A:- | S:VNC 的 TCP 连接无法交接窗口，只能重连
+stream.go[RI6S]: F:VNC 画面流：Wails Stream 绑定与背压 | R:- | A:- | S:-
+stream_protocol.go[RI6S]: F:VNC 帧流协议编解码（与 RDP 帧协议同族） | R:- | A:- | S:帧头布局改动要与前端同步，否则画面错位
+transport.go[RI7M]: F:VNC 传输层：RFB over WebSocket/TCP 与 TLS | R:- | A:- | S:VNC over WS 必须 TLS，明文仅限本机回环
+
+===/<repository>/internal/webfetch/===
+client.go[RI6M]: F:网页抓取客户端：超时、重定向与大小上限 | R:- | A:- | S:必须限制重定向次数与响应体大小，防 SSRF/内存放大
+extract.go[RI5S]: F:正文抽取与清洗（HTML→可读文本） | R:- | A:- | S:抽取结果要保留来源 URL，便于引用
+settings.go[RI4S]: F:抓取设置：UA、代理与开关 | R:- | A:- | S:-
+
+===/<repository>/internal/x11/===
+authority.go[RI5S]: F:X11 授权文件（xauth cookie）生成与清理 | R:- | A:- | S:cookie 是凭据，用完立即删除，不写日志
+detect.go[RI6M]: F:X11 环境探测：DISPLAY 与可转发条件判定 | R:- | A:- | S:探测失败要给出未知而非猜测
+settings.go[RI3T]: F:X11 转发设置项 | R:- | A:- | S:-
+
+===/<repository>/internal/zmodem/===
+detector.go[RI4T]: F:Zmodem 起始序列探测 | R:- | A:- | S:探测只扫描最近输出窗口，避免误判正常文本
+files.go[RI6M]: F:Zmodem 文件收发与进度 | R:- | A:- | S:-
+
+===/<repository>/scripts/lib/===
+comment-stripper.mjs[RI5M]: F:注释剥离工具：按语言规则去注释（公仓快照用） | R:- | A:- | S:剥离必须保留字符串字面量里的同形文本
+
+===/<repository>/scripts/===
+public-mirror.mjs[RI7L]: F:公仓快照脚本：筛纯代码、去注释与内部文档后提交 | R:- | A:- | S:公开仓是生成产物，不要在公开仓手改
+public-mirror.test.mjs[RI5S]: F:公仓快照脚本的单元测试 | R:- | A:- | S:-
+
+===/<repository>/tools/otp-test/===
+Dockerfile[RI4T]: F:OTP 端到端测试镜像构建 | R:- | A:- | S:-
+README.md[RI4T]: F:OTP 测试环境说明与运行步骤 | R:- | A:- | S:-
+check.sh[RI4T]: F:OTP 测试编排脚本 | R:- | A:- | S:-
+compose.yaml[RI3T]: F:OTP 测试 compose 服务定义 | R:- | A:- | S:-
+entrypoint.sh[RI2T]: F:OTP 测试容器入口 | R:- | A:- | S:-
+google_authenticator[RI2T]: F:PAM 模块挂载占位（google-authenticator） | R:- | A:- | S:-
+pam-sshd[RI3T]: F:sshd PAM 配置片段（启用 OTP） | R:- | A:- | S:仅测试环境可用，不要复制到生产配置
+ssh-auth.exp[RI4T]: F:expect 脚本驱动的 SSH OTP 登录验证 | R:- | A:- | S:脚本里不得写死真实凭据
+sshd_config[RI3T]: F:测试 sshd 配置（启用 keyboard-interactive OTP） | R:- | A:- | S:-
+totp.py[RI3T]: F:TOTP 生成辅助脚本（测试用） | R:- | A:- | S:仅测试用，不进入产品构建
+
+===/<repository>/tools/rdp-helper-poc/===
+README.md[RI5S]: F:RDP helper 概念验证说明：构建、依赖与运行 | R:- | A:- | S:-
+
+===/<repository>/tools/rdp-helper-poc/freerdp/===
+.gitignore[RI1T]: F:RDP helper 构建产物忽略规则 | R:- | A:- | S:-
+CMakeLists.txt[RI4T]: F:FreeRDP helper 的 CMake 构建定义 | R:- | A:- | S:交叉编译需同时输出三平台 dylib 依赖
+main.c[RI7L]: F:FreeRDP C 侧助手：连接建立、画面回调与帧输出 | R:- | A:- | S:与 Go 侧按帧协议通信，改动需同步 stream_protocol
+
+===/<repository>/tools/rdp-helper-poc/scripts/===
+relocate-dylibs.py[RI5S]: F:dylib 依赖重定位脚本（@loader_path 改写） | R:- | A:- | S:依赖必须全部落在 @loader_path，否则用户机器缺库

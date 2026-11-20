@@ -4,7 +4,12 @@ import type { VncSession, VncStreamTicket } from '../../../bindings/changeme/int
 import { decodeAppError, errorMessage, translateErrorKey } from '../../services/errors'
 
 import { readClipboardText, writeClipboardText } from '../../services/clipboard'
-import { closeVncSession, fetchVncStreamTicket, openVncHostSession } from '../../services/vnc'
+import {
+  closeVncSession,
+  fetchVncStreamTicket,
+  openVncHostSession,
+  openVncHostSessionWithPassword,
+} from '../../services/vnc'
 import { VncStreamError, VncErrorCode, bindVncChannel, takeBufferedVncBytes, type VncBinarySocket } from './vncProtocol'
 
 import { installKasmUpstreamCompat, installKasmWheelCompat } from './kasmVncCompat'
@@ -140,7 +145,10 @@ export interface UseVncSessionOptions {
 
   createStream?: (streamName: string) => VncBinarySocket
 
-  openSession?: (hostId: string) => Promise<{
+  openSession?: (
+    hostId: string,
+    password?: string,
+  ) => Promise<{
     session: VncSession
     ticket: VncStreamTicket
 
@@ -330,7 +338,10 @@ export function useVncSession(options: UseVncSessionOptions) {
   const loadRfb = options.loadRfb ?? defaultLoadRfb
   const createStream =
     options.createStream ?? ((streamName: string) => Stream(streamName) as unknown as VncBinarySocket)
-  const openSession = options.openSession ?? openVncHostSession
+  const openSession =
+    options.openSession ??
+    ((hostId: string, password?: string) =>
+      password ? openVncHostSessionWithPassword(hostId, password) : openVncHostSession(hostId))
   const closeSession = options.closeSession ?? closeVncSession
   const streamTicket = options.streamTicket ?? fetchVncStreamTicket
   const handshakeTimeoutMs = options.handshakeTimeoutMs ?? 20_000
@@ -431,7 +442,7 @@ export function useVncSession(options: UseVncSessionOptions) {
     }
   }
 
-  async function connect(element: HTMLElement): Promise<void> {
+  async function connect(element: HTMLElement, password?: string): Promise<void> {
     target = element
     closed = false
     status.value = 'connecting'
@@ -454,7 +465,7 @@ export function useVncSession(options: UseVncSessionOptions) {
       const RfbConstructor = await loadRfb()
       if (closed) return
 
-      const opened = await openSession(options.hostId())
+      const opened = await openSession(options.hostId(), password)
       if (closed) {
         await closeSession(opened.session.id).catch(() => undefined)
         return
@@ -548,6 +559,15 @@ export function useVncSession(options: UseVncSessionOptions) {
         if (rfb !== instance) return
         const detail = (event as unknown as { detail?: { clean?: boolean } }).detail
         if (status.value === 'failed') return
+
+        if (status.value === 'password-required') {
+          clearHandshakeWatchdog()
+          passwordRequired.value = false
+          status.value = 'failed'
+          errorText.value = translateErrorKey('vnc.closedBeforeAuth')
+          settleAttempt('done')
+          return
+        }
         status.value = 'disconnected'
         errorText.value = detail?.clean === false ? translateErrorKey('vnc.openFailed') : ''
 
@@ -604,7 +624,16 @@ export function useVncSession(options: UseVncSessionOptions) {
   function submitPassword(password: string): void {
     if (!rfb) return
     if (!password) return
-    rfb.sendCredentials({ password })
+    try {
+      rfb.sendCredentials({ password })
+    } catch {
+      clearHandshakeWatchdog()
+      passwordRequired.value = false
+      status.value = 'failed'
+      errorText.value = translateErrorKey('vnc.authChannelClosed')
+      settleAttempt('done')
+      return
+    }
     passwordRequired.value = false
 
     status.value = 'connecting'

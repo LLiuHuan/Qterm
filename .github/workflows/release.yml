@@ -89,25 +89,27 @@ jobs:
         with:
           pattern: qterm-rdp-helper-*
           path: .cache/rdp-helpers
-          merge-multiple: true
 
       - name: Stage RDP helper for packaging (optional)
         continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p tools/rdp-helper-poc/freerdp/build
-          for dir in darwin-arm64 linux-amd64 linux-arm64 windows-amd64; do
-            for candidate in ".cache/rdp-helpers/$dir/qterm-freerdp-helper" ".cache/rdp-helpers/$dir/qterm-freerdp-helper.exe" \
-                             ".cache/rdp-helpers/qterm-freerdp-helper" ".cache/rdp-helpers/qterm-freerdp-helper.exe"; do
-              [ -f "$candidate" ] || continue
-              case "$dir" in
-                windows-*) cp "$candidate" tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper.exe ;;
-                *) cp "$candidate" tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper ;;
-              esac
+          # 按「平台-架构」分目录：一次发版要出多个架构的包，而 helper 是目标架构的原生
+          # 二进制。以前所有 artifact 合并到同一个扁平路径，后下载的会覆盖先下载的
+          # （2026-11-19 事故：amd64 包里塞进 arm64 helper，用户机器上 exec format error）。
+          dest_root=tools/rdp-helper-poc/freerdp/build
+          mkdir -p "$dest_root"
+          for artifact in .cache/rdp-helpers/qterm-rdp-helper-*; do
+            [ -d "$artifact" ] || continue
+            platform_arch=${artifact##*/qterm-rdp-helper-}
+            for name in qterm-freerdp-helper qterm-freerdp-helper.exe; do
+              [ -f "$artifact/$name" ] || continue
+              mkdir -p "$dest_root/$platform_arch"
+              cp "$artifact/$name" "$dest_root/$platform_arch/$name"
             done
           done
-          ls -l tools/rdp-helper-poc/freerdp/build || true
+          find "$dest_root" -maxdepth 2 -type f | sort || true
 
       # npm ci 只安装依赖；dist 不入库，必须在盖章后构建，才能把本次版本写入前端。
       # 两个架构都先生成宿主机产物，再由下面的 Docker 挂载读取。

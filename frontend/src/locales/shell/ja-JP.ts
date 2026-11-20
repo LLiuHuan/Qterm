@@ -485,6 +485,8 @@ export const shellUiJa: Record<string, string> = {
   'shell.tmux.helpGroupWindow': 'ウィンドウ',
   'shell.tmux.helpGroupSession': 'セッション',
   'shell.tmux.helpPrefix': 'プレフィックス「{prefix}」：押してから下のキー',
+  'shell.tmux.helpPrefixFallback':
+    'リモートの tmux プレフィックスを検出できませんでした。以下は既定の Ctrl+B で表示しています（変更している場合はご自身の設定に従ってください）。',
   'shell.tmux.helpScroll': 'ホイールは履歴。スクロールはリモートで「set -g mouse on」を有効に',
   'shell.tmux.refresh': '更新',
   'shell.tmux.create': '新規',
@@ -1107,6 +1109,10 @@ export const shellUiJa: Record<string, string> = {
     'リモートのクリップボードに入れました。リモート側では Ctrl+Shift+V で貼り付けてください。右/中クリックは選択バッファで、多くのサーバーは同期しません。',
   'shell.vnc.pasteEmpty': 'ローカルのクリップボードが空のため、貼り付ける内容がありません。',
   'shell.vnc.openFailed': 'VNC を開けませんでした',
+  'shell.vnc.authChannelClosed':
+    '認証が完了する前にサーバーが接続を切断しました（パスワード誤りではありません）。サーバーがこのクライアントを一時的に制限しているか、VNC サービスが再起動した可能性があります。しばらくしてから再試行してください。',
+  'shell.vnc.closedBeforeAuth':
+    '認証が始まる前にサーバーが接続を切断しました。パスワードは送信されておらず、誤りでもありません。サーバーがこのクライアントを一時的に制限している（短時間に未完了の認証が続いた場合など）か、VNC サービスが再起動した可能性があります。しばらくしてから再試行してください。',
   'shell.vnc.pasteReadFailed':
     'ローカルのクリップボードを読み取れませんでした（システムクリップボードが利用できません）。',
   'shell.vnc.pasteFailed': 'リモートのクリップボードへ送信できませんでした。',
@@ -1295,6 +1301,8 @@ export const shellUiJa: Record<string, string> = {
   'shell.hostEditor.passwordPromptHint':
     'パスワードは保存されません。接続時には、その接続で使用する認証情報を改めて確認します。',
   'shell.authDialog.title': 'SSH 認証',
+  'shell.authDialog.rdpTitle': 'RDP 認証',
+  'shell.authDialog.vncTitle': 'VNC 認証',
   'shell.authDialog.wrongPassword': 'パスワードが正しくありません。再試行してください（{attempt}/{max}）',
   'shell.authDialog.tooManyAttempts':
     '{attempts} 回連続で認証に失敗しました。ユーザー名・パスワード・鍵を確認して後で再試行してください',

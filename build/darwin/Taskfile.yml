@@ -174,13 +174,13 @@ tasks:
       # Contents/Resources/helpers/（Go 侧按该目录查找）。
       # 没构建过 helper 时跳过，避免没有 RDP 需求的构建被迫依赖 FreeRDP 构建产物。
       - |
-        HELPER_SRC="tools/rdp-helper-poc/freerdp/build"
+        HELPER_SRC="{{.RDP_HELPER_SRC | default "tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper"}}"
         if [ "{{.SKIP_RDP_HELPER}}" = "true" ]; then
           echo "跳过 RDP helper 随包分发（SKIP_RDP_HELPER=true）"
-        elif [ -f "$HELPER_SRC/qterm-freerdp-helper" ]; then
+        elif [ -f "$HELPER_SRC" ]; then
           DEST="{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/helpers"
           mkdir -p "$DEST"
-          cp "$HELPER_SRC/qterm-freerdp-helper" "$DEST/"
+          cp "$HELPER_SRC" "$DEST/"
           # helper 静态链接 FreeRDP（见 tools/rdp-helper-poc/README.md）：
           # 除系统库外没有动态依赖，只拷这一个可执行文件，不再随包 .dylib。
         else
@@ -212,13 +212,13 @@ tasks:
       # 与正式包一致：开发包也带上 RDP helper（放在 Contents/Resources/helpers/，
       # Go 侧按该目录查找）。
       - |
-        HELPER_SRC="tools/rdp-helper-poc/freerdp/build"
+        HELPER_SRC="{{.RDP_HELPER_SRC | default "tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper"}}"
         if [ "{{.SKIP_RDP_HELPER}}" = "true" ]; then
           echo "跳过 RDP helper 随包分发（SKIP_RDP_HELPER=true）"
-        elif [ -f "$HELPER_SRC/qterm-freerdp-helper" ]; then
+        elif [ -f "$HELPER_SRC" ]; then
           DEST="{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources/helpers"
           mkdir -p "$DEST"
-          cp "$HELPER_SRC/qterm-freerdp-helper" "$DEST/"
+          cp "$HELPER_SRC" "$DEST/"
           # helper 静态链接 FreeRDP（见 tools/rdp-helper-poc/README.md）：
           # 除系统库外没有动态依赖，只拷这一个可执行文件，不再随包 .dylib。
         else

@@ -9,6 +9,9 @@ import { RDP_RENDER_RATE_TICK_MS, createRdpRateWindow, useRdpStream } from './us
 import { decodeAppError, errorMessage, translateAppError } from '../../services/errors'
 import { readClipboardText, writeClipboardText } from '../../services/clipboard'
 import RdpCertificateDialog from './RdpCertificateDialog.vue'
+import RemoteAuthDialog from '../../components/dialogs/RemoteAuthDialog.vue'
+import { takeHostCredential } from './pendingHostCredential'
+import { rememberHostPassword } from '../../services/hostSecrets'
 import RdpLogDialog from './RdpLogDialog.vue'
 import { SessionOverlay, QtermButton } from '../../components/common'
 import { rdpDisplayPreferences } from '../settings/rdpDisplayPreferences'
@@ -143,10 +146,17 @@ function stopStatsPolling(): void {
 
 const pressedButtons = new Set<number>()
 
-const pendingPassword = ref('')
 const passwordRequired = ref(false)
 
+const passwordSubmitting = ref(false)
+
+const passwordError = ref('')
+
 const passwordFormVisible = computed(() => passwordRequired.value && !session.connected.value)
+
+const authHostLabel = ref('')
+const authUsername = ref('')
+const authCanRemember = ref(false)
 const connectionFailureHandled = ref(false)
 
 const failureText = ref('')
@@ -166,6 +176,7 @@ function beginConnectAttempt(): void {
   failureText.value = ''
   certificateDismissed.value = false
   passwordRequired.value = false
+  passwordError.value = ''
 }
 
 const engine = ref(props.engine || 'freerdp')
@@ -671,7 +682,7 @@ async function connectByHost(password = ''): Promise<void> {
   }
   if (opened) {
     passwordRequired.value = false
-    pendingPassword.value = ''
+    passwordError.value = ''
     emit('opened', opened.id)
     startStatsPolling()
 
@@ -1245,6 +1256,11 @@ async function reconnect(): Promise<void> {
     return
   }
   if (props.hostId) {
+    const credential = takeHostCredential(props.hostId)
+    if (credential) {
+      await submitPendingPassword(credential.password, credential.remember)
+      return
+    }
     await connectByHost()
     return
   }
@@ -1267,8 +1283,36 @@ async function reconnect(): Promise<void> {
   }
 }
 
-async function submitPendingPassword(): Promise<void> {
-  await connectByHost(pendingPassword.value)
+async function submitPendingPassword(password: string, remember: boolean): Promise<void> {
+  if (passwordSubmitting.value) {
+    return
+  }
+  passwordSubmitting.value = true
+  passwordError.value = ''
+  try {
+    await connectByHost(password)
+    if (!passwordRequired.value && remember && props.hostId) {
+      await rememberHostPassword(props.hostId, password).catch(() => undefined)
+    }
+  } finally {
+    passwordSubmitting.value = false
+  }
+  if (passwordRequired.value) {
+    passwordError.value = session.errorText.value || t('shell.rdp.connectionFailed')
+  }
+}
+
+async function cancelPasswordPrompt(): Promise<void> {
+  if (passwordSubmitting.value) {
+    return
+  }
+  passwordRequired.value = false
+  passwordError.value = ''
+  connectionFailureHandled.value = true
+  if (!handoverPending.value) {
+    await session.close().catch(() => undefined)
+  }
+  emit('close')
 }
 
 onMounted(async () => {
@@ -1292,6 +1336,12 @@ onMounted(async () => {
           height: profile.height && profile.height > 0 ? profile.height : 800,
         }
       }
+
+      const address = typeof profile?.address === 'string' ? profile.address.trim() : ''
+      const port = typeof profile?.port === 'number' ? profile.port : 0
+      authHostLabel.value = address ? (port > 0 ? `${address}:${port}` : address) : props.hostTitle || ''
+      authUsername.value = typeof profile?.username === 'string' ? profile.username.trim() : ''
+      authCanRemember.value = profile?.passwordSource === 'prompt'
     } catch {}
   }
 
@@ -1482,26 +1532,18 @@ onBeforeUnmount(() => {
         </template>
       </SessionOverlay>
 
-      <form
-        v-if="passwordFormVisible"
-        class="absolute inset-x-0 bottom-0 z-20 flex-cc gap-2 bg-amber-500/15 px-2 py-1 text-xs text-amber-100"
-        @submit.prevent="submitPendingPassword"
-      >
-        <span>{{ t('shell.rdp.passwordPrompt') }}</span>
-        <input
-          v-model="pendingPassword"
-          class="rounded bg-black/30 px-2 py-0.5 text-white"
-          :placeholder="t('shell.rdp.passwordPlaceholder')"
-          type="password"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-        />
-        <button class="rounded bg-sky-600 px-2 py-0.5 hover:bg-sky-500" type="submit">
-          {{ t('shell.rdp.connect') }}
-        </button>
-      </form>
+      <RemoteAuthDialog
+        :open="passwordFormVisible"
+        :title="t('shell.authDialog.rdpTitle')"
+        :description="t('shell.authDialog.description')"
+        :host-label="authHostLabel"
+        :username="authUsername"
+        :can-remember="authCanRemember"
+        :submitting="passwordSubmitting"
+        :error="passwordError"
+        @submit="submitPendingPassword"
+        @cancel="cancelPasswordPrompt"
+      />
 
       <div
         class="pointer-events-none absolute top-2 right-2 z-10 flex items-center gap-2 rounded-md bg-black/45 px-2 py-1 text-[11px] backdrop-blur-sm transition-opacity duration-150"

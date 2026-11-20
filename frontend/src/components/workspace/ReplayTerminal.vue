@@ -157,6 +157,7 @@ onBeforeUnmount(() => {
   <div
     ref="host"
     class="history-replay-terminal"
+    data-qt-thin-scrollbar
     :style="{ background: currentTheme().background, color: currentTheme().foreground }"
     :aria-label="t('history.replay.title')"
   />

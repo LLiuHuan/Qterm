@@ -501,6 +501,8 @@ export const shellUiFr: Record<string, string> = {
   'shell.tmux.helpGroupWindow': 'Fenêtre',
   'shell.tmux.helpGroupSession': 'Session',
   'shell.tmux.helpPrefix': 'Préfixe 「{prefix}」 : maintenez-le puis la touche ci-dessous',
+  'shell.tmux.helpPrefixFallback':
+    "Préfixe tmux distant non détecté : les raccourcis ci-dessous supposent la valeur par défaut Ctrl+B. Utilisez le vôtre s'il a été modifié.",
   'shell.tmux.helpScroll': 'Molette = historique ; pour défiler, activez 「set -g mouse on」 à distance',
   'shell.tmux.refresh': 'Actualiser',
   'shell.tmux.create': 'Nouvelle',
@@ -1125,6 +1127,10 @@ export const shellUiFr: Record<string, string> = {
     'Envoyé dans le presse-papiers distant. Collez avec Ctrl+Shift+V côté distant — le clic droit ou milieu colle la sélection, que la plupart des serveurs ne synchronisent pas.',
   'shell.vnc.pasteEmpty': 'Le presse-papiers local est vide : rien à coller.',
   'shell.vnc.openFailed': 'Échec de l’ouverture de VNC',
+  'shell.vnc.authChannelClosed':
+    "Le serveur a fermé la connexion avant la fin de l'authentification (ce n'est pas un mot de passe erroné). Le serveur limite peut-être temporairement ce client, ou le service VNC vient d'être redémarré. Réessayez dans un instant.",
+  'shell.vnc.closedBeforeAuth':
+    "Le serveur a fermé la connexion avant même le début de l'authentification. Aucun mot de passe n'a été envoyé et ce n'est pas une erreur de mot de passe. Le serveur limite peut-être temporairement ce client (par exemple après plusieurs authentifications inachevées), ou le service VNC vient d'être redémarré. Réessayez dans un instant.",
   'shell.vnc.pasteReadFailed': 'Impossible de lire le presse-papiers local (presse-papiers système indisponible).',
   'shell.vnc.pasteFailed': "Impossible d'envoyer le texte dans le presse-papiers distant.",
   'shell.vnc.kasmCompatDegradedBadge': 'Correctif presse-papiers inactif',
@@ -1314,6 +1320,8 @@ export const shellUiFr: Record<string, string> = {
   'shell.hostEditor.passwordPromptHint':
     "Le mot de passe n'est pas enregistré. Qterm redemande l'identifiant à utiliser à chaque connexion.",
   'shell.authDialog.title': 'Authentification SSH',
+  'shell.authDialog.rdpTitle': 'Authentification RDP',
+  'shell.authDialog.vncTitle': 'Authentification VNC',
   'shell.authDialog.wrongPassword': 'Mot de passe incorrect. Réessayez ({attempt}/{max}).',
   'shell.authDialog.tooManyAttempts':
     "Échec de l'authentification {attempts} fois de suite. Vérifiez le nom d'utilisateur, le mot de passe ou la clé, puis réessayez plus tard.",

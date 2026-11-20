@@ -29,6 +29,19 @@ fi
 # OpenSSL 静态库的位置按平台确定。
 case "$(uname -s)" in
   Darwin)
+    # Apple Silicon 的 Homebrew 在 /opt/homebrew，Intel 的（macos-15-intel runner）在 /usr/local；
+    # 写死 /opt/homebrew 会让 Intel 上找不到 libssl.a（2026-11-19 darwin-amd64 job 事故）。
+    if [ -z "${OPENSSL_PREFIX:-}" ] && command -v brew >/dev/null 2>&1; then
+      OPENSSL_PREFIX="$(brew --prefix openssl@3 2>/dev/null || true)"
+    fi
+    if [ -z "${OPENSSL_PREFIX:-}" ]; then
+      for candidate in /opt/homebrew/opt/openssl@3 /usr/local/opt/openssl@3; do
+        if [ -d "${candidate}" ]; then
+          OPENSSL_PREFIX="${candidate}"
+          break
+        fi
+      done
+    fi
     OPENSSL_PREFIX="${OPENSSL_PREFIX:-/opt/homebrew/opt/openssl@3}"
     ;;
   Linux)
@@ -77,6 +90,25 @@ CMAKE_ARGS=(
   -DWITH_SERVER_INTERFACE=OFF
   -DWITH_SERVER_CHANNELS=OFF
   -DWITH_MANPAGES=OFF
+  # 关掉 winpr 的全部 JSON 后端。JSON 只服务 Azure AD（WITH_AAD）和「从 JSON 文件读
+  # 时区/键盘布局」这两个默认关闭的特性，helper 一个都不用；不关的话，构建机上只要有
+  # json-c 的 CMake 包（macOS runner 自带），CMake 就认定 json-c 可用并把
+  # winpr/libwinpr/utils/json/json-c.c 编进来，而 include 目录没跟着传，直接
+  # `fatal error: 'json-c/json.h' file not found`（2026-11-19 rdp-helper CI 事故）。
+  -DWITH_JSON_DISABLED=ON
+  # 关掉 Kerberos。FreeRDP 在「非 Windows、非 Apple」平台把 WITH_KRB5 默认设为 ON，
+  # 于是 configure 阶段强制 find_package(KRB5 REQUIRED)；CI 的 ubuntu runner 没装
+  # libkrb5-dev，直接 `Could NOT find Kerberos`（2026-11-19 rdp-helper CI 事故）。
+  # 就算装上了，静态链接还得额外提供 libkrb5.a 等一串库，helper 也用不到 Kerberos 认证。
+  -DWITH_KRB5=OFF
+  # Linux 上 winpr 的 CRT 层默认 find_package(ICU REQUIRED ...)，而 ICU 只提供动态库
+  # 的发行版（或没装 libicu-dev 的 runner）会直接 configure 失败；helper 只需要
+  # UTF-16/UTF-8 互转，用 winpr 自带的 unicode_builtin.c 就够（FreeRDP 自己的
+  # oss-fuzz/coverity 预置也是这么开的）。
+  -DWITH_UNICODE_BUILTIN=ON
+  # FUSE 只用于「剪贴板文件复制」走 fuse3 挂载，Linux 上默认 ON 且 pkg_check_modules
+  # 是 REQUIRED；runner 没装 libfuse3-dev 时 configure 直接失败。helper 不做剪贴板文件传输。
+  -DWITH_FUSE=OFF
   -DCMAKE_INSTALL_PREFIX="${FREERDP_INSTALL}"
 )
 

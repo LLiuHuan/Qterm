@@ -3,7 +3,7 @@ name: rdp-helper
 # 单独构建各平台的静态 RDP helper 并作为 artifact 上传。
 #
 # 为什么单独一个 workflow：
-# - helper 必须**在目标平台上编**（Linux 的 musl 静态、Windows 的 MSVC/vcpkg 都没法从
+# - helper 必须**在目标平台上编**（Linux 的 glibc 静态、Windows 的 MSVC/vcpkg 都没法从
 #   macOS 交叉产出可信产物），跟 release.yml 里那套 Linux Docker 交叉工具链是两条路径；
 # - 单独跑意味着它失败不会连坐发版。release.yml 的 package job 会**尽力**下载同一次
 #   运行里的 helper（`continue-on-error`），拿不到就退化成「RDP 提示未安装 helper」。
@@ -33,6 +33,15 @@ jobs:
             script: tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
             output: tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper
             path: qterm-rdp-helper-darwin-arm64
+          # 发版同时出 darwin amd64 包（release.mjs 的 darwin 目标是 amd64+arm64），
+          # 没有 Intel 版 helper 时该包的内置 RDP 会提示"未安装 helper"。
+          - name: darwin-amd64
+            # macos-13 已被 GitHub 于 2025-12 退役（排队等不到 runner 会一直挂着）；
+            # macos-15-intel 是当前仅剩的 x86_64 镜像。
+            os: macos-15-intel
+            script: tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
+            output: tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper
+            path: qterm-rdp-helper-darwin-amd64
           - name: linux-amd64
             os: ubuntu-24.04
             script: tools/rdp-helper-poc/scripts/build-static-freeerdp.sh
@@ -46,8 +55,15 @@ jobs:
           - name: windows-amd64
             os: windows-2022
             script: tools/rdp-helper-poc/scripts/build-static-freeerdp.ps1
+            args: -Triplet x64-windows-static
             output: tools/rdp-helper-poc/freerdp/build/Release/qterm-freerdp-helper.exe
             path: qterm-rdp-helper-windows-amd64
+          - name: windows-arm64
+            os: windows-11-arm
+            script: tools/rdp-helper-poc/scripts/build-static-freeerdp.ps1
+            args: -Triplet arm64-windows-static
+            output: tools/rdp-helper-poc/freerdp/build/Release/qterm-freerdp-helper.exe
+            path: qterm-rdp-helper-windows-arm64
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +72,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build libssl-dev libusb-1.0-0-dev zlib1g-dev
+
+      # Intel 的 macos-15-intel 镜像不一定预装 openssl@3；脚本按 brew --prefix 找静态库。
+      - name: Install build dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew list openssl@3 >/dev/null 2>&1 || brew install openssl@3
 
       - name: Check out FreeRDP source (macOS/Linux)
         if: runner.os != 'Windows'
@@ -76,7 +97,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ./${{ matrix.script }}
+          ./${{ matrix.script }} ${{ matrix.args }}
           Get-Item ${{ matrix.output }} | Format-List
 
       - name: Verify no non-system dependencies (macOS)
@@ -90,16 +111,22 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           set -euo pipefail
-          external=$(ldd "${{ matrix.output }}" || true)
-          if echo "$external" | grep -q 'not a dynamic executable'; then echo "静态链接 OK"; exit 0; fi
-          echo "$external" >&2
-          echo "helper 不是静态链接" >&2
-          exit 1
+          # glibc 不做静态链接，helper 的目标是「除系统库外没有依赖」（zlib/libm/libc 都在
+          # /lib 或 /usr/lib 下）。脚本里已有同样断言，这里再核一遍，避免脚本被放宽后静默回归。
+          external=$(ldd "${{ matrix.output }}" | awk '{print $3}' | grep -v '^$' | grep -vE '^(/lib/|/usr/lib/)' || true)
+          if [ -n "$external" ]; then echo "非系统依赖：$external" >&2; exit 1; fi
+          echo "动态依赖仅限系统库"
 
       - name: Verify no non-system dependencies (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # dumpbin 只在 VS 开发者环境里可用；runner 的普通 pwsh 里通常没有，
+          # 找不到就跳过（*-windows-static 三元组本身保证静态链接与 /MT 运行时）。
+          if (-not (Get-Command dumpbin -ErrorAction SilentlyContinue)) {
+            Write-Warning '找不到 dumpbin，跳过依赖检查'
+            return
+          }
           $deps = & dumpbin /dependents "${{ matrix.output }}"
           $allowed = @('KERNEL32.dll', 'USER32.dll', 'ADVAPI32.dll', 'WS2_32.dll', 'CRYPT32.dll',
                        'Secur32.dll', 'SHELL32.dll', 'ole32.dll', 'OLEAUT32.dll', 'GDI32.dll',

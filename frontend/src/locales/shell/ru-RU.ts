@@ -493,6 +493,8 @@ export const shellUiRu: Record<string, string> = {
   'shell.tmux.helpGroupWindow': 'Окно',
   'shell.tmux.helpGroupSession': 'Сеанс',
   'shell.tmux.helpPrefix': 'Префикс 「{prefix}」: нажмите его, затем клавишу ниже',
+  'shell.tmux.helpPrefixFallback':
+    'Префикс tmux на удалённой стороне не обнаружен: ниже показан вариант по умолчанию Ctrl+B. Если префикс изменён, ориентируйтесь на свою конфигурацию.',
   'shell.tmux.helpScroll': 'Колесо = история; прокрутка — включите 「set -g mouse on」 на сервере',
   'shell.tmux.refresh': 'Обновить',
   'shell.tmux.create': 'Новый',
@@ -1110,6 +1112,10 @@ export const shellUiRu: Record<string, string> = {
     'Текст помещён в буфер удалённой машины. Вставляйте на удалённой стороне через Ctrl+Shift+V: правая/средняя кнопка вставляют буфер выделения, который большинство серверов не синхронизирует.',
   'shell.vnc.pasteEmpty': 'Локальный буфер обмена пуст, поэтому нечего вставлять.',
   'shell.vnc.openFailed': 'Не удалось открыть VNC',
+  'shell.vnc.authChannelClosed':
+    'Сервер закрыл соединение до завершения аутентификации (это не означает, что пароль неверен). Возможно, сервер временно ограничивает этот клиент или служба VNC была перезапущена. Повторите попытку чуть позже.',
+  'shell.vnc.closedBeforeAuth':
+    'Сервер закрыл соединение ещё до начала аутентификации. Пароль не отправлялся, и это не ошибка пароля. Возможно, сервер временно ограничивает этот клиент (например, после нескольких незавершённых попыток) или служба VNC была перезапущена. Повторите попытку чуть позже.',
   'shell.vnc.pasteReadFailed': 'Не удалось прочитать локальный буфер обмена (системный буфер недоступен).',
   'shell.vnc.pasteFailed': 'Не удалось отправить текст в буфер удалённой машины.',
   'shell.vnc.kasmCompatDegradedBadge': 'Патч буфера выключен',
@@ -1298,6 +1304,8 @@ export const shellUiRu: Record<string, string> = {
   'shell.hostEditor.passwordPromptHint':
     'Пароль не сохраняется; при подключении запрашиваются учётные данные для этого подключения.',
   'shell.authDialog.title': 'Аутентификация SSH',
+  'shell.authDialog.rdpTitle': 'Аутентификация RDP',
+  'shell.authDialog.vncTitle': 'Аутентификация VNC',
   'shell.authDialog.wrongPassword': 'Неверный пароль. Повторите попытку ({attempt}/{max}).',
   'shell.authDialog.tooManyAttempts':
     'Аутентификация не удалась {attempts} раз подряд. Проверьте имя пользователя, пароль или ключ и повторите позже.',

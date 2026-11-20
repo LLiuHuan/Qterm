@@ -17,11 +17,33 @@ if(FREERDP_INSTALL_PREFIX)
 endif()
 
 find_package(FreeRDP CONFIG REQUIRED)
-find_package(FreeRDP-Client CONFIG REQUIRED)
-find_package(WinPR CONFIG REQUIRED)
+# vcpkg 的 freerdp 端口会把 config 文件改名成带主版本号的小写形式
+# （share/freerdp-client3/freerdp-client3-config.cmake、share/winpr3/winpr3-config.cmake），
+# 而 find_package(FreeRDP-Client) 只找 FreeRDP-ClientConfig.cmake / freerdp-client-config.cmake，
+# 于是 Windows 上直接 "Could NOT find FreeRDP-Client"。两种命名都试一遍；导出的 target 名
+# （freerdp-client / winpr）两边一致，链接语句不用改。
+find_package(FreeRDP-Client CONFIG QUIET)
+if(NOT FreeRDP-Client_FOUND)
+  find_package(freerdp-client3 CONFIG REQUIRED)
+endif()
+find_package(WinPR CONFIG QUIET)
+if(NOT WinPR_FOUND)
+  find_package(winpr3 CONFIG REQUIRED)
+endif()
 
 add_executable(qterm-freerdp-helper main.c)
 target_link_libraries(qterm-freerdp-helper PRIVATE freerdp-client freerdp winpr)
+
+# FreeRDP 3.9 安装出来的 CMake target 把 include 目录声明成 "${prefix}/include"，
+# 但头文件实际落在 "${prefix}/include/freerdp3/freerdp/..."（pkg-config 也是给 -I.../include/freerdp3）。
+# 只靠 target 的 INTERFACE_INCLUDE_DIRECTORIES 会 `fatal error: 'freerdp/channels/cliprdr.h'
+# file not found`（2026-11-19 Linux rdp-helper 构建事故）；各 Config.cmake 另外导出了正确的
+# *_INCLUDE_DIR 变量，这里显式补进目标。
+foreach(_freerdp_inc_var FreeRDP-Client_INCLUDE_DIR FreeRDP_INCLUDE_DIR WinPR_INCLUDE_DIR)
+  if(DEFINED ${_freerdp_inc_var} AND EXISTS "${${_freerdp_inc_var}}")
+    target_include_directories(qterm-freerdp-helper PRIVATE "${${_freerdp_inc_var}}")
+  endif()
+endforeach()
 
 # 静态链接后没有运行期库查找，但保留安装规则，方便 CI 直接取产物。
 install(TARGETS qterm-freerdp-helper RUNTIME DESTINATION bin)

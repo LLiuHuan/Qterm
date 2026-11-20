@@ -515,7 +515,12 @@ const ICON_FILE = '\u{F15B}'
         </QtermButton>
       </QtermSettingsRow>
 
-      <div class="terminal-font-preview" :style="previewStyle" :aria-label="t('terminal.core.fontPreviewAria')">
+      <div
+        class="terminal-font-preview"
+        data-qt-thin-scrollbar
+        :style="previewStyle"
+        :aria-label="t('terminal.core.fontPreviewAria')"
+      >
         <p class="terminal-font-preview-line m-0 leading-normal whitespace-pre">
           <span class="terminal-font-preview-dir">{{ ICON_FOLDER }} src</span>
           <span class="terminal-font-preview-file">{{ ICON_JAVA }} Main.java</span>

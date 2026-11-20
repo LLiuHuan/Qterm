@@ -476,6 +476,8 @@ export const shellUiKo: Record<string, string> = {
   'shell.tmux.helpGroupWindow': '창',
   'shell.tmux.helpGroupSession': '세션',
   'shell.tmux.helpPrefix': '접두사 「{prefix}」: 누른 뒤 아래 키',
+  'shell.tmux.helpPrefixFallback':
+    '원격 tmux 접두사를 감지하지 못했습니다. 아래는 기본값인 Ctrl+B 기준으로 표시합니다(변경했다면 본인 설정을 따르세요).',
   'shell.tmux.helpScroll': '휠은 히스토리. 스크롤은 원격에서 「set -g mouse on」 설정',
   'shell.tmux.refresh': '새로 고침',
   'shell.tmux.create': '새로 만들기',
@@ -1088,6 +1090,10 @@ export const shellUiKo: Record<string, string> = {
     '원격 클립보드에 넣었습니다. 원격에서는 Ctrl+Shift+V로 붙여넣으세요. 오른쪽/가운데 클릭은 선택 영역 버퍼라 대부분의 서버가 동기화하지 않습니다.',
   'shell.vnc.pasteEmpty': '로컬 클립보드가 비어 있어 붙여넣을 내용이 없습니다.',
   'shell.vnc.openFailed': 'VNC를 열지 못했습니다',
+  'shell.vnc.authChannelClosed':
+    '인증이 끝나기 전에 서버가 연결을 닫았습니다(비밀번호 오류가 아닙니다). 서버가 이 클라이언트를 일시적으로 제한 중이거나 VNC 서비스가 방금 재시작되었을 수 있습니다. 잠시 후 다시 시도하세요.',
+  'shell.vnc.closedBeforeAuth':
+    '인증이 시작되기 전에 서버가 연결을 닫았습니다. 비밀번호는 전송되지 않았고 오류도 아닙니다. 서버가 이 클라이언트를 일시적으로 제한 중이거나(짧은 시간에 미완료 인증이 반복된 경우 등) VNC 서비스가 방금 재시작되었을 수 있습니다. 잠시 후 다시 시도하세요.',
   'shell.vnc.pasteReadFailed': '로컬 클립보드를 읽지 못했습니다(시스템 클립보드 사용 불가).',
   'shell.vnc.pasteFailed': '원격 클립보드로 보내지 못했습니다.',
   'shell.vnc.kasmCompatDegradedBadge': '클립보드 패치 꺼짐',
@@ -1274,6 +1280,8 @@ export const shellUiKo: Record<string, string> = {
   'shell.hostEditor.passwordPromptHint':
     '비밀번호를 저장하지 않으며, 연결할 때마다 이번 연결에 사용할 자격 증명을 다시 입력합니다.',
   'shell.authDialog.title': 'SSH 인증',
+  'shell.authDialog.rdpTitle': 'RDP 인증',
+  'shell.authDialog.vncTitle': 'VNC 인증',
   'shell.authDialog.wrongPassword': '비밀번호가 올바르지 않습니다. 다시 시도하세요({attempt}/{max})',
   'shell.authDialog.tooManyAttempts':
     '{attempts}회 연속 인증에 실패했습니다. 사용자 이름, 비밀번호 또는 키를 확인한 뒤 나중에 다시 시도하세요',

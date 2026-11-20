@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { CircleHelp } from '@lucide/vue'
 import { useI18n } from '../../locales'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../components/common/control-primitives'
@@ -7,8 +8,14 @@ const props = withDefaults(defineProps<{ prefix?: string }>(), { prefix: '' })
 
 const { t } = useI18n()
 
+const DEFAULT_PREFIX = 'Ctrl+B'
+
+const prefixDetected = computed(() => props.prefix.trim() !== '')
+
+const prefixLabel = computed(() => (prefixDetected.value ? props.prefix : DEFAULT_PREFIX))
+
 function combo(key: string): string {
-  return props.prefix ? `${props.prefix} ${key}` : key
+  return `${prefixLabel.value} ${key}`
 }
 
 const groups = [
@@ -74,7 +81,10 @@ const groups = [
         >
           <p class="m-0 text-xs font-medium text-qt-text">{{ t('shell.tmux.helpTitle') }}</p>
           <p class="m-0 text-xs text-qt-muted">
-            {{ t('shell.tmux.helpPrefix', { prefix: props.prefix || '?' }) }}
+            {{ t('shell.tmux.helpPrefix', { prefix: prefixLabel }) }}
+          </p>
+          <p v-if="!prefixDetected" class="m-0 text-xs text-qt-muted">
+            {{ t('shell.tmux.helpPrefixFallback') }}
           </p>
 
           <div class="grid grid-cols-[auto_1fr] items-baseline gap-x-1.5 gap-y-0.5">
