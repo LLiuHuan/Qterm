@@ -16,19 +16,51 @@ if(FREERDP_INSTALL_PREFIX)
   list(PREPEND CMAKE_PREFIX_PATH "${FREERDP_INSTALL_PREFIX}")
 endif()
 
-find_package(FreeRDP CONFIG REQUIRED)
-# vcpkg 的 freerdp 端口会把 config 文件改名成带主版本号的小写形式
-# （share/freerdp-client3/freerdp-client3-config.cmake、share/winpr3/winpr3-config.cmake），
-# 而 find_package(FreeRDP-Client) 只找 FreeRDP-ClientConfig.cmake / freerdp-client-config.cmake，
-# 于是 Windows 上直接 "Could NOT find FreeRDP-Client"。两种命名都试一遍；导出的 target 名
-# （freerdp-client / winpr）两边一致，链接语句不用改。
-find_package(FreeRDP-Client CONFIG QUIET)
-if(NOT FreeRDP-Client_FOUND)
-  find_package(freerdp-client3 CONFIG REQUIRED)
+# 包名随来源不同：自建的静态安装树导出 FreeRDPConfig.cmake，vcpkg 的 freerdp 端口把配置
+# 挪到 share/freerdp 但保留上游文件名（新版上游可能带主版本号，如 FreeRDP3Config.cmake）。
+# 各来源包名不一致，逐个回落，最后用 target 是否存在判定——2026-11-20 的 windows-amd64 /
+# windows-arm64 job 就是只认 FreeRDP 时配置失败（包已装好，却报找不到 FreeRDPConfig.cmake）。
+find_package(FreeRDP CONFIG QUIET)
+if(NOT TARGET freerdp)
+  find_package(FreeRDP3 CONFIG QUIET)
 endif()
+if(NOT TARGET freerdp)
+  find_package(freerdp CONFIG QUIET)
+endif()
+if(NOT TARGET freerdp)
+  find_package(freerdp3 CONFIG QUIET)
+endif()
+if(NOT TARGET freerdp)
+  message(FATAL_ERROR
+    "找不到 FreeRDP 的 CMake 包（尝试过 FreeRDP / FreeRDP3 / freerdp / freerdp3）。"
+    "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}；"
+    "请用 -DFreeRDP3_DIR 指向含 <包名>Config.cmake 的目录。")
+endif()
+
+# 同理：FreeRDP-Client 侧的文件名可能是 FreeRDP-ClientConfig.cmake / FreeRDP-Client3Config.cmake，
+# WinPR 侧可能是 WinPRConfig.cmake / WinPR3Config.cmake；导出的 target 名在所有情况下都一致
+# （freerdp-client / winpr），所以链接语句不用改。
+find_package(FreeRDP-Client CONFIG QUIET)
+if(NOT TARGET freerdp-client)
+  find_package(FreeRDP-Client3 CONFIG QUIET)
+endif()
+if(NOT TARGET freerdp-client)
+  find_package(freerdp-client3 CONFIG QUIET)
+endif()
+if(NOT TARGET freerdp-client)
+  message(FATAL_ERROR
+    "找不到 FreeRDP-Client 的 CMake 包（尝试过 FreeRDP-Client / FreeRDP-Client3 / freerdp-client3）")
+endif()
+
 find_package(WinPR CONFIG QUIET)
-if(NOT WinPR_FOUND)
-  find_package(winpr3 CONFIG REQUIRED)
+if(NOT TARGET winpr)
+  find_package(WinPR3 CONFIG QUIET)
+endif()
+if(NOT TARGET winpr)
+  find_package(winpr3 CONFIG QUIET)
+endif()
+if(NOT TARGET winpr)
+  message(FATAL_ERROR "找不到 WinPR 的 CMake 包（尝试过 WinPR / WinPR3 / winpr3）")
 endif()
 
 add_executable(qterm-freerdp-helper main.c)

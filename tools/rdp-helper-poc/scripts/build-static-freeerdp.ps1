@@ -52,12 +52,76 @@ function Get-VsGenerator {
 }
 
 $Generator = Get-VsGenerator
+
+# vcpkg 的 freerdp 端口用 vcpkg_cmake_config_fixup 把配置从 lib/cmake/<目录> 挪到
+# share/<包名>，但**不会改配置文件名**：FreeRDP 3.x 装出来的是 FreeRDPConfig.cmake /
+# FreeRDP-ClientConfig.cmake / WinPRConfig.cmake（新版可能带主版本号，如
+# FreeRDP3Config.cmake）。而 find_package(FreeRDP) 只认 FreeRDPConfig.cmake 与
+# freerdp-config.cmake 两种名字，一旦上游改名就必然报「Could not find a package
+# configuration file provided by "FreeRDP"」——2026-11-20 的 windows-amd64 /
+# windows-arm64 job 就是这么红的（包明明装好了）。
+# 这里先按文件名把配置目录找出来，再给所有可能的包名都塞 <包名>_DIR，让 CMakeLists 里
+# 的名字回落链能命中；找不到时把安装树打出来，避免下一轮还得靠猜。
+$Installed = Join-Path $VcpkgRoot "installed/$Triplet"
+if (-not (Test-Path $Installed)) {
+  throw "vcpkg 安装树不存在：$Installed（VCPKG_INSTALLATION_ROOT=$VcpkgRoot）"
+}
+
+function Resolve-PackageDir {
+  param([scriptblock]$Filter)
+  foreach ($base in @((Join-Path $Installed 'share'), (Join-Path $Installed 'lib/cmake'))) {
+    if (-not (Test-Path $base)) { continue }
+    $hit = Get-ChildItem -Path $base -Recurse -Filter '*Config.cmake' -File -ErrorAction SilentlyContinue |
+      Where-Object $Filter | Select-Object -First 1
+    if ($hit) { return $hit.DirectoryName }
+  }
+  return $null
+}
+
+$CoreDir = Resolve-PackageDir {
+  $_.Name -match 'reerdp' -and $_.Name -notmatch 'Client|Server|Proxy|Shadow|tools'
+}
+$ClientDir = Resolve-PackageDir { $_.Name -match 'reerdp' -and $_.Name -match 'Client' }
+$WinprDir = Resolve-PackageDir { $_.Name -match 'winpr' -and $_.Name -notmatch 'tools' }
+
+if (-not $CoreDir) {
+  Write-Host "==> 安装树：$Installed"
+  Write-Host '==> share 下的目录：'
+  Get-ChildItem -Path (Join-Path $Installed 'share') -Directory -ErrorAction SilentlyContinue |
+    ForEach-Object { Write-Host "    $($_.Name)" }
+  Write-Host '==> lib/cmake 下的目录：'
+  Get-ChildItem -Path (Join-Path $Installed 'lib/cmake') -Directory -ErrorAction SilentlyContinue |
+    ForEach-Object { Write-Host "    $($_.Name)" }
+  throw "未找到 FreeRDP 的 CMake 配置文件（$Installed）"
+}
+Write-Host "==> FreeRDP 配置：$CoreDir"
+if ($ClientDir) { Write-Host "==> FreeRDP-Client 配置：$ClientDir" }
+if ($WinprDir) { Write-Host "==> WinPR 配置：$WinprDir" }
+
+# 包名大小写/版本号各来源不一致，全部给上；CMakeLists 里按 target 是否存在逐个回落。
+$DirArgs = @()
+if ($CoreDir) {
+  $DirArgs += "-DFreeRDP_DIR=$CoreDir", "-DFreeRDP3_DIR=$CoreDir",
+    "-Dfreerdp_DIR=$CoreDir", "-Dfreerdp3_DIR=$CoreDir"
+}
+if ($ClientDir) {
+  $DirArgs += "-DFreeRDP-Client_DIR=$ClientDir", "-DFreeRDP-Client3_DIR=$ClientDir",
+    "-Dfreerdp-client3_DIR=$ClientDir"
+}
+if ($WinprDir) {
+  $DirArgs += "-DWinPR_DIR=$WinprDir", "-DWinPR3_DIR=$WinprDir", "-Dwinpr3_DIR=$WinprDir"
+}
+
 Write-Host "==> 配置 helper（生成器 $Generator / 平台 $Platform）"
+Write-Host "==> vcpkg 安装树：$Installed"
 & cmake -S (Join-Path $Root 'tools/rdp-helper-poc/freerdp') -B $HelperBuild `
   -G $Generator -A $Platform `
   -DCMAKE_BUILD_TYPE=Release `
   -DCMAKE_TOOLCHAIN_FILE="$Toolchain" `
-  -DVCPKG_TARGET_TRIPLET=$Triplet
+  -DVCPKG_TARGET_TRIPLET=$Triplet `
+  "-DVCPKG_INSTALLED_DIR=$(Join-Path $VcpkgRoot 'installed')" `
+  "-DCMAKE_PREFIX_PATH=$Installed" `
+  @DirArgs
 if ($LASTEXITCODE -ne 0) { throw "cmake 配置失败：$LASTEXITCODE" }
 
 Write-Host "==> 构建 helper"
