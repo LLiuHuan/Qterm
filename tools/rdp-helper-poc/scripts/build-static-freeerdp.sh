@@ -101,6 +101,16 @@ CMAKE_ARGS=(
   # libkrb5-dev，直接 `Could NOT find Kerberos`（2026-11-19 rdp-helper CI 事故）。
   # 就算装上了，静态链接还得额外提供 libkrb5.a 等一串库，helper 也用不到 Kerberos 认证。
   -DWITH_KRB5=OFF
+  # NTLM 的 MD4/RC4 必须用 winpr 自带实现，不能指望 OpenSSL 的 legacy provider。
+  # macOS（Homebrew）和 Ubuntu 的 libcrypto.a 都是带 module 编的：legacy provider 是独立
+  # 的 legacy.so/.dylib，静态链接时进不了二进制，于是连接 NLA（CredSSP）主机时日志里只剩
+  #   winpr_openssl_initialize: OpenSSL LEGACY provider failed to load, no md4 support available!
+  #   winpr_Digest_Init_Internal: Failed to initialize digest md4
+  #   credssp_auth_authenticate: InitializeSecurityContext failed with SEC_E_INTERNAL_ERROR
+  # 结果就是能连到 TLS、却在 NLA 阶段被打回（2026-11-23 用户在真实 Windows 主机上撞到）。
+  # FreeRDP 自己打 deb/Windows/macOS 包时也是开这两个内部实现的。
+  -DWITH_INTERNAL_MD4=ON
+  -DWITH_INTERNAL_RC4=ON
   # Linux 上 winpr 的 CRT 层默认 find_package(ICU REQUIRED ...)，而 ICU 只提供动态库
   # 的发行版（或没装 libicu-dev 的 runner）会直接 configure 失败；helper 只需要
   # UTF-16/UTF-8 互转，用 winpr 自带的 unicode_builtin.c 就够（FreeRDP 自己的
