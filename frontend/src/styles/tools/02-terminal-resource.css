@@ -41,7 +41,8 @@
 
 .terminal-command-completion {
   position: fixed;
-  z-index: 10000;
+
+  z-index: 40;
   width: 380px;
   max-width: calc(100vw - 16px);
   max-height: 330px;
@@ -52,6 +53,13 @@
 
   background: var(--qt-completion-bg, var(--qt-panel, #151517));
   box-shadow: 0 10px 30px rgb(0 0 0 / 35%);
+}
+
+.terminal-command-completion-match {
+  background: color-mix(in srgb, var(--qt-info, #2563eb) 14%, transparent);
+  color: var(--qt-info, #2563eb);
+  font-weight: 700;
+  text-shadow: none;
 }
 
 .terminal-command-completion-scroll {
@@ -79,7 +87,8 @@
   min-height: 32px;
   margin: 2px 0;
   padding: 5px 7px;
-  border: 0;
+
+  border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
   color: var(--qt-text);

@@ -220,6 +220,13 @@ func (s *Server) handleExec(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if s.deps.CommandGate != nil {
+		if err := s.deps.CommandGate(command); err != nil {
+			writeAppError(w, err)
+			return
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), execTimeout)
 	defer cancel()
 	session, err := s.deps.Sessions.GetSession(ctx, sessionID)

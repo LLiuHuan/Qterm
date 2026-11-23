@@ -57,6 +57,8 @@ type Deps struct {
 	Shell func(ctx context.Context, sessionID string, columns int, rows int) (ShellChannel, error)
 
 	Locked func() bool
+
+	CommandGate func(command string) error
 }
 
 type Server struct {

@@ -240,6 +240,42 @@ tasks:
     cmds:
       - wails3 update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
 
+  build:cli:
+    summary: Builds the `qterm` command line client
+    desc: |
+      Compiles cmd/qterm into bin/qterm-cli. 它必须随桌面应用一起分发，
+      否则用户装完应用也拿不到 `qterm` 命令（设置页的「安装到 PATH」会显示二进制缺失）。
+
+      为什么叫 qterm-cli 而不是 qterm：macOS 应用包里的主程序就叫
+      Contents/MacOS/qterm，同名会互相覆盖；链接名由安装器决定，用户看到的仍是 qterm。
+
+      跨平台：CLI_GOOS / CLI_GOARCH 默认取宿主（macOS 的现有调用因此行为不变），
+      交叉编译时由调用方显式传入。CLI 是纯 Go 程序，交叉编译不需要 C 工具链
+      （实测 windows/amd64、linux/amd64、linux/arm64 都能从 macOS 直接产出）。
+
+      Usage: task build:cli [CLI_GOOS=linux] [CLI_GOARCH=arm64]
+    run: once
+    deps:
+      - task: go:mod:tidy
+    cmds:
+      - go build -trimpath -buildvcs=false -ldflags="-w -s" -o "{{.BIN_DIR}}/qterm-cli{{.EXE_EXT}}" ./cmd/qterm
+    vars:
+      # 必须写成「读回传入值再兜底」的形式：Task 3.54 里任务自身 vars 的优先级**高于**
+      # 调用方通过 deps.vars 传入的值，直接写 `CLI_GOOS: '{{.OS}}'` 会让传入值失效。
+      # 另外 OS / ARCH 是 Task 的特殊变量，只能裸写；`{{.OS}}` 取不到值。
+      CLI_GOOS: '{{.CLI_GOOS | default OS}}'
+      CLI_GOARCH: '{{.CLI_GOARCH | default ARCH}}'
+      EXE_EXT: '{{if eq .CLI_GOOS "windows"}}.exe{{end}}'
+    env:
+      # env 段只作用于本任务的 cmds：Task **不会**把父任务的 env 传给 deps，
+      # 所以这里必须自己设，不能指望从 windows:build:native 的 GOOS 继承。
+      GOOS: '{{.CLI_GOOS}}'
+      GOARCH: '{{.CLI_GOARCH}}'
+    # 已知限制（不修，属 build/darwin 的既有接线）：run: once 让本任务在一次 task 运行里
+    # 只编一次。darwin:build:universal 会并行调两次 build（amd64 / arm64），于是 CLI 只有
+    # 先跑的那个架构，而输出路径不带架构后缀 —— 通用包里会得到一个非 universal 的 CLI。
+    # 真要修得在 darwin 侧按架构分名再 lipo，那超出本次改动范围。
+
   build:server:
     summary: Builds the application in server mode (no GUI, HTTP server only)
     desc: |

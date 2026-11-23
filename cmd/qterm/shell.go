@@ -226,7 +226,7 @@ func (c *client) runShellSession(
 				_ = json.Unmarshal(frame.Code, &code)
 			}
 			if code != 0 {
-				fmt.Fprintf(c.stderr, "qterm: remote exit code %d\n", code)
+				fmt.Fprintf(c.stderr, "qterm-cli: remote exit code %d\n", code)
 			}
 			return nil
 		case "error":

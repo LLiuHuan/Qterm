@@ -706,6 +706,17 @@ function closeCompletion(): void {
   completionIndex.value = -1
 }
 
+function dismissCompletionOnOutsidePointer(event: Event): void {
+  if (!completionOpen.value) return
+  const target = event.target
+  if (target instanceof Element && target.closest('.terminal-command-completion')) return
+  closeCompletion()
+}
+
+function dismissCompletionOnWindowBlur(): void {
+  closeCompletion()
+}
+
 function focusCompletionTerminal(): void {
   terminal?.focus()
 }
@@ -1300,6 +1311,7 @@ const canPaste = computed(
     streamStatus.value === 'ready' &&
     !ended.value &&
     !zmodemActive.value &&
+    !trzszActive.value &&
     !clipboardBusy.value,
 )
 
@@ -1380,7 +1392,7 @@ async function copyAddress(): Promise<void> {
 }
 
 function sendLocalTerminalInput(data: string): void {
-  if (!channel) return
+  if (!channel || trzszActive.value) return
 
   if (channel.sendLocalInput) channel.sendLocalInput(data)
   else channel.sendInput(data)
@@ -1718,7 +1730,8 @@ async function pasteClipboard(): Promise<void> {
       props.state !== 'connected' ||
       streamStatus.value !== 'ready' ||
       ended.value ||
-      zmodemActive.value
+      zmodemActive.value ||
+      trzszActive.value
     )
       return
     requestPaste(text)
@@ -2238,6 +2251,7 @@ function notifyResize(): void {
     if (finalColumns === lastColumns && finalRows === lastRows) return
     lastColumns = finalColumns
     lastRows = finalRows
+    trzszManager?.setColumns(finalColumns)
     channel.resize(finalColumns, finalRows)
   }, 100)
 }
@@ -2351,6 +2365,7 @@ function connectIfReady(): void {
   ) {
     return
   }
+  trzszManager?.dispose()
   zmodemManager?.reset()
 
   if (connectedSessionID && connectedSessionID !== props.sessionId) {
@@ -2400,14 +2415,22 @@ function connectIfReady(): void {
   trzszManager = new TrzszManager(
     {
       sendToServer: (data) => {
-        void channel?.sendBinary(data)
+        const target = channel
+        if (!target || generation !== channelGeneration) return
+        void target.sendBinary(data).catch(() => {
+          if (generation === channelGeneration && channel === target) target.close()
+        })
       },
       writeToTerminal: routeTerminalOutput,
       columns: () => terminal?.cols ?? columns,
     },
     {
-      onState: (state) => {
+      onState: (state, detail) => {
         trzszActive.value = state !== 'idle'
+        if (state === 'idle' && detail === 'error') {
+          const reason = (trzszManager?.failureReason ?? '').slice(0, 200)
+          toast.error(reason ? `${t('shell.zmodem.failed')}: ${reason}` : t('shell.zmodem.failed'))
+        }
       },
     },
   )
@@ -2429,6 +2452,11 @@ function connectIfReady(): void {
       armPresentationWatchdog()
     },
     onOutput(data, acknowledge) {
+      if (generation !== channelGeneration) {
+        acknowledge()
+        return
+      }
+
       if (!focusOnFirstOutputDone) {
         focusOnFirstOutputDone = true
         scheduleTerminalFocus()
@@ -2441,7 +2469,7 @@ function connectIfReady(): void {
         armPresentationWatchdog()
       }
 
-      if (trzszManager) {
+      if (trzszManager && !zmodemActive.value) {
         trzszManager.consume(data)
       } else {
         routeTerminalOutput(data)
@@ -2508,6 +2536,7 @@ function connectIfReady(): void {
       clearShellTabSubmitTimer()
       clearShellTabState()
       clearCredentialInputState()
+      trzszManager?.dispose()
       zmodemManager?.reset()
       if (terminal) {
         terminal.options.disableStdin = true
@@ -2526,6 +2555,7 @@ function connectIfReady(): void {
       clearShellTabSubmitTimer()
       clearShellTabState()
       clearCredentialInputState()
+      trzszManager?.dispose()
       zmodemManager?.reset()
       if (terminal) terminal.options.disableStdin = true
       streamStatus.value = 'closed'
@@ -2537,7 +2567,7 @@ function connectIfReady(): void {
   registerTerminalChannel(
     boundSessionID,
     channel,
-    () => props.state === 'connected' && streamStatus.value === 'ready' && !zmodemActive.value,
+    () => props.state === 'connected' && streamStatus.value === 'ready' && !zmodemActive.value && !trzszActive.value,
   )
 }
 
@@ -3120,6 +3150,9 @@ function handleVisibilityResume(): void {
 
 onMounted(async () => {
   window.addEventListener('qterm:recordings-changed', recordingChangedHandler)
+
+  window.addEventListener('pointerdown', dismissCompletionOnOutsidePointer, true)
+  window.addEventListener('blur', dismissCompletionOnWindowBlur)
   void refreshRecordingState(props.sessionId)
 
   webglActivationReady.value = false
@@ -3217,18 +3250,17 @@ onMounted(async () => {
 
   if (typeof terminal.onBinary === 'function') {
     binaryInputSubscription = terminal.onBinary((data) => {
-      if (!sessionReady.value || zmodemActive.value) return
+      if (!sessionReady.value || zmodemActive.value || trzszActive.value) return
       channel?.sendRawInput?.(Uint8Array.from(data, (character) => character.charCodeAt(0) & 0xff))
     })
   }
   dataSubscription = subscribeTerminalInputSource(terminal, (data, local) => {
-    if (!local && channel?.sendLocalInput) {
-      channel.sendInput(data)
+    if (trzszActive.value) {
+      if (local) trzszManager?.consumeInput(data)
       return
     }
-
-    if (trzszActive.value) {
-      trzszManager?.consumeInput(data)
+    if (!local && channel?.sendLocalInput) {
+      channel.sendInput(data)
       return
     }
 
@@ -3356,7 +3388,7 @@ onMounted(async () => {
         !event.altKey
       ) {
         event.preventDefault()
-        if (!ended.value && streamStatus.value === 'ready' && !zmodemActive.value) {
+        if (!ended.value && streamStatus.value === 'ready' && !zmodemActive.value && !trzszActive.value) {
           sendLocalTerminalInput('\b')
         }
         return false
@@ -3524,6 +3556,7 @@ watch(
         terminal?.focus()
       })
     } else {
+      closeCompletion()
       terminal?.blur()
     }
   },
@@ -3532,6 +3565,7 @@ watch(
 watch(ended, (isEnded) => {
   if (isEnded) {
     clearCredentialInputState()
+    trzszManager?.dispose()
     zmodemManager?.reset()
 
     markDisconnected()
@@ -3729,10 +3763,13 @@ onBeforeUnmount(() => {
   dprQuery?.removeEventListener('change', handleDevicePixelRatioChange)
   dprQuery = null
   window.removeEventListener('qterm:recordings-changed', recordingChangedHandler)
+  window.removeEventListener('pointerdown', dismissCompletionOnOutsidePointer, true)
+  window.removeEventListener('blur', dismissCompletionOnWindowBlur)
   pendingShellTabSubmission = null
   clearShellTabSubmitTimer()
   zmodemManager?.reset()
   zmodemManager = null
+  trzszManager?.dispose()
   trzszManager = null
   if (zmodemCancelHandler) window.removeEventListener('qterm:zmodem-cancel', zmodemCancelHandler)
   if (localFileDropHandler) window.removeEventListener('qterm:local-file-drop', localFileDropHandler)
@@ -3976,6 +4013,7 @@ onBeforeUnmount(() => {
           <div
             v-if="completionOpen"
             class="terminal-command-completion"
+            :class="{ 'is-dark': props.dark }"
             :style="{
               left: `${completionPosition.left}px`,
               top: `${completionPosition.top}px`,
@@ -4006,17 +4044,16 @@ onBeforeUnmount(() => {
                 @mousedown.prevent="focusCompletionTerminal"
                 @click="sendCompletionCommand(command, false)"
               >
-                <HistoryIcon :size="13" class="terminal-command-completion-icon text-qt-muted font-[sans-serif]" />
-                <span>
+                <HistoryIcon
+                  :size="13"
+                  class="terminal-command-completion-icon shrink-0 text-qt-muted font-[sans-serif]"
+                />
+                <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                   <template
                     v-for="(part, partIndex) in completionMatchParts(command, completionQuery)"
                     :key="partIndex"
                   >
-                    <mark
-                      v-if="part.matched"
-                      class="terminal-command-completion-match [background:color-mix(in_srgb,_var(--qt-info,_#2563eb)_14%,_transparent)] text-(--qt-info, #2563eb) font-bold [text-shadow:none] text-(--qt-info, #2563eb)"
-                      >{{ part.text }}</mark
-                    >
+                    <mark v-if="part.matched" class="terminal-command-completion-match">{{ part.text }}</mark>
                     <template v-else>{{ part.text }}</template>
                   </template>
                 </span>
@@ -4045,6 +4082,7 @@ onBeforeUnmount(() => {
           <div
             v-if="credentialOpen"
             class="terminal-command-completion terminal-credential-suggestion"
+            :class="{ 'is-dark': props.dark }"
             :style="{
               left: `${credentialPosition.left}px`,
               top: `${credentialPosition.top}px`,
@@ -4078,7 +4116,10 @@ onBeforeUnmount(() => {
                 @mousedown.prevent="focusCompletionTerminal"
                 @click="void fillCredential(credential)"
               >
-                <KeyRound :size="13" class="terminal-command-completion-icon text-qt-muted font-[sans-serif]" />
+                <KeyRound
+                  :size="13"
+                  class="terminal-command-completion-icon shrink-0 text-qt-muted font-[sans-serif]"
+                />
                 <span class="terminal-credential-name min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{{
                   credential.name
                 }}</span>

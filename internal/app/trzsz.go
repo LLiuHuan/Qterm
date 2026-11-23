@@ -24,7 +24,7 @@ func (s *Service) SelectTrzszUploads(ctx context.Context) ([]zmodem.LocalFile, e
 		if path == "" {
 			continue
 		}
-		file, openErr := s.zmodem.OpenUpload(ctx, path)
+		file, openErr := s.zmodem.OpenTrzszUpload(ctx, path)
 		if openErr != nil {
 
 			s.releaseZmodemFiles(files)
@@ -51,6 +51,10 @@ func (s *Service) SelectTrzszDownloadDirectory(ctx context.Context) (trzszfiles.
 	}
 	directory, err := s.trzszFiles.OpenDirectory(path)
 	return directory, publicError(err)
+}
+
+func (s *Service) ReleaseTrzszDownloadDirectory(token string) error {
+	return publicError(s.trzszFiles.ReleaseDirectory(token))
 }
 
 func (s *Service) OpenTrzszDownloadFile(ctx context.Context, directoryToken, relativePath string, overwrite bool) (trzszfiles.File, error) {

@@ -69,6 +69,53 @@ export const appEn: Record<string, string> = {
     'No MIT-MAGIC-COOKIE-1 authorization for this display (the X server may not be running).',
   'application.x11.reason.server_unreachable': 'The local X server is unreachable.',
   'application.x11.reason.unsupported_platform': 'X11 forwarding is not supported on this platform.',
+  'application.cli.title': 'Command line',
+  'application.cli.description':
+    'Put the qterm-cli command on PATH so scripts and external agents can drive saved hosts through the desktop app. The command never reads the database or the vault — every capability is proxied by the running app.',
+  'application.cli.binary': 'CLI binary',
+  'application.cli.binaryHelp':
+    'Shipped with the app; installing puts it in a PATH directory (a symlink on macOS and Linux, a copy plus a user PATH entry on Windows).',
+  'application.cli.install': 'Install to PATH',
+  'application.cli.reinstall': 'Reinstall',
+  'application.cli.uninstall': 'Remove',
+  'application.cli.installed': 'Installed at {path}',
+  'application.cli.notInstalled': 'Not installed',
+  'application.cli.onPath': 'qterm-cli is available in new terminals',
+  'application.cli.notOnPath': '{dir} is not on PATH; add it to your shell profile manually',
+  'application.cli.binaryMissing': 'The bundled qterm-cli binary is missing. Reinstall the app.',
+  'application.cli.skills.title': 'Agent skills',
+  'application.cli.skills.description':
+    'Writes a SKILL.md to ~/.agents/skills/qterm/ so skills-aware agents (Claude Code, Codex, …) know how to use qterm-cli.',
+  'application.cli.skills.install': 'Write',
+  'application.cli.skills.uninstall': 'Delete',
+  'application.cli.skills.installed': 'Written to {path}',
+  'application.cli.skills.notInstalled': 'Not written yet',
+  'application.cli.guard.label': 'Command checking',
+  'application.cli.guard.description':
+    'qterm exec has no confirmation prompt and nowhere to ask you. This decides what gets blocked before a command runs.',
+  'application.cli.guard.off': 'No checking',
+  'application.cli.guard.offHelp': 'Run everything. Only use this when you fully trust the caller.',
+  'application.cli.guard.rules': 'Command rules',
+  'application.cli.guard.rulesHelp':
+    'Block commands matching a deny rule from the AI assistant settings; confirm rules also block, because the CLI cannot show an approval prompt.',
+  'application.cli.guard.strict': 'Read-only only',
+  'application.cli.guard.strictHelp':
+    'Adds the built-in risk assessment on top of your rules and allows only conservative read-only commands such as ls, cat and df.',
+  'application.cli.hint.binaryMissing': 'The bundled CLI binary is missing. Reinstall the app.',
+  'application.cli.hint.unsupportedPlatform':
+    'One-click install is not supported on this platform; copy the binary into a PATH directory manually.',
+  'application.cli.hint.notOnPath':
+    'Installed, but its directory is not on PATH; add it to your shell profile manually.',
+  'application.cli.hint.restartShell':
+    'Added to PATH, but this terminal still has the old environment. Open a new terminal before using it.',
+  'application.cli.hint.packageManaged':
+    'The command is provided by the system package manager, so there is nothing to install here.',
+  'application.cli.toast.installed': 'Command line tool installed',
+  'application.cli.toast.uninstalled': 'Command line tool removed',
+  'application.cli.toast.skillsInstalled': 'Agent skill written',
+  'application.cli.toast.skillsUninstalled': 'Agent skill deleted',
+  'application.cli.toast.settingsSaved': 'Command checking settings saved',
+  'application.cli.toast.failed': 'The operation failed. Try again.',
   'application.sftp.localDirectory': 'Default local directory',
   'application.sftp.localDirectoryPlaceholder': 'Leave empty to use the home directory',
   'application.sftp.localDirectoryHelp':

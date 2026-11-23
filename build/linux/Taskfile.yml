@@ -54,6 +54,13 @@ tasks:
             ref: .DEV
       - task: common:generate:icons
       - task: generate:dotdesktop
+      # 命令行客户端必须跟着主程序一起编出来：deb/rpm 由 nfpm 从 bin/qterm-cli 取文件，
+      # AppImage 由 package.sh 重打包时取，缺了它发行包里就没有 `qterm` 命令。
+      # GOOS 必须显式传，且架构要跟主程序一致（交叉架构构建时不能退化成宿主架构）。
+      - task: common:build:cli
+        vars:
+          CLI_GOOS: linux
+          CLI_GOARCH: '{{.ARCH | default ARCH}}'
     preconditions:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
@@ -91,6 +98,10 @@ tasks:
         platforms: [linux, darwin]
       - mkdir -p {{.BIN_DIR}}
       - mv "bin/{{.APP_NAME}}-linux-{{.DOCKER_ARCH}}" "{{.OUTPUT}}"
+      # 容器内产出的 CLI 带架构后缀（build/docker/Dockerfile.cross 里内嵌的 build.sh
+      # 按 bin/<name>-<goos>-<goarch> 命名），这里落回不带后缀的固定名，
+      # 后续 nfpm / package.sh 都按 bin/qterm-cli 取文件。
+      - mv "bin/qterm-cli-linux-{{.DOCKER_ARCH}}" "{{.BIN_DIR}}/qterm-cli"
     vars:
       DOCKER_ARCH: '{{.ARCH | default "amd64"}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
@@ -120,6 +131,31 @@ tasks:
       - cp "{{.APP_BINARY}}" "{{.APP_NAME}}"
       - cp ../../../frontend/public/app-icons/linux.png "{{.APP_NAME}}.png"
       - wails3 generate appimage -binary "{{.APP_NAME}}" -icon {{.ICON}} -desktopfile {{.DESKTOP_FILE}} -outputdir {{.OUTPUT_DIR}} -builddir {{.ROOT_DIR}}/build/linux/appimage/build
+      # wails3 的 appimage 命令没有"附加文件"参数（只把 -binary 拷进 AppDir/usr/bin，
+      # 且每次重跑都会清空 AppDir），所以这里把命令行客户端放进 AppDir/usr/bin，
+      # 再用 wails3 刚下载的那个 linuxdeploy 重新打一次包。
+      # 放在 usr/bin 而不是 usr/lib：命令名是 qterm-cli，与 GUI 主程序（usr/bin/qterm）
+      # 不同名，AppRun 把 usr/bin 加进 PATH 后直接就能敲；Go 侧 binaryCandidates() 的
+      # 「可执行文件同目录 qterm-cli」也正好命中。
+      # 拿不到 linuxdeploy / AppDir 时保持 wails3 的产物不动（只是不带命令行客户端）。
+      - |
+        builddir="{{.ROOT_DIR}}/build/linux/appimage/build"
+        label=$(uname -m); [ "$label" = "x86_64" ] || label=aarch64
+        cli="{{.ROOT_DIR}}/{{.BIN_DIR}}/qterm-cli"
+        appdir="$builddir/{{.APP_NAME}}-$label.AppDir"
+        linuxdeploy="$builddir/linuxdeploy-$label.AppImage"
+        appimage="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-$label.AppImage"
+        if [ -x "$cli" ] && [ -d "$appdir" ] && [ -x "$linuxdeploy" ]; then
+          mkdir -p "$appdir/usr/bin"
+          cp "$cli" "$appdir/usr/bin/qterm-cli"
+          chmod 0755 "$appdir/usr/bin/qterm-cli"
+          ( cd "$builddir" && OUTPUT="{{.APP_NAME}}-$label.AppImage" NO_STRIP=1 \
+              "$linuxdeploy" --appimage-extract-and-run --appdir "$appdir" --output appimage >/dev/null )
+          mv -f "$builddir/{{.APP_NAME}}-$label.AppImage" "$appimage"
+          echo "[appimage] 已带上命令行客户端"
+        else
+          echo "[appimage] 跳过命令行客户端注入：缺少 CLI 二进制、AppDir 或 linuxdeploy" >&2
+        fi
     vars:
       APP_NAME: '{{.APP_NAME}}'
       APP_BINARY: '../../../bin/{{.APP_NAME}}'

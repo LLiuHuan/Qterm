@@ -71,7 +71,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	handshake, err := cliapi.ReadHandshake(options.handshakePath)
 	if err != nil {
-		fmt.Fprintf(stderr, "qterm: %v: %v\n", errHandshake, err)
+		fmt.Fprintf(stderr, "qterm-cli: %v: %v\n", errHandshake, err)
 		return exitHandshake
 	}
 	client := &client{
@@ -162,10 +162,10 @@ func defaultHandshakePath() (string, error) {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprint(w, `qterm — Qterm 桌面端命令行客户端
+	fmt.Fprint(w, `qterm-cli — Qterm 桌面端命令行客户端
 
 用法:
-  qterm [--handshake <path>] [--json] [--timeout 60s] <命令> [参数...]
+  qterm-cli [--handshake <path>] [--json] [--timeout 60s] <命令> [参数...]
 
 命令:
   status                                    应用状态与计数
@@ -238,10 +238,10 @@ func exitCodeFor(err error, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "qterm:", err)
 		return exitHandshake
 	case errors.Is(err, errAuth):
-		fmt.Fprintln(stderr, "qterm: unauthorized: the handshake token is not accepted (restart the app or re-read the handshake file)")
+		fmt.Fprintln(stderr, "qterm-cli: unauthorized: the handshake token is not accepted (restart the app or re-read the handshake file)")
 		return exitAuth
 	case errors.Is(err, errConnect):
-		fmt.Fprintf(stderr, "qterm: %v: %v\n", errConnect, err)
+		fmt.Fprintf(stderr, "qterm-cli: %v: %v\n", errConnect, err)
 		return exitConnect
 	case errors.As(err, &businessErr):
 		fmt.Fprintln(stderr, "qterm:", err)
@@ -478,10 +478,10 @@ func (c *client) cmdExec(args []string) error {
 		_, _ = io.WriteString(c.stdout, "\n")
 	}
 	if result.Truncated {
-		fmt.Fprintln(c.stderr, "qterm: output truncated by the app")
+		fmt.Fprintln(c.stderr, "qterm-cli: output truncated by the app")
 	}
 	if result.ExitCode != 0 {
-		fmt.Fprintf(c.stderr, "qterm: remote exit code %d\n", result.ExitCode)
+		fmt.Fprintf(c.stderr, "qterm-cli: remote exit code %d\n", result.ExitCode)
 	}
 	return nil
 }
@@ -505,8 +505,8 @@ func (c *client) cmdCompletion(args []string) error {
 
 const qtermSubcommands = "status hosts sessions open close exec sftp shell completion help"
 
-const bashCompletionScript = `# qterm bash 补全：source <(qterm completion bash)
-_qterm_complete() {
+const bashCompletionScript = `# qterm-cli bash 补全：source <(qterm-cli completion bash)
+_qterm_cli_complete() {
   local cur prev
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -520,12 +520,12 @@ _qterm_complete() {
   fi
   COMPREPLY=( $(compgen -f -- "$cur") )
 }
-complete -F _qterm_complete qterm
+complete -F _qterm_cli_complete qterm-cli
 `
 
-const zshCompletionScript = `#compdef qterm
-# qterm zsh 补全：source <(qterm completion zsh)
-_qterm() {
+const zshCompletionScript = `#compdef qterm-cli
+# qterm-cli zsh 补全：source <(qterm-cli completion zsh)
+_qterm_cli() {
   local -a commands
   commands=(` + qtermSubcommands + `)
   if (( CURRENT == 2 )); then
@@ -538,13 +538,13 @@ _qterm() {
     *) _files ;;
   esac
 }
-_qterm "$@"
+_qterm_cli "$@"
 `
 
-const fishCompletionScript = `# qterm fish 补全：qterm completion fish | source
-complete -c qterm -f -n '__fish_use_subcommand' -a '` + qtermSubcommands + `'
-complete -c qterm -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
-complete -c qterm -f -n '__fish_seen_subcommand_from sftp' -a 'ls read write'
+const fishCompletionScript = `# qterm-cli fish 补全：qterm-cli completion fish | source
+complete -c qterm-cli -f -n '__fish_use_subcommand' -a '` + qtermSubcommands + `'
+complete -c qterm-cli -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
+complete -c qterm-cli -f -n '__fish_seen_subcommand_from sftp' -a 'ls read write'
 `
 
 func (c *client) cmdSftp(args []string) error {
@@ -587,7 +587,7 @@ func (c *client) cmdSftpList(args []string) error {
 		}
 		writeTable(c.stdout, []string{"NAME", "TYPE", "SIZE", "MODIFIED"}, rows)
 		if result.Truncated {
-			fmt.Fprintln(c.stderr, "qterm: entry list truncated by the app")
+			fmt.Fprintln(c.stderr, "qterm-cli: entry list truncated by the app")
 		}
 	})
 	return nil
@@ -615,10 +615,10 @@ func (c *client) cmdSftpRead(args []string) error {
 		_, _ = io.WriteString(c.stdout, "\n")
 	}
 	if result.Truncated {
-		fmt.Fprintln(c.stderr, "qterm: file content truncated by the app")
+		fmt.Fprintln(c.stderr, "qterm-cli: file content truncated by the app")
 	}
 	if result.Hash != "" {
-		fmt.Fprintf(c.stderr, "qterm: hash %s · %d bytes\n", result.Hash, result.Size)
+		fmt.Fprintf(c.stderr, "qterm-cli: hash %s · %d bytes\n", result.Hash, result.Size)
 	}
 	return nil
 }
@@ -673,14 +673,14 @@ func (c *client) cmdSftpWrite(args []string) error {
 	if c.jsonOut {
 		c.print(raw, nil)
 		if result.Conflict {
-			fmt.Fprintf(c.stderr, "qterm: write conflict, current hash %s\n", result.CurrentHash)
+			fmt.Fprintf(c.stderr, "qterm-cli: write conflict, current hash %s\n", result.CurrentHash)
 			return &apiError{status: http.StatusConflict, code: "CONFLICT", message: "file changed since the expected hash"}
 		}
 		return nil
 	}
 	if result.Conflict {
 
-		fmt.Fprintf(c.stderr, "qterm: write conflict, current hash %s (nothing was written)\n", result.CurrentHash)
+		fmt.Fprintf(c.stderr, "qterm-cli: write conflict, current hash %s (nothing was written)\n", result.CurrentHash)
 		return &apiError{status: http.StatusConflict, code: "CONFLICT", message: "file changed since the expected hash"}
 	}
 	fmt.Fprintf(c.stdout, "saved %s\n", path)

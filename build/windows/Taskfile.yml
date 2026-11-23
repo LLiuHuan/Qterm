@@ -46,6 +46,12 @@ tasks:
           DEV:
             ref: .DEV
       - task: common:generate:icons
+      # 命令行客户端：Windows 上装完 NSIS 后 qterm-cli.exe 与 qterm.exe 同目录，
+      # Go 侧 binaryCandidates() 的「可执行文件同目录 qterm-cli.exe」直接命中。
+      - task: common:build:cli
+        vars:
+          CLI_GOOS: windows
+          CLI_GOARCH: '{{.ARCH | default ARCH}}'
     preconditions:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
@@ -89,6 +95,11 @@ tasks:
       - docker run --rm -v "{{.ROOT_DIR}}:/app" {{.DOCKER_MOUNTS}} -e APP_NAME="{{.APP_NAME}}" {{if .EXTRA_TAGS}}-e EXTRA_TAGS="{{.EXTRA_TAGS}}"{{end}} {{if eq .OBFUSCATED "true"}}-e OBFUSCATED=true{{end}} {{if .GARBLE_ARGS}}-e GARBLE_ARGS="{{.GARBLE_ARGS}}"{{end}} {{.CROSS_IMAGE}} windows {{.DOCKER_ARCH}}
       - cmd: docker run --rm -v "{{.ROOT_DIR}}:/app" alpine chown -R $(id -u):$(id -g) /app/bin
         platforms: [linux, darwin]
+      # 容器内产出的 CLI 带架构后缀（build/docker/Dockerfile.cross 里内嵌的 build.sh
+      # 按 bin/<name>-<goos>-<goarch> 命名），这里落回不带后缀的固定名。
+      # 注意：主程序在这一分支没有对应的 mv（容器产出 bin/qterm-windows-<arch>.exe 后
+      # 没人改成 bin/qterm.exe），这是既有缺陷，与本次改动无关，不在此顺手修。
+      - mv "bin/qterm-cli-windows-{{.DOCKER_ARCH}}.exe" "{{.BIN_DIR}}/qterm-cli.exe"
       - rm -f "wails_windows_{{.ARCH}}.syso"
     vars:
       DOCKER_ARCH: '{{.ARCH | default "amd64"}}'
@@ -136,12 +147,27 @@ tasks:
         {{else}}
         if [ -f "{{.ROOT_DIR}}/tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper.exe" ]; then cp "{{.ROOT_DIR}}/tools/rdp-helper-poc/freerdp/build/qterm-freerdp-helper.exe" .; fi
         {{end}}
+      # 命令行客户端同理：构建过就拷到 nsi 同目录，project.nsi 用 File /nonfatal 引入，
+      # 这样只做界面开发、没编过 CLI 的人也能打出安装包。
+      - |
+        {{if eq OS "windows"}}
+        if exist "{{.ROOT_DIR}}\{{.BIN_DIR}}\qterm-cli.exe" copy /Y "{{.ROOT_DIR}}\{{.BIN_DIR}}\qterm-cli.exe" qterm-cli.exe >NUL
+        {{else}}
+        if [ -f "{{.ROOT_DIR}}/{{.BIN_DIR}}/qterm-cli.exe" ]; then cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/qterm-cli.exe" .; fi
+        {{end}}
       - |
         {{if eq OS "windows"}}
         makensis {{if eq .INSTALL_SCOPE "user"}}-DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user {{end}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" project.nsi
         {{else}}
         makensis {{if eq .INSTALL_SCOPE "user"}}-DWAILS_INSTALL_SCOPE=user -DREQUEST_EXECUTION_LEVEL=user {{end}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" project.nsi
         {{end}}
+      # 打完立刻清掉临时拷进来的 CLI：它不属于源码树，留着会让 git status 多出一个
+      # 未跟踪的 6 MB 二进制（build/windows/nsis/ 里只有 .nsi/.nsh 是被跟踪的）。
+      # cmd 的 del 找不到文件会返回 1 让任务失败，所以先 if exist 探一次。
+      - cmd: if exist qterm-cli.exe del /Q qterm-cli.exe
+        platforms: [windows]
+      - cmd: rm -f qterm-cli.exe
+        platforms: [linux, darwin]
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
       ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'

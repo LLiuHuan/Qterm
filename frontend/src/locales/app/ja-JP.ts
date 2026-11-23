@@ -71,6 +71,54 @@ export const appJa: Record<string, string> = {
     '対象ディスプレイの MIT-MAGIC-COOKIE-1 認証データが見つかりません（X サーバーが起動していない可能性があります）。',
   'application.x11.reason.server_unreachable': 'ローカル X サーバーに接続できません。',
   'application.x11.reason.unsupported_platform': 'このプラットフォームでは X11 転送を利用できません。',
+  'application.cli.title': 'コマンドライン',
+  'application.cli.description':
+    'qterm-cli コマンドを PATH に入れ、スクリプトや外部エージェントがデスクトップアプリ経由で保存済みホストを操作できるようにします。コマンド自体はデータベースも保管庫も読まず、すべての機能は実行中のアプリが代理します。',
+  'application.cli.binary': 'CLI バイナリ',
+  'application.cli.binaryHelp':
+    'アプリに同梱されます。インストールは PATH ディレクトリに接続します（macOS/Linux はシンボリックリンク、Windows はコピーとユーザー PATH への登録）。',
+  'application.cli.install': 'PATH にインストール',
+  'application.cli.reinstall': '再インストール',
+  'application.cli.uninstall': '削除',
+  'application.cli.installed': '{path} にインストール済み',
+  'application.cli.notInstalled': '未インストール',
+  'application.cli.onPath': '新しいターミナルで qterm-cli を直接実行できます',
+  'application.cli.notOnPath': '{dir} が PATH にないため、シェル設定に手動で追加してください',
+  'application.cli.binaryMissing': '同梱の qterm-cli バイナリが見つかりません。アプリを再インストールしてください。',
+  'application.cli.skills.title': 'エージェントスキル',
+  'application.cli.skills.description':
+    '~/.agents/skills/qterm/ に SKILL.md を書き出し、スキル対応エージェント（Claude Code、Codex など）が qterm-cli の使い方を理解できるようにします。',
+  'application.cli.skills.install': '書き出す',
+  'application.cli.skills.uninstall': '削除',
+  'application.cli.skills.installed': '{path} に書き出し済み',
+  'application.cli.skills.notInstalled': '未書き出し',
+  'application.cli.guard.label': 'コマンド検査',
+  'application.cli.guard.description':
+    'qterm exec には確認ダイアログも、尋ねる場所もありません。実行前に何を止めるかをここで決めます。',
+  'application.cli.guard.off': '検査しない',
+  'application.cli.guard.offHelp':
+    'すべてのコマンドを実行します。呼び出し元を完全に信頼できる場合のみ使用してください。',
+  'application.cli.guard.rules': 'コマンド規則に従う',
+  'application.cli.guard.rulesHelp':
+    'AI アシスタント設定の拒否規則に一致するとブロックし、確認規則に一致してもブロックします（CLI は確認ダイアログを出せません）。',
+  'application.cli.guard.strict': '読み取り専用のみ',
+  'application.cli.guard.strictHelp':
+    'ユーザー規則に加えて組み込みの危険判定を適用し、ls・cat・df のような保守的な読み取り専用コマンドだけを許可します。',
+  'application.cli.hint.binaryMissing': '同梱の CLI バイナリがありません。アプリを再インストールしてください。',
+  'application.cli.hint.unsupportedPlatform':
+    'このプラットフォームはワンクリックインストールに未対応です。バイナリを PATH ディレクトリへ手動でコピーしてください。',
+  'application.cli.hint.notOnPath':
+    'インストール済みですが、そのディレクトリが PATH にありません。シェル設定に手動で追加してください。',
+  'application.cli.hint.restartShell':
+    'PATH に追加しましたが、このターミナルは古い環境のままです。新しいターミナルを開いてから使用してください。',
+  'application.cli.hint.packageManaged':
+    'コマンドはシステムのパッケージマネージャーが提供しているため、ここでインストールする必要はありません。',
+  'application.cli.toast.installed': 'コマンドラインツールをインストールしました',
+  'application.cli.toast.uninstalled': 'コマンドラインツールを削除しました',
+  'application.cli.toast.skillsInstalled': 'エージェントスキルを書き出しました',
+  'application.cli.toast.skillsUninstalled': 'エージェントスキルを削除しました',
+  'application.cli.toast.settingsSaved': 'コマンド検査の設定を保存しました',
+  'application.cli.toast.failed': '操作に失敗しました。もう一度お試しください。',
   'application.sftp.localDirectory': 'ローカルの既定ディレクトリ',
   'application.sftp.localDirectoryPlaceholder': '空欄の場合はホームディレクトリを使用',
   'application.sftp.localDirectoryHelp':

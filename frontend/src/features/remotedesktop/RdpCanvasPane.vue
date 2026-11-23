@@ -152,6 +152,8 @@ const passwordSubmitting = ref(false)
 
 const passwordError = ref('')
 
+let transientPassword = ''
+
 const passwordFormVisible = computed(() => passwordRequired.value && !session.connected.value)
 
 const authHostLabel = ref('')
@@ -1238,7 +1240,7 @@ async function confirmCertificate(): Promise<void> {
   certificateBusy.value = true
   try {
     await rdpService.trustRdpCertificate(props.hostId, session.certificateFingerprint.value)
-    await connectByHost()
+    await connectWithPendingCredential()
   } finally {
     certificateBusy.value = false
   }
@@ -1251,17 +1253,27 @@ function cancelCertificate(): void {
   void session.close()
 }
 
+async function connectWithPendingCredential(): Promise<void> {
+  const hostId = props.hostId
+  if (!hostId) {
+    await connectByHost()
+    return
+  }
+  const credential = takeHostCredential(hostId)
+  const password = credential?.password ?? transientPassword
+  if (password) {
+    await submitPendingPassword(password, credential?.remember ?? false)
+    return
+  }
+  await connectByHost()
+}
+
 async function reconnect(): Promise<void> {
   if (disposed) {
     return
   }
   if (props.hostId) {
-    const credential = takeHostCredential(props.hostId)
-    if (credential) {
-      await submitPendingPassword(credential.password, credential.remember)
-      return
-    }
-    await connectByHost()
+    await connectWithPendingCredential()
     return
   }
   if (props.input) {
@@ -1287,6 +1299,8 @@ async function submitPendingPassword(password: string, remember: boolean): Promi
   if (passwordSubmitting.value) {
     return
   }
+
+  transientPassword = password
   passwordSubmitting.value = true
   passwordError.value = ''
   try {
@@ -1308,6 +1322,8 @@ async function cancelPasswordPrompt(): Promise<void> {
   }
   passwordRequired.value = false
   passwordError.value = ''
+
+  transientPassword = ''
   connectionFailureHandled.value = true
   if (!handoverPending.value) {
     await session.close().catch(() => undefined)
@@ -1364,7 +1380,7 @@ onMounted(async () => {
     return
   }
   if (props.hostId) {
-    await connectByHost()
+    await connectWithPendingCredential()
     return
   }
   if (!props.input) {
@@ -1432,6 +1448,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true
   connectAttemptGeneration += 1
+
+  transientPassword = ''
   resizeObserver?.disconnect()
   resizeObserver = null
   if (fitResizeTimer !== null) {

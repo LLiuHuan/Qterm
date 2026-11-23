@@ -72,6 +72,53 @@ export const appRu: Record<string, string> = {
     'Авторизация MIT-MAGIC-COOKIE-1 для этого дисплея не найдена (возможно, X Server не запущен).',
   'application.x11.reason.server_unreachable': 'Не удаётся подключиться к локальному X Server.',
   'application.x11.reason.unsupported_platform': 'Перенаправление X11 не поддерживается на этой платформе.',
+  'application.cli.title': 'Командная строка',
+  'application.cli.description':
+    'Установите команду qterm-cli в PATH, чтобы скрипты и внешние агенты управляли сохранёнными хостами через приложение. Сама команда не читает базу данных и хранилище — все возможности предоставляет запущенное приложение.',
+  'application.cli.binary': 'Исполняемый файл CLI',
+  'application.cli.binaryHelp':
+    'Поставляется вместе с приложением; установка подключает его в каталоге из PATH (символическая ссылка в macOS и Linux, копия и запись в пользовательский PATH в Windows).',
+  'application.cli.install': 'Установить в PATH',
+  'application.cli.reinstall': 'Переустановить',
+  'application.cli.uninstall': 'Удалить',
+  'application.cli.installed': 'Установлено в {path}',
+  'application.cli.notInstalled': 'Не установлено',
+  'application.cli.onPath': 'В новом терминале qterm-cli доступна сразу',
+  'application.cli.notOnPath': '{dir} отсутствует в PATH; добавьте каталог в профиль оболочки вручную',
+  'application.cli.binaryMissing': 'Поставляемый исполняемый файл qterm-cli не найден. Переустановите приложение.',
+  'application.cli.skills.title': 'Навыки агента',
+  'application.cli.skills.description':
+    'Записывает SKILL.md в ~/.agents/skills/qterm/, чтобы агенты с поддержкой навыков (Claude Code, Codex и др.) знали, как пользоваться qterm-cli.',
+  'application.cli.skills.install': 'Записать',
+  'application.cli.skills.uninstall': 'Удалить',
+  'application.cli.skills.installed': 'Записано в {path}',
+  'application.cli.skills.notInstalled': 'Ещё не записано',
+  'application.cli.guard.label': 'Проверка команд',
+  'application.cli.guard.description':
+    'У qterm exec нет диалога подтверждения и негде спросить. Здесь решается, что блокировать перед выполнением.',
+  'application.cli.guard.off': 'Без проверки',
+  'application.cli.guard.offHelp': 'Выполнять всё. Используйте, только если полностью доверяете вызывающей стороне.',
+  'application.cli.guard.rules': 'По правилам команд',
+  'application.cli.guard.rulesHelp':
+    'Блокировать команды, совпадающие с правилом запрета из настроек ассистента; правила подтверждения тоже блокируют, так как CLI не может показать запрос.',
+  'application.cli.guard.strict': 'Только чтение',
+  'application.cli.guard.strictHelp':
+    'Добавляет встроенную оценку риска к вашим правилам и разрешает только консервативные команды чтения: ls, cat, df и подобные.',
+  'application.cli.hint.binaryMissing': 'Поставляемый файл CLI отсутствует. Переустановите приложение.',
+  'application.cli.hint.unsupportedPlatform':
+    'Установка в один клик не поддерживается на этой платформе; скопируйте файл в каталог из PATH вручную.',
+  'application.cli.hint.notOnPath':
+    'Установлено, но каталог отсутствует в PATH; добавьте его в профиль оболочки вручную.',
+  'application.cli.hint.restartShell':
+    'Каталог добавлен в PATH, но этот терминал использует старые переменные среды. Откройте новый терминал.',
+  'application.cli.hint.packageManaged':
+    'Команда предоставляется системным менеджером пакетов, устанавливать её здесь не нужно.',
+  'application.cli.toast.installed': 'Инструмент командной строки установлен',
+  'application.cli.toast.uninstalled': 'Инструмент командной строки удалён',
+  'application.cli.toast.skillsInstalled': 'Навык агента записан',
+  'application.cli.toast.skillsUninstalled': 'Навык агента удалён',
+  'application.cli.toast.settingsSaved': 'Настройки проверки команд сохранены',
+  'application.cli.toast.failed': 'Не удалось выполнить операцию. Повторите попытку.',
   'application.sftp.localDirectory': 'Локальный каталог по умолчанию',
   'application.sftp.localDirectoryPlaceholder': 'Оставьте пустым, чтобы использовать домашний каталог',
   'application.sftp.localDirectoryHelp':

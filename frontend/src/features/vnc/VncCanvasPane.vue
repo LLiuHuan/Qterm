@@ -291,6 +291,8 @@ const passwordError = ref('')
 
 let pendingRememberPassword = ''
 
+let transientPassword = ''
+
 function adoptAuthSummary(
   profile: {
     address?: string
@@ -367,6 +369,8 @@ function toastPasteResult(result: string): void {
 
 function submitPassword(password: string, remember: boolean): void {
   if (password.length === 0) return
+
+  transientPassword = password
   passwordError.value = ''
   pendingRememberPassword = remember ? password : ''
   session.submitPassword(password)
@@ -374,6 +378,8 @@ function submitPassword(password: string, remember: boolean): void {
 
 function cancelPasswordPrompt(): void {
   pendingRememberPassword = ''
+
+  transientPassword = ''
   passwordError.value = ''
   void disconnect()
   emit('close')
@@ -384,9 +390,10 @@ async function connect(): Promise<void> {
   if (!element) return
 
   const credential = takeHostCredential(props.hostId)
-  if (credential) {
-    pendingRememberPassword = credential.remember ? credential.password : ''
-    await session.connect(element, credential.password)
+  const password = credential?.password ?? transientPassword
+  if (password) {
+    pendingRememberPassword = credential?.remember ? credential.password : ''
+    await session.connect(element, password)
     return
   }
   await session.connect(element)
@@ -422,6 +429,8 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   session.stopClipboardAutoSync?.()
+
+  transientPassword = ''
   panelVisibilityObserver?.disconnect()
   panelVisibilityObserver = null
   if (typeof document !== 'undefined') {

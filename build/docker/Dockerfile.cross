@@ -217,6 +217,19 @@ fi
 
 ${COMPILER} -tags "$TAGS" -trimpath -buildvcs=false -ldflags="$LDFLAGS" -o bin/${APP}-${GOOS}-${GOARCH}${EXT} .
 echo "Built: bin/${APP}-${GOOS}-${GOARCH}${EXT}"
+
+# 命令行客户端（qterm-cli）：纯 Go 实现，不需要 C 工具链，所以固定 CGO_ENABLED=0，
+# 交叉编译时不会去碰上面那套 CC 包装。
+#
+# LDFLAGS 必须单独给，不能复用 $LDFLAGS：Windows 那份带 -H windowsgui，
+# 那是 GUI 子系统的开关，加到 CLI 上会没有控制台输出（等于不可用）。
+#
+# 文件名是产品常量 qterm-cli，不跟 $APP 走：Go 侧 binaryName 写死成 "qterm-cli"，
+# 改名会让 binaryCandidates() 找不到它。架构后缀是 bin/ 里的约定，由 Taskfile 的
+# build:docker 负责改回不带后缀的固定名。
+CLI_LDFLAGS="-s -w"
+CGO_ENABLED=0 ${COMPILER} -tags "$TAGS" -trimpath -buildvcs=false -ldflags="$CLI_LDFLAGS" -o bin/qterm-cli-${GOOS}-${GOARCH}${EXT} ./cmd/qterm
+echo "Built: bin/qterm-cli-${GOOS}-${GOARCH}${EXT}"
 SCRIPT
 RUN chmod +x /usr/local/bin/build.sh
 

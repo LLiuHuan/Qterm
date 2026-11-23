@@ -37,6 +37,8 @@ tasks:
           DEV:
             ref: .DEV
       - task: common:generate:icons
+      # CLI 随包分发：设置页的「安装到 PATH」依赖这个二进制存在。
+      - task: common:build:cli
     preconditions:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
@@ -170,6 +172,18 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      # 命令行客户端随包分发到 Contents/Resources/bin/：Go 侧按该目录找二进制，
+      # 设置页的「安装到 PATH」只是给它建一个符号链接。没构建过时跳过，
+      # 避免只做界面开发的人被迫先跑一次完整构建。
+      - |
+        CLI_SRC="{{.BIN_DIR}}/qterm-cli"
+        if [ -f "$CLI_SRC" ]; then
+          DEST="{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/bin"
+          mkdir -p "$DEST"
+          cp "$CLI_SRC" "$DEST/"
+        else
+          echo "未找到 qterm-cli（$CLI_SRC），跳过随包分发"
+        fi
       # 远程桌面（RDP）helper 随包分发：只有一个静态链接的可执行文件，放进
       # Contents/Resources/helpers/（Go 侧按该目录查找）。
       # 没构建过 helper 时跳过，避免没有 RDP 需求的构建被迫依赖 FreeRDP 构建产物。

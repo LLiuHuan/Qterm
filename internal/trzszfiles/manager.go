@@ -32,45 +32,73 @@ type File struct {
 }
 
 type downloadFile struct {
-	gate   chan struct{}
-	file   *os.File
-	target string
+	gate      chan struct{}
+	file      *os.File
+	parent    *os.Root
+	temporary string
+	reserved  *targetReservation
+	original  os.FileInfo
+	name      string
+	rel       string
+	offset    int64
+	closed    bool
+}
+
+type targetReservation struct {
+	parent os.FileInfo
 	name   string
-	rel    string
-	offset int64
-	closed bool
 }
 
 type Manager struct {
-	mu     sync.Mutex
-	roots  map[string]string
-	files  map[string]*downloadFile
-	closed bool
+	mu       sync.Mutex
+	roots    map[string]*os.Root
+	files    map[string]*downloadFile
+	reserved map[*targetReservation]struct{}
+	closed   bool
 }
 
 func NewManager() *Manager {
-	return &Manager{roots: make(map[string]string), files: make(map[string]*downloadFile)}
+	return &Manager{
+		roots:    make(map[string]*os.Root),
+		files:    make(map[string]*downloadFile),
+		reserved: make(map[*targetReservation]struct{}),
+	}
 }
 
 func (m *Manager) OpenDirectory(path string) (Directory, error) {
 	if !filepath.IsAbs(path) {
 		return Directory{}, invalidPath()
 	}
-	info, err := os.Stat(path)
+	root, err := os.OpenRoot(path)
 	if err != nil {
 		return Directory{}, fileError(err)
 	}
-	if !info.IsDir() {
-		return Directory{}, invalidPath()
-	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if m.closed {
-		return Directory{}, invalidPath()
+		m.mu.Unlock()
+		return Directory{}, fileError(errors.Join(invalidPath(), root.Close()))
 	}
 	token := rand.Text()
-	m.roots[token] = path
+	m.roots[token] = root
+	m.mu.Unlock()
 	return Directory{Token: token, Name: filepath.Base(path)}, nil
+}
+
+func (m *Manager) ReleaseDirectory(token string) error {
+	m.mu.Lock()
+	root := m.roots[token]
+	delete(m.roots, token)
+	m.mu.Unlock()
+	if root == nil {
+		return nil
+	}
+	return fileError(root.Close())
+}
+
+func (m *Manager) directory(token string) *os.Root {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.roots[token]
 }
 
 func (m *Manager) CreateDirectory(ctx context.Context, dirToken, relativePath string) error {
@@ -81,18 +109,11 @@ func (m *Manager) CreateDirectory(ctx context.Context, dirToken, relativePath st
 	if err != nil {
 		return err
 	}
-	m.mu.Lock()
-	root, ok := m.roots[dirToken]
-	closed := m.closed
-	m.mu.Unlock()
-	if closed || !ok {
+	root := m.directory(dirToken)
+	if root == nil {
 		return invalidPath()
 	}
-	target := filepath.Join(append([]string{root}, segments...)...)
-	if err := os.MkdirAll(target, 0o755); err != nil {
-		return fileError(err)
-	}
-	return nil
+	return fileError(root.MkdirAll(filepath.Join(segments...), 0o755))
 }
 
 func (m *Manager) OpenDownload(ctx context.Context, dirToken, relativePath string, overwrite bool) (File, error) {
@@ -103,34 +124,39 @@ func (m *Manager) OpenDownload(ctx context.Context, dirToken, relativePath strin
 	if err != nil {
 		return File{}, err
 	}
-	m.mu.Lock()
-	root, ok := m.roots[dirToken]
-	closed := m.closed
-	m.mu.Unlock()
-	if closed || !ok {
+	root := m.directory(dirToken)
+	if root == nil {
 		return File{}, invalidPath()
 	}
-	target := filepath.Join(append([]string{root}, segments...)...)
-	parent := filepath.Dir(target)
-	if err := os.MkdirAll(parent, 0o755); err != nil {
+	relative := filepath.Join(segments...)
+	parentPath := filepath.Dir(relative)
+	if err := root.MkdirAll(parentPath, 0o755); err != nil {
 		return File{}, fileError(err)
 	}
-
-	name := filepath.Base(target)
-	if !overwrite {
-		target, name = uniqueTarget(target)
-	}
-	temporary, err := os.CreateTemp(parent, ".qterm-trzsz-*")
+	parent, err := root.OpenRoot(parentPath)
 	if err != nil {
 		return File{}, fileError(err)
 	}
-	rel := strings.Join(segments, "/")
+	reserved, original, err := m.reserveTarget(parent, filepath.Base(relative), overwrite)
+	if err != nil {
+		return File{}, fileError(errors.Join(err, parent.Close()))
+	}
+
+	temporary := ".qterm-trzsz-" + rand.Text()
+	file, err := parent.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		m.forget("", reserved)
+		return File{}, fileError(errors.Join(err, parent.Close()))
+	}
 	return m.register(ctx, &downloadFile{
-		gate:   make(chan struct{}, 1),
-		file:   temporary,
-		target: target,
-		name:   name,
-		rel:    rel,
+		gate:      make(chan struct{}, 1),
+		file:      file,
+		parent:    parent,
+		temporary: temporary,
+		reserved:  reserved,
+		original:  original,
+		name:      reserved.name,
+		rel:       filepath.ToSlash(filepath.Join(parentPath, reserved.name)),
 	})
 }
 
@@ -169,21 +195,39 @@ func (m *Manager) Commit(ctx context.Context, token string) (File, error) {
 	if err := ctx.Err(); err != nil {
 		return File{}, err
 	}
-	temporary := f.file.Name()
-	if err := f.file.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+	if err := f.file.Close(); err != nil {
 		return File{}, fileError(err)
 	}
+	if f.original == nil {
 
-	if err := os.Rename(temporary, f.target); err != nil {
-		if removeErr := os.Remove(f.target); removeErr == nil {
-			err = os.Rename(temporary, f.target)
+		err = f.parent.Link(f.temporary, f.name)
+		if err != nil && !errors.Is(err, os.ErrExist) {
+
+			if copyErr := copyExclusive(ctx, f); copyErr != nil {
+				err = errors.Join(err, copyErr)
+			} else {
+				err = nil
+			}
 		}
-		if err != nil {
-			return File{}, fileError(err)
+	} else {
+		current, statErr := f.parent.Lstat(f.name)
+		if statErr != nil || !current.Mode().IsRegular() || !os.SameFile(f.original, current) ||
+			current.Size() != f.original.Size() || !current.ModTime().Equal(f.original.ModTime()) {
+			return File{}, invalidPath()
+		}
+
+		err = f.parent.Rename(f.temporary, f.name)
+		if err == nil {
+			f.temporary = ""
 		}
 	}
-	f.closed = true
-	m.forget(token)
+	if err != nil {
+		return File{}, fileError(err)
+	}
+	m.forget(token, f.reserved)
+	if err := cleanup(f); err != nil {
+		return File{}, fileError(err)
+	}
 	return File{Name: f.name, RelativePath: f.rel}, nil
 }
 
@@ -197,15 +241,18 @@ func (m *Manager) Abort(token string) error {
 	}
 	f.gate <- struct{}{}
 	defer func() { <-f.gate }()
+	if f.closed {
+		return nil
+	}
+	defer m.forget(token, f.reserved)
 	return fileError(cleanup(f))
 }
 
 func (m *Manager) Close() error {
 	m.mu.Lock()
 	m.closed = true
-	files := m.files
-	m.files = make(map[string]*downloadFile)
-	m.roots = make(map[string]string)
+	files, roots := m.files, m.roots
+	m.files, m.roots, m.reserved = nil, nil, nil
 	m.mu.Unlock()
 	var result error
 	for _, f := range files {
@@ -213,12 +260,16 @@ func (m *Manager) Close() error {
 		result = errors.Join(result, cleanup(f))
 		<-f.gate
 	}
+	for _, root := range roots {
+		result = errors.Join(result, root.Close())
+	}
 	return fileError(result)
 }
 
 func (m *Manager) register(ctx context.Context, f *downloadFile) (File, error) {
 	m.mu.Lock()
 	if m.closed || len(m.files) >= maxFiles || ctx.Err() != nil {
+		delete(m.reserved, f.reserved)
 		m.mu.Unlock()
 		return File{}, fileError(errors.Join(invalidPath(), cleanup(f)))
 	}
@@ -228,9 +279,10 @@ func (m *Manager) register(ctx context.Context, f *downloadFile) (File, error) {
 	return File{Token: token, Name: f.name, RelativePath: f.rel}, nil
 }
 
-func (m *Manager) forget(token string) {
+func (m *Manager) forget(token string, reserved *targetReservation) {
 	m.mu.Lock()
 	delete(m.files, token)
+	delete(m.reserved, reserved)
 	m.mu.Unlock()
 }
 
@@ -281,18 +333,99 @@ func splitRelativePath(relativePath string) ([]string, error) {
 	return segments, nil
 }
 
-func uniqueTarget(target string) (string, string) {
-	dir := filepath.Dir(target)
-	base := filepath.Base(target)
-	ext := filepath.Ext(base)
-	stem := strings.TrimSuffix(base, ext)
-	for index := 1; index <= 999; index++ {
-		candidate := filepath.Join(dir, stem+" ("+strconv.Itoa(index)+")"+ext)
-		if _, err := os.Lstat(candidate); errors.Is(err, os.ErrNotExist) {
-			return candidate, filepath.Base(candidate)
+func (m *Manager) reserveTarget(parent *os.Root, name string, overwrite bool) (*targetReservation, os.FileInfo, error) {
+	parentInfo, err := parent.Stat(".")
+	if err != nil {
+		return nil, nil, err
+	}
+	ext := filepath.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	for index := 0; index <= 999; index++ {
+		candidate := name
+		if index > 0 {
+			candidate = stem + " (" + strconv.Itoa(index) + ")" + ext
+		}
+		info, err := parent.Lstat(candidate)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, err
+		}
+		if info != nil {
+			if !overwrite {
+				continue
+			}
+			if !info.Mode().IsRegular() {
+				return nil, nil, invalidPath()
+			}
+		}
+		reservation := &targetReservation{parent: parentInfo, name: candidate}
+		m.mu.Lock()
+		reserved := false
+		for target := range m.reserved {
+			if strings.EqualFold(target.name, candidate) && os.SameFile(target.parent, parentInfo) {
+				reserved = true
+				break
+			}
+		}
+		closed := m.closed
+		if !closed && !reserved {
+			m.reserved[reservation] = struct{}{}
+		}
+		m.mu.Unlock()
+		if closed || (reserved && overwrite) {
+			return nil, nil, invalidPath()
+		}
+		if !reserved {
+			return reservation, info, nil
 		}
 	}
-	return target, base
+	return nil, nil, invalidPath()
+}
+
+type downloadCopyReader struct {
+	context.Context
+	file *os.File
+}
+
+func (r downloadCopyReader) Read(buffer []byte) (int, error) {
+	if err := r.Context.Err(); err != nil {
+		return 0, err
+	}
+	return r.file.Read(buffer)
+}
+
+func copyExclusive(ctx context.Context, f *downloadFile) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	source, err := f.parent.Open(f.temporary)
+	if err != nil {
+		return err
+	}
+	target, err := f.parent.OpenFile(f.name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return errors.Join(err, source.Close())
+	}
+	created, statErr := target.Stat()
+	var copyErr error
+	if statErr == nil {
+		count, err := io.Copy(target, downloadCopyReader{Context: ctx, file: source})
+		copyErr = err
+		if copyErr == nil && count != f.offset {
+			copyErr = io.ErrUnexpectedEOF
+		}
+		if copyErr == nil {
+			copyErr = errors.Join(ctx.Err(), target.Sync())
+		}
+	}
+	err = errors.Join(statErr, copyErr, source.Close(), target.Close())
+	if err == nil {
+		return nil
+	}
+
+	if current, statErr := f.parent.Lstat(f.name); statErr == nil && created != nil && os.SameFile(created, current) {
+		err = errors.Join(err, f.parent.Remove(f.name))
+	}
+	return err
 }
 
 func cleanup(f *downloadFile) error {
@@ -304,13 +437,13 @@ func cleanup(f *downloadFile) error {
 	if errors.Is(err, os.ErrClosed) {
 		err = nil
 	}
-	if temporary := f.file.Name(); temporary != "" {
-		removeErr := os.Remove(temporary)
+	if f.temporary != "" {
+		removeErr := f.parent.Remove(f.temporary)
 		if !errors.Is(removeErr, os.ErrNotExist) {
 			err = errors.Join(err, removeErr)
 		}
 	}
-	return err
+	return errors.Join(err, f.parent.Close())
 }
 
 func invalidPath() error { return errno.New(errno.CodeInvalidArg, "error.invalidArgument", "") }

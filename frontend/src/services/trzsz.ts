@@ -1,10 +1,15 @@
 import { TrzszFilter, type TrzszOptions } from 'trzsz'
 
 export const TRZSZ_MAGIC = '::TRZSZ:TRANSFER:'
+const HANDSHAKE_LIMIT = 128
+const HANDSHAKE_TIMEOUT = 200
+const handshakePattern = /^::TRZSZ:TRANSFER:[SRD]:\d+\.\d+\.\d+(?::\d+){0,2}/
 
-const IPC_CHUNK = 512 * 1024
+const UPLOAD_READ_CHUNK = 512 * 1024
 
-export type TrzszState = 'idle' | 'sending' | 'receiving'
+const DOWNLOAD_WRITE_CHUNK = 512 * 1024
+
+export type TrzszState = 'idle' | 'selecting' | 'sending' | 'receiving'
 
 export interface TrzszHandlers {
   onState: (state: TrzszState, detail?: string) => void
@@ -19,15 +24,18 @@ export interface TrzszEndpoints {
 }
 
 interface TrzszInternals {
+  detectAndHandleTrzsz: (marker: string) => Promise<void>
+  handleTrzszDownloadFiles: (version: string, remoteIsWindows: boolean) => Promise<void>
+  handleTrzszUploadFiles: (version: string, directory: boolean, remoteIsWindows: boolean) => Promise<void>
   trzszTransfer: {
-    sendAction: (ok: boolean, tmux: boolean) => Promise<void>
+    sendAction: (ok: boolean, remoteIsWindows: boolean) => Promise<void>
     recvConfig: () => Promise<{ quiet: boolean; tmux_pane_width: number; overwrite: boolean; directory: boolean }>
     sendFiles: (readers: TrzszFileReaderLike[], progress: unknown) => Promise<string[]>
     recvFiles: (factory: unknown, openSaveFile: OpenSaveFile, progress: unknown) => Promise<string[]>
     clientExit: (message: string) => Promise<void>
   }
   createProgressBar: (quiet: boolean, tmuxPaneWidth: number) => void
-  textProgressBar: unknown
+  textProgressBar: { showCursor: () => void } | null
 }
 
 interface TrzszFileReaderLike {
@@ -82,34 +90,106 @@ export class TrzszManager {
   private readonly filter: TrzszFilter
   private readonly endpoints: TrzszEndpoints
   private readonly handlers: TrzszHandlers
+
+  private readonly handshakeDecoder = new TextDecoder('latin1')
   private state: TrzszState = 'idle'
+  private outcome: string | undefined
+
+  private lastError = ''
+  private tail = new Uint8Array(0)
+  private tailTimer: ReturnType<typeof setTimeout> | undefined
+  private starting: Uint8Array[] | null = null
+  private cancelled = false
+  private disposed = false
 
   constructor(endpoints: TrzszEndpoints, handlers: TrzszHandlers) {
     this.endpoints = endpoints
     this.handlers = handlers
     const options: TrzszOptions = {
-      writeToTerminal: (output) => this.endpoints.writeToTerminal(toBytes(output)),
+      writeToTerminal: (output) => {
+        if (!this.disposed) this.endpoints.writeToTerminal(toBytes(output))
+      },
       sendToServer: (input) => {
+        if (this.disposed) return
         const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input
         this.endpoints.sendToServer(bytes)
       },
       terminalColumns: this.endpoints.columns(),
+      maxDataChunkSize: UPLOAD_READ_CHUNK,
 
       chooseSendFiles: async () => undefined,
       chooseSaveDirectory: async () => undefined,
     }
     this.filter = new TrzszFilter(options)
-    this.installDownloadHandler()
-    this.installUploadHandler()
+    const internals = this.internals()
+    internals.handleTrzszDownloadFiles = (_version, remoteIsWindows) => this.receiveFiles(internals, remoteIsWindows)
+    internals.handleTrzszUploadFiles = (_version, _directory, remoteIsWindows) =>
+      this.sendFiles(internals, remoteIsWindows)
   }
 
   consume(data: Uint8Array): boolean {
-    this.filter.processServerOutput(data)
-    return this.filter.isTransferringFiles()
+    if (this.disposed) return false
+    if (this.starting) {
+      this.starting.push(data)
+      return true
+    }
+    if (this.filter.isTransferringFiles()) {
+      this.filter.processServerOutput(data)
+      return true
+    }
+
+    clearTimeout(this.tailTimer)
+    let combined = data
+    if (this.tail.length) {
+      combined = new Uint8Array(this.tail.length + data.length)
+      combined.set(this.tail)
+      combined.set(data, this.tail.length)
+      this.tail = new Uint8Array(0)
+    } else if (!data.includes(0x3a)) {
+      this.endpoints.writeToTerminal(data)
+      return false
+    }
+    const text = this.handshakeDecoder.decode(combined)
+    let pending = text.length
+    for (
+      let start = text.indexOf(TRZSZ_MAGIC);
+      start >= 0;
+      start = text.indexOf(TRZSZ_MAGIC, start + TRZSZ_MAGIC.length)
+    ) {
+      const candidate = text.slice(start, start + HANDSHAKE_LIMIT)
+      const marker = handshakePattern.exec(candidate)?.[0]
+      const suffix = marker ? candidate.slice(marker.length) : ''
+      const ending = suffix.startsWith('\x1b\\') ? 2 : (/^\r*\n/.exec(suffix)?.[0].length ?? 0)
+      if (marker && ending > 0) {
+        if (start > 0) this.endpoints.writeToTerminal(combined.subarray(0, start))
+
+        this.beginTransfer(marker, combined.subarray(start + marker.length + ending))
+        return true
+      }
+      if (candidate.length < HANDSHAKE_LIMIT && !candidate.includes('\n')) pending = Math.min(pending, start)
+    }
+    for (let length = Math.min(TRZSZ_MAGIC.length - 1, text.length); length > 0; length--) {
+      if (text.endsWith(TRZSZ_MAGIC.slice(0, length))) {
+        pending = Math.min(pending, text.length - length)
+        break
+      }
+    }
+    if (pending > 0) this.endpoints.writeToTerminal(combined.subarray(0, pending))
+    if (pending < combined.length) {
+      this.tail = combined.slice(pending)
+      this.tailTimer = setTimeout(() => {
+        const tail = this.tail
+        this.tail = new Uint8Array(0)
+        if (!this.disposed) this.endpoints.writeToTerminal(tail)
+      }, HANDSHAKE_TIMEOUT)
+    }
+    return false
   }
 
   consumeInput(text: string): void {
-    this.filter.processTerminalInput(text)
+    if (text !== '\x03' || !this.isTransferring()) return
+    this.cancelled = true
+    this.filter.stopTransferringFiles()
   }
 
   setColumns(columns: number): void {
@@ -117,7 +197,53 @@ export class TrzszManager {
   }
 
   isTransferring(): boolean {
-    return this.filter.isTransferringFiles()
+    return !this.disposed && (this.state !== 'idle' || this.filter.isTransferringFiles())
+  }
+
+  get failureReason(): string {
+    return this.lastError
+  }
+
+  dispose(): void {
+    if (this.disposed) return
+    this.internals().textProgressBar?.showCursor()
+    this.disposed = true
+    this.cancelled = true
+    clearTimeout(this.tailTimer)
+    this.tail = new Uint8Array(0)
+    this.starting = null
+    this.filter.stopTransferringFiles()
+    this.updateState('idle')
+  }
+
+  private beginTransfer(marker: string, remaining: Uint8Array): void {
+    this.cancelled = false
+    this.outcome = undefined
+    this.lastError = ''
+    this.starting = remaining.length ? [remaining] : []
+    this.updateState('selecting')
+
+    const normalizedMarker = marker.split(':').length === 6 ? `${marker}:0` : marker
+    const transfer = this.internals().detectAndHandleTrzsz(normalizedMarker)
+    queueMicrotask(() => {
+      const pending = this.starting
+      this.starting = null
+      if (this.disposed || !pending) return
+      if (this.cancelled) this.filter.stopTransferringFiles()
+      if (this.filter.isTransferringFiles()) {
+        for (const data of pending) this.filter.processServerOutput(data)
+      } else {
+        for (const data of pending) this.endpoints.writeToTerminal(data)
+      }
+    })
+    void transfer
+      .catch((error: unknown) => {
+        this.outcome = 'error'
+        this.lastError = error instanceof Error ? error.message : String(error)
+      })
+      .finally(() => {
+        if (!this.disposed) this.updateState('idle', this.cancelled ? 'cancelled' : this.outcome)
+      })
   }
 
   private updateState(state: TrzszState, detail?: string): void {
@@ -126,28 +252,40 @@ export class TrzszManager {
     this.handlers.onState(state, detail)
   }
 
-  private internals(): TrzszInternals & { filter: TrzszFilter } {
-    return this.filter as unknown as TrzszInternals & { filter: TrzszFilter }
+  private internals(): TrzszInternals {
+    return this.filter as unknown as TrzszInternals
   }
 
-  private installDownloadHandler(): void {
-    const updateState = (state: TrzszState, detail?: string) => this.updateState(state, detail)
-    const handler = async function (this: TrzszInternals, _version: string, tmux: boolean): Promise<void> {
-      const api = await import('../../bindings/changeme/internal/app/service')
-      const directory = await api.SelectTrzszDownloadDirectory()
-      if (!directory.token) {
-        await this.trzszTransfer.sendAction(false, tmux)
+  private async receiveFiles(filter: TrzszInternals, remoteIsWindows: boolean): Promise<void> {
+    const api = await import('../../bindings/changeme/internal/app/service')
+    const transfer = filter.trzszTransfer
+    let directoryToken = ''
+    let stagedToken = ''
+    const commitSavedFile = async () => {
+      if (!stagedToken) return
+      this.checkTransferActive()
+      await api.CommitTrzszFile(stagedToken)
+      stagedToken = ''
+    }
+    try {
+      const directory = this.cancelled ? null : await api.SelectTrzszDownloadDirectory()
+      directoryToken = directory?.token ?? ''
+      if (this.cancelled || !directoryToken) {
+        this.outcome = 'cancelled'
+        await transfer.sendAction(false, remoteIsWindows)
         return
       }
-      updateState('receiving')
-      await this.trzszTransfer.sendAction(true, tmux)
-      const config = await this.trzszTransfer.recvConfig()
-      this.createProgressBar(config.quiet, config.tmux_pane_width)
-      const created: { token: string; close: () => Promise<void>; abort: () => Promise<void> }[] = []
-      const openSaveFile: OpenSaveFile = async (_factory, name, _directory, overwrite) => {
-        const parsedName = parseDownloadName(name)
-        if (parsedName?.isDir) {
-          await api.CreateTrzszDirectory(directory.token, parsedName.relativePath)
+      this.updateState('receiving')
+      await transfer.sendAction(true, remoteIsWindows)
+      const config = await transfer.recvConfig()
+      filter.createProgressBar(config.quiet, config.tmux_pane_width)
+
+      const openSaveFile: OpenSaveFile = async (_factory, name, directoryMode, overwrite) => {
+        await commitSavedFile()
+        this.checkTransferActive()
+        const parsedName = directoryMode ? parseDownloadName(name) : { name, relativePath: name, isDir: false }
+        if (parsedName.isDir) {
+          await api.CreateTrzszDirectory(directoryToken, parsedName.relativePath)
           return {
             getFileName: () => parsedName.name,
             getLocalName: () => parsedName.name,
@@ -157,97 +295,105 @@ export class TrzszManager {
             closeFile: () => {},
           }
         }
-        const relativePath = parsedName?.relativePath ?? name
         let offset = 0
-        const opened = await api.OpenTrzszDownloadFile(directory.token, relativePath, overwrite === true)
-        const entry = {
-          token: opened.token,
-          close: async () => {
-            await api.CommitTrzszFile(opened.token)
-          },
-          abort: async () => {
-            await api.AbortTrzszFile(opened.token)
-          },
-        }
-        created.push(entry)
+        const opened = await api.OpenTrzszDownloadFile(directoryToken, parsedName.relativePath, overwrite === true)
+        stagedToken = opened.token
+        this.checkTransferActive()
         return {
-          getFileName: () => parsedName?.name ?? name,
+          getFileName: () => parsedName.name,
           getLocalName: () => opened.name,
           isDir: () => false,
           writeFile: async (data) => {
-            for (let index = 0; index < data.length; index += IPC_CHUNK) {
-              const slice = data.subarray(index, Math.min(index + IPC_CHUNK, data.length))
+            for (let index = 0; index < data.length; index += DOWNLOAD_WRITE_CHUNK) {
+              this.checkTransferActive()
+              const slice = data.subarray(index, index + DOWNLOAD_WRITE_CHUNK)
               await api.WriteTrzszFile(opened.token, offset, toBase64(slice))
               offset += slice.length
             }
           },
           deleteFile: async () => {
-            await entry.abort()
+            await api.AbortTrzszFile(opened.token)
             return opened.name
           },
+
           closeFile: () => {},
         }
       }
-      try {
-        const names = await this.trzszTransfer.recvFiles({ token: directory.token }, openSaveFile, this.textProgressBar)
 
-        for (const entry of created) await entry.close()
-        await this.trzszTransfer.clientExit(`${names.length} file(s) received`)
-        updateState('idle', 'received')
-      } catch (error) {
-        for (const entry of created) await entry.abort().catch(() => {})
-        await this.trzszTransfer.clientExit(`receive failed: ${errorMessage(error)}`).catch(() => {})
-        updateState('idle', 'error')
-        throw error
-      }
+      const names = await transfer.recvFiles({ token: directoryToken }, openSaveFile, filter.textProgressBar)
+      await commitSavedFile()
+      this.checkTransferActive()
+      await transfer.clientExit(`${names.length} file(s) received`)
+      this.outcome = 'received'
+    } catch (error) {
+      if (!this.disposed) this.reportTransferError(error)
+    } finally {
+      if (stagedToken) await api.AbortTrzszFile(stagedToken).catch(() => {})
+      if (directoryToken) await api.ReleaseTrzszDownloadDirectory(directoryToken).catch(() => {})
     }
-    const target = this.filter as unknown as Record<string, unknown>
-    target.handleTrzszDownloadFiles = handler
   }
 
-  private installUploadHandler(): void {
-    const updateState = (state: TrzszState, detail?: string) => this.updateState(state, detail)
-    const handler = async function (this: TrzszInternals, _directory: boolean, tmux: boolean): Promise<void> {
-      const api = await import('../../bindings/changeme/internal/app/service')
-      const files = await api.SelectTrzszUploads()
-      if (!files || files.length === 0) {
-        await this.trzszTransfer.sendAction(false, tmux)
+  private async sendFiles(filter: TrzszInternals, remoteIsWindows: boolean): Promise<void> {
+    const api = await import('../../bindings/changeme/internal/app/service')
+    const transfer = filter.trzszTransfer
+    let readers: TrzszFileReaderLike[] = []
+    try {
+      const files = this.cancelled ? [] : ((await api.SelectTrzszUploads()) ?? [])
+      readers = files.map((file, index) => createUploadReader(api, file, index, () => this.checkTransferActive()))
+      if (this.cancelled || readers.length === 0) {
+        this.outcome = 'cancelled'
+        await transfer.sendAction(false, remoteIsWindows)
         return
       }
-      updateState('sending')
-      const readers = files.map((file, index) => createUploadReader(api, file, index))
-      try {
-        await this.trzszTransfer.sendAction(true, tmux)
-        const config = await this.trzszTransfer.recvConfig()
-        this.createProgressBar(config.quiet, config.tmux_pane_width)
-        const names = await this.trzszTransfer.sendFiles(readers, this.textProgressBar)
-        await this.trzszTransfer.clientExit(`${names.length} file(s) sent`)
-        updateState('idle', 'sent')
-      } catch (error) {
-        updateState('idle', 'error')
-        throw error
-      } finally {
-        for (const reader of readers) reader.closeFile()
+      this.updateState('sending')
+      await transfer.sendAction(true, remoteIsWindows)
+      const config = await transfer.recvConfig()
+
+      if (config.overwrite && new Set(files.map((file) => file.name)).size !== readers.length) {
+        throw new Error('Duplicate upload names')
       }
+      filter.createProgressBar(config.quiet, config.tmux_pane_width)
+      const names = await transfer.sendFiles(readers, filter.textProgressBar)
+      this.checkTransferActive()
+      await transfer.clientExit(`${names.length} file(s) sent`)
+      this.outcome = 'sent'
+    } catch (error) {
+      if (!this.disposed) this.reportTransferError(error)
+    } finally {
+      for (const reader of readers) reader.closeFile()
     }
-    const target = this.filter as unknown as Record<string, unknown>
-    target.handleTrzszUploadFiles = handler
+  }
+
+  private checkTransferActive(): void {
+    if (this.cancelled) throw new Error('Transfer cancelled')
+  }
+
+  private reportTransferError(error: unknown): never {
+    this.outcome = 'error'
+    this.lastError = error instanceof Error ? error.message : String(error)
+    if (error instanceof Error && error.name === 'TrzszError') throw error
+
+    const safe = new Error(this.cancelled ? 'Transfer cancelled' : 'Qterm could not complete the file transfer')
+    safe.stack = undefined
+    throw safe
   }
 }
 
-function parseDownloadName(name: string): { name: string; relativePath: string; isDir: boolean } | null {
-  if (!name.startsWith('{')) return null
-  try {
-    const parsed = JSON.parse(name) as { path_name?: unknown; is_dir?: unknown }
-    if (!Array.isArray(parsed.path_name) || typeof parsed.is_dir !== 'boolean') return null
-    const segments = parsed.path_name.filter(
-      (segment): segment is string => typeof segment === 'string' && segment !== '',
-    )
-    if (!segments.length) return null
-    return { name: segments[segments.length - 1], relativePath: segments.join('/'), isDir: parsed.is_dir }
-  } catch {
-    return null
+function parseDownloadName(name: string): { name: string; relativePath: string; isDir: boolean } {
+  const parsed = JSON.parse(name) as { path_name?: unknown; is_dir?: unknown } | null
+  if (!parsed || !Array.isArray(parsed.path_name) || typeof parsed.is_dir !== 'boolean') {
+    throw new Error('Invalid directory entry')
   }
+  const segments = parsed.path_name as unknown[]
+  if (
+    !segments.length ||
+    !segments.every(
+      (segment): segment is string => typeof segment === 'string' && segment !== '' && !/[\\/]/.test(segment),
+    )
+  ) {
+    throw new Error('Invalid directory path')
+  }
+  return { name: segments[segments.length - 1]!, relativePath: segments.join('/'), isDir: parsed.is_dir }
 }
 
 type AppApi = typeof import('../../bindings/changeme/internal/app/service')
@@ -256,7 +402,8 @@ function createUploadReader(
   api: AppApi,
   file: { token: string; name: string; size: number },
   index: number,
-): TrzszFileReaderLike & { closeFile: () => void } {
+  checkTransferActive: () => void,
+): TrzszFileReaderLike {
   let offset = 0
   let released = false
   const release = () => {
@@ -270,18 +417,17 @@ function createUploadReader(
     isDir: () => false,
     getSize: () => file.size,
     readFile: async (buffer) => {
+      checkTransferActive()
       const remaining = file.size - offset
       if (remaining <= 0) return new Uint8Array(0)
-      const length = Math.min(buffer.byteLength, remaining, IPC_CHUNK)
+      const length = Math.min(buffer.byteLength, remaining, UPLOAD_READ_CHUNK)
       const encoded = await api.ReadZmodemFile(file.token, offset, length)
+      checkTransferActive()
       const bytes = fromBase64(encoded ?? '')
+      if (bytes.length !== length) throw new Error('Incomplete file read')
       offset += bytes.length
       return bytes
     },
     closeFile: release,
   }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

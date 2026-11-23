@@ -76,6 +76,20 @@ go_build() {
     go build -tags production -trimpath -buildvcs=false -ldflags "${flags}" -o "${output}" .
 }
 
+# go_build_cli <os> <arch> <output>
+#
+# 命令行客户端（qterm-cli）与主程序的两点差异，都不能靠复用 go_build 抹平：
+#   1. 它是纯 Go 实现，固定 CGO_ENABLED=0，不需要 CC（容器里那套 zig 包装是给主程序用的）；
+#   2. LDFLAGS 不能带 -H windowsgui —— 那是 GUI 子系统开关，加到 CLI 上会让它在 Windows
+#      上没有控制台输出（stdout/stderr 全丢，等于不可用）。
+# 二进制名是产品常量 qterm-cli，不跟 APP_NAME 走：Go 侧 binaryName 写死，改名会找不到。
+go_build_cli() {
+  local goos=$1 goarch=$2 output=$3
+  log "编译命令行客户端 ${goos}/${goarch}"
+  env CGO_ENABLED=0 GOOS="${goos}" GOARCH="${goarch}" \
+    go build -tags production -trimpath -buildvcs=false -ldflags "-w -s" -o "${output}" ./cmd/qterm
+}
+
 package_darwin() {
   # 不能用 linker 对裸二进制的签名充当完整 .app 签名。
   if [ "${DEFER_DARWIN_SIGNING:-}" != "1" ]; then
@@ -108,6 +122,13 @@ package_darwin() {
       log "darwin/${arch} 没有 RDP helper，本次包不带 RDP"
     fi
 
+    # 命令行客户端：放进 Contents/Resources/bin/，与 build/darwin/Taskfile.yml 里
+    # create:app:bundle 的布局一致；Go 侧 binaryCandidates() 按
+    # 「可执行文件同目录的 ../Resources/bin/qterm-cli」查找。
+    mkdir -p "${app}/Contents/Resources/bin"
+    go_build_cli darwin "${arch}" "${app}/Contents/Resources/bin/qterm-cli"
+    chmod 0755 "${app}/Contents/Resources/bin/qterm-cli"
+
 
     log "打包 darwin/${arch} 待签名中间 zip（不可直接发布）"
     ( cd "${dir}" && zip -qry "${OUT}/qterm-darwin-${arch}.zip" "${APP_NAME}.app" )
@@ -138,6 +159,12 @@ package_windows() {
       log "windows/${arch} 没有 RDP helper，本次包不带 RDP"
     fi
 
+    # 命令行客户端：project.nsi 的 File 同样相对 build/windows/nsis，先拷进去、
+    # 打完立刻删掉，避免把二进制留在工作区；便携 zip 直接放进临时目录一起压。
+    # 装完之后 qterm-cli.exe 与 qterm.exe 同目录，Go 侧按「可执行文件同目录」查找。
+    go_build_cli windows "${arch}" "${dir}/qterm-cli.exe"
+    cp "${dir}/qterm-cli.exe" build/windows/nsis/qterm-cli.exe
+
     log "生成 NSIS 安装包 windows/${arch}"
     # 必须显式指定 per-user 安装范围：project.nsi 的默认值是 machine，
     # 会装进 C:\Program Files，而应用清单是 asInvoker、普通权限运行，
@@ -150,9 +177,10 @@ package_windows() {
     if [ "${helper_ok}" = "1" ]; then
       rm -f build/windows/nsis/qterm-freerdp-helper.exe
     fi
+    rm -f build/windows/nsis/qterm-cli.exe
 
     log "打包 windows/${arch} 便携 zip"
-    local zip_files=("${APP_NAME}.exe")
+    local zip_files=("${APP_NAME}.exe" "qterm-cli.exe")
     if [ "${helper_ok}" = "1" ]; then
       zip_files+=("qterm-freerdp-helper.exe")
     fi
@@ -175,6 +203,9 @@ package_linux() {
 
   # nfpm 配置里写的是 ./bin/qterm，这里保持该布局，避免为打包改配置。
   mkdir -p bin && cp "${dir}/${APP_NAME}" "bin/${APP_NAME}"
+  # 命令行客户端：nfpm 配置读 ./bin/qterm-cli，AppImage 重打包与便携包也读同一份。
+  go_build_cli linux "${arch}" "bin/qterm-cli"
+  chmod 0755 "bin/qterm-cli"
   wails3 generate .desktop -name "${APP_NAME}" -exec "${APP_NAME}" -icon "${APP_NAME}" \
     -outputfile "${REPO_ROOT}/build/linux/${APP_NAME}.desktop" -categories "Development" >/dev/null
 
@@ -209,9 +240,17 @@ package_linux() {
   local appdir="${appimage_build}/${APP_NAME}-${appimage_label}.AppDir"
   local linuxdeploy="${appimage_build}/linuxdeploy-${appimage_label}.AppImage"
   local repacked=0
-  if [ -f "${RDP_HELPER_DIR}/qterm-freerdp-helper" ] && [ -x "${linuxdeploy}" ]; then
-    cp "${RDP_HELPER_DIR}/qterm-freerdp-helper" "${appdir}/usr/bin/qterm-freerdp-helper"
-    chmod 0755 "${appdir}/usr/bin/qterm-freerdp-helper"
+  if [ -x "${linuxdeploy}" ]; then
+    # 命令行客户端放进 usr/bin/：命令名是 qterm-cli，与 GUI 主程序（usr/bin/qterm）
+    # 不同名，不会互相覆盖；AppRun 把 usr/bin 加进 PATH 后直接就能敲。
+    # Go 侧 binaryCandidates() 的「可执行文件同目录 qterm-cli」也正好命中。
+    mkdir -p "${appdir}/usr/bin"
+    cp bin/qterm-cli "${appdir}/usr/bin/qterm-cli"
+    chmod 0755 "${appdir}/usr/bin/qterm-cli"
+    if [ -f "${RDP_HELPER_DIR}/qterm-freerdp-helper" ]; then
+      cp "${RDP_HELPER_DIR}/qterm-freerdp-helper" "${appdir}/usr/bin/qterm-freerdp-helper"
+      chmod 0755 "${appdir}/usr/bin/qterm-freerdp-helper"
+    fi
     # NO_STRIP：新版工具链的 .relr.dyn 段会让 linuxdeploy 自带的 strip 失败。
     ( cd "${appimage_build}" && OUTPUT="${APP_NAME}-${appimage_label}.AppImage" NO_STRIP=1 \
         "${linuxdeploy}" --appimage-extract-and-run --appdir "${appdir}" --output appimage >/dev/null )
@@ -220,6 +259,9 @@ package_linux() {
     # 否则发版脚本会把它当成同名产物上传。
     rm -f "${OUT}/${APP_NAME}-${appimage_label}.AppImage"
     repacked=1
+  else
+    # 拿不到 linuxdeploy 就没法重打包，此时 AppImage 里没有命令行客户端。
+    log "linux/${arch} 缺少 linuxdeploy，AppImage 不带命令行客户端"
   fi
   if [ "${repacked}" = "0" ]; then
     mv "${OUT}/${APP_NAME}-${appimage_label}.AppImage" "${OUT}/qterm-linux-${arch}.AppImage"
@@ -228,8 +270,10 @@ package_linux() {
 
   log "打包 linux/${arch} 便携 tar.gz"
   # 便携包把 helper 放在主程序同目录：Go 侧 helperBinaryPath 的最后一条查找规则就是
-  # "可执行文件同目录"，不依赖 PATH 或安装目录。
-  tar_files=("${APP_NAME}")
+  # "可执行文件同目录"，不依赖 PATH 或安装目录。命令行客户端同理。
+  tar_files=("${APP_NAME}" "qterm-cli")
+  cp bin/qterm-cli "${dir}/qterm-cli"
+  chmod 0755 "${dir}/qterm-cli"
   if [ -f "${RDP_HELPER_DIR}/qterm-freerdp-helper" ]; then
     cp "${RDP_HELPER_DIR}/qterm-freerdp-helper" "${dir}/qterm-freerdp-helper"
     chmod 0755 "${dir}/qterm-freerdp-helper"

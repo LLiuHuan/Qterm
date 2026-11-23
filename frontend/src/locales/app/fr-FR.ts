@@ -73,6 +73,53 @@ export const appFr: Record<string, string> = {
     "Aucune autorisation MIT-MAGIC-COOKIE-1 pour cet affichage (le serveur X n'est peut-être pas démarré).",
   'application.x11.reason.server_unreachable': 'Le serveur X local est injoignable.',
   'application.x11.reason.unsupported_platform': "Le transfert X11 n'est pas pris en charge sur cette plateforme.",
+  'application.cli.title': 'Ligne de commande',
+  'application.cli.description':
+    "Installez la commande qterm-cli dans le PATH pour que les scripts et agents externes pilotent les hôtes enregistrés via l'application. La commande ne lit ni la base de données ni le coffre : toutes les capacités sont fournies par l'application en cours d'exécution.",
+  'application.cli.binary': 'Binaire CLI',
+  'application.cli.binaryHelp':
+    "Fourni avec l'application ; l'installation la place dans un répertoire du PATH (lien symbolique sous macOS et Linux, copie et entrée PATH utilisateur sous Windows).",
+  'application.cli.install': 'Installer dans le PATH',
+  'application.cli.reinstall': 'Réinstaller',
+  'application.cli.uninstall': 'Supprimer',
+  'application.cli.installed': 'Installé dans {path}',
+  'application.cli.notInstalled': 'Non installé',
+  'application.cli.onPath': 'qterm-cli est disponible dans les nouveaux terminaux',
+  'application.cli.notOnPath': "{dir} n'est pas dans le PATH ; ajoutez-le manuellement à votre profil de shell",
+  'application.cli.binaryMissing': "Le binaire qterm-cli fourni est introuvable. Réinstallez l'application.",
+  'application.cli.skills.title': "Compétences d'agent",
+  'application.cli.skills.description':
+    'Écrit un SKILL.md dans ~/.agents/skills/qterm/ pour que les agents compatibles (Claude Code, Codex, etc.) sachent utiliser qterm-cli.',
+  'application.cli.skills.install': 'Écrire',
+  'application.cli.skills.uninstall': 'Supprimer',
+  'application.cli.skills.installed': 'Écrit dans {path}',
+  'application.cli.skills.notInstalled': 'Pas encore écrit',
+  'application.cli.guard.label': 'Contrôle des commandes',
+  'application.cli.guard.description':
+    "qterm exec n'a pas de boîte de confirmation et aucun moyen de vous demander. Ce réglage décide de ce qui est bloqué avant exécution.",
+  'application.cli.guard.off': 'Aucun contrôle',
+  'application.cli.guard.offHelp': "Tout exécuter. À n'utiliser que si vous faites entièrement confiance à l'appelant.",
+  'application.cli.guard.rules': 'Selon les règles',
+  'application.cli.guard.rulesHelp':
+    "Bloque les commandes correspondant à une règle de refus de l'assistant IA ; les règles de confirmation bloquent aussi, car la CLI ne peut pas afficher d'invite.",
+  'application.cli.guard.strict': 'Lecture seule',
+  'application.cli.guard.strictHelp':
+    "Ajoute l'évaluation de risque intégrée à vos règles et n'autorise que les commandes de lecture prudentes comme ls, cat et df.",
+  'application.cli.hint.binaryMissing': 'Le binaire CLI fourni est absent. Réinstallez l’application.',
+  'application.cli.hint.unsupportedPlatform':
+    "L'installation en un clic n'est pas prise en charge sur cette plateforme ; copiez le binaire dans un répertoire du PATH.",
+  'application.cli.hint.notOnPath':
+    "Installé, mais son répertoire n'est pas dans le PATH ; ajoutez-le manuellement à votre profil de shell.",
+  'application.cli.hint.restartShell':
+    'Ajouté au PATH, mais ce terminal utilise encore l’ancien environnement. Ouvrez un nouveau terminal avant de l’utiliser.',
+  'application.cli.hint.packageManaged':
+    'La commande est fournie par le gestionnaire de paquets du système, il n’y a rien à installer ici.',
+  'application.cli.toast.installed': 'Outil en ligne de commande installé',
+  'application.cli.toast.uninstalled': 'Outil en ligne de commande supprimé',
+  'application.cli.toast.skillsInstalled': "Compétence d'agent écrite",
+  'application.cli.toast.skillsUninstalled': "Compétence d'agent supprimée",
+  'application.cli.toast.settingsSaved': 'Réglages de contrôle des commandes enregistrés',
+  'application.cli.toast.failed': "L'opération a échoué. Réessayez.",
   'application.sftp.localDirectory': 'Répertoire local par défaut',
   'application.sftp.localDirectoryPlaceholder': 'Laissez vide pour utiliser votre dossier personnel',
   'application.sftp.localDirectoryHelp':

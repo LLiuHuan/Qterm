@@ -17,6 +17,8 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const APP_NAME = "qterm";
+
+export const CLI_NAME = "qterm-cli";
 export const RELEASES_DIRECTORY = join("bin", "releases");
 export const RDP_HELPER_DIRECTORY = join(
   "tools",
@@ -400,6 +402,17 @@ function assertExistingFile(file, description) {
   }
 }
 
+function archiveFileList(target) {
+  if (target.platform === "darwin") return [`${APP_NAME}.app`];
+  const cli = target.platform === "windows" ? `${CLI_NAME}.exe` : CLI_NAME;
+  return [target.binaryName, cli];
+}
+
+function archiveArgumentsFor(target) {
+  const flag = target.platform === "linux" ? "-czf" : "-qry";
+  return [flag, target.archivePath, ...archiveFileList(target)];
+}
+
 async function archiveTarget(target, run) {
   assertExistingFile(
     target.outputPath,
@@ -414,14 +427,7 @@ async function archiveTarget(target, run) {
       join(target.targetDirectory, `${APP_NAME}.app`),
     ]);
   }
-  const archiveArguments =
-    target.platform === "linux"
-      ? ["-czf", target.archivePath, target.binaryName]
-      : [
-          "-qry",
-          target.archivePath,
-          target.platform === "darwin" ? `${APP_NAME}.app` : target.binaryName,
-        ];
+  const archiveArguments = archiveArgumentsFor(target);
   const command = target.platform === "linux" ? "tar" : "zip";
   await run(command, archiveArguments, { cwd: target.targetDirectory });
   assertExistingFile(
@@ -455,16 +461,7 @@ function printDryRun(plan, logger) {
     logger(`  ${commandTextForDisplay(command, args)}`);
   for (const target of plan.targets) {
     logger(`  ${commandTextForDisplay(...target.buildCommand)}`);
-    const archiveArguments =
-      target.platform === "linux"
-        ? ["-czf", target.archivePath, target.binaryName]
-        : [
-            "-qry",
-            target.archivePath,
-            target.platform === "darwin"
-              ? `${APP_NAME}.app`
-              : target.binaryName,
-          ];
+    const archiveArguments = archiveArgumentsFor(target);
     logger(
       `  ${commandTextForDisplay(target.platform === "linux" ? "tar" : "zip", archiveArguments)}`,
     );

@@ -70,6 +70,51 @@ export const appKo: Record<string, string> = {
     '이 디스플레이의 MIT-MAGIC-COOKIE-1 인증 정보를 찾지 못했습니다(X Server가 실행 중이 아닐 수 있습니다).',
   'application.x11.reason.server_unreachable': '로컬 X Server에 연결할 수 없습니다.',
   'application.x11.reason.unsupported_platform': '현재 플랫폼에서는 X11 포워딩을 지원하지 않습니다.',
+  'application.cli.title': '명령줄 도구',
+  'application.cli.description':
+    'qterm-cli 명령을 PATH에 설치하여 스크립트와 외부 에이전트가 데스크톱 앱을 통해 저장된 호스트를 다룰 수 있게 합니다. 명령 자체는 데이터베이스나 보관소를 읽지 않고, 모든 기능은 실행 중인 앱이 대리합니다.',
+  'application.cli.binary': 'CLI 실행 파일',
+  'application.cli.binaryHelp':
+    '앱과 함께 배포됩니다. 설치는 PATH 디렉터리에 연결합니다(macOS/Linux는 심볼릭 링크, Windows는 복사본과 사용자 PATH 등록).',
+  'application.cli.install': 'PATH에 설치',
+  'application.cli.reinstall': '다시 설치',
+  'application.cli.uninstall': '제거',
+  'application.cli.installed': '{path}에 설치됨',
+  'application.cli.notInstalled': '설치되지 않음',
+  'application.cli.onPath': '새 터미널에서 qterm-cli를 바로 실행할 수 있습니다',
+  'application.cli.notOnPath': '{dir}이(가) PATH에 없습니다. 셸 설정에 직접 추가하세요',
+  'application.cli.binaryMissing': '앱에 포함된 qterm-cli 실행 파일을 찾을 수 없습니다. 앱을 다시 설치하세요.',
+  'application.cli.skills.title': '에이전트 스킬',
+  'application.cli.skills.description':
+    '~/.agents/skills/qterm/에 SKILL.md를 작성하여 스킬을 지원하는 에이전트(Claude Code, Codex 등)가 qterm-cli 사용법을 알 수 있게 합니다.',
+  'application.cli.skills.install': '쓰기',
+  'application.cli.skills.uninstall': '삭제',
+  'application.cli.skills.installed': '{path}에 작성됨',
+  'application.cli.skills.notInstalled': '아직 작성되지 않음',
+  'application.cli.guard.label': '명령 검사',
+  'application.cli.guard.description':
+    'qterm exec에는 확인 대화상자도, 물어볼 곳도 없습니다. 실행 전에 무엇을 차단할지 여기서 정합니다.',
+  'application.cli.guard.off': '검사 안 함',
+  'application.cli.guard.offHelp': '모든 명령을 실행합니다. 호출자를 완전히 신뢰할 때만 사용하세요.',
+  'application.cli.guard.rules': '명령 규칙 사용',
+  'application.cli.guard.rulesHelp':
+    'AI 어시스턴트 설정의 거부 규칙과 일치하면 차단하고, 확인 규칙과 일치해도 차단합니다(CLI는 확인 창을 띄울 수 없음).',
+  'application.cli.guard.strict': '읽기 전용만',
+  'application.cli.guard.strictHelp':
+    '사용자 규칙 위에 내장 위험 판정을 더해 ls, cat, df 같은 보수적 읽기 전용 명령만 허용합니다.',
+  'application.cli.hint.binaryMissing': '앱에 포함된 CLI 실행 파일이 없습니다. 앱을 다시 설치하세요.',
+  'application.cli.hint.unsupportedPlatform':
+    '이 플랫폼은 원클릭 설치를 지원하지 않습니다. 실행 파일을 PATH 디렉터리에 직접 복사하세요.',
+  'application.cli.hint.notOnPath': '설치되었지만 해당 디렉터리가 PATH에 없습니다. 셸 설정에 직접 추가하세요.',
+  'application.cli.hint.restartShell':
+    'PATH에 추가되었지만 이 터미널은 이전 환경을 사용하고 있습니다. 새 터미널을 연 뒤 사용하세요.',
+  'application.cli.hint.packageManaged': '명령은 시스템 패키지 관리자가 제공하므로 여기서 설치할 필요가 없습니다.',
+  'application.cli.toast.installed': '명령줄 도구가 설치되었습니다',
+  'application.cli.toast.uninstalled': '명령줄 도구가 제거되었습니다',
+  'application.cli.toast.skillsInstalled': '에이전트 스킬이 작성되었습니다',
+  'application.cli.toast.skillsUninstalled': '에이전트 스킬이 삭제되었습니다',
+  'application.cli.toast.settingsSaved': '명령 검사 설정이 저장되었습니다',
+  'application.cli.toast.failed': '작업에 실패했습니다. 다시 시도하세요.',
   'application.sftp.localDirectory': '기본 로컬 디렉터리',
   'application.sftp.localDirectoryPlaceholder': '비워 두면 사용자 홈 디렉터리를 사용합니다',
   'application.sftp.localDirectoryHelp':

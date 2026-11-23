@@ -101,6 +101,8 @@ func (s *Service) startCLIServer(ctx context.Context) error {
 		Version: "qterm",
 
 		Locked: func() bool { return s.appLocked.Load() },
+
+		CommandGate: s.cliCommandGate,
 	})
 	if err != nil {
 		return err

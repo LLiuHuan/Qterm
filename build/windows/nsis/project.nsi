@@ -142,6 +142,10 @@ Section
     ; /nonfatal 让文件缺失时安装继续，应用侧会提示"未安装 RDP helper"。
     File /nonfatal "qterm-freerdp-helper.exe"
 
+    ; 命令行客户端（可选）：与主程序同目录，Go 侧按"可执行文件同目录 qterm-cli.exe"
+    ; 查找。缺失时同样跳过 —— 用户仍可在设置页里看到二进制缺失的提示。
+    File /nonfatal "qterm-cli.exe"
+
     CreateShortcut "$SMPROGRAMS\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
     CreateShortCut "$DESKTOP\${INFO_PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCT_EXECUTABLE}"
 

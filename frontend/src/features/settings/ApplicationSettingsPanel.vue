@@ -12,6 +12,7 @@ import {
   SegmentedTabs,
 } from '@/components/common'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/common/form-controls'
+import CliToolSettings from './CliToolSettings.vue'
 import LocalDataEncryptionSettings from './LocalDataEncryptionSettings.vue'
 import AppLockSettings from '../applock/AppLockSettings.vue'
 import type {
@@ -628,6 +629,8 @@ function updateDragFolderUploadMode(value: string): void {
         </QtermButton>
       </div>
     </div>
+
+    <CliToolSettings class="mt-2" />
 
     <LocalDataEncryptionSettings
       v-if="!props.locked"

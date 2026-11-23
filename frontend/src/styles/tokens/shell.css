@@ -12,8 +12,10 @@
   --qt-control-border: color-mix(in srgb, var(--qt-border) 74%, var(--qt-panel));
   --qt-divider: oklch(from var(--qt-panel) calc(l - 0.115) calc(c * 1.3) h);
 }
+
 .qterm-shell.is-dark,
-.qterm-dialog.is-dark {
+.qterm-dialog.is-dark,
+.terminal-command-completion.is-dark {
   --qt-border: oklch(from var(--qt-panel) calc(l + 0.09) c h);
   --border: var(--qt-border);
   --input: var(--qt-border);
@@ -26,7 +28,8 @@
   --qt-panel: #ffffff;
 }
 .qterm-shell.is-dark,
-.qterm-context-menu.is-dark {
+.qterm-context-menu.is-dark,
+.terminal-command-completion.is-dark {
   --qt-text: #f1f1f3;
   --qt-panel: #151517;
 }
@@ -81,7 +84,8 @@
 .qterm-shell:not(.has-page-background).is-dark.terminal-theme-background-derived {
   --qt-theme-control: var(--qt-theme-6);
 }
-.qterm-shell.is-dark {
+.qterm-shell.is-dark,
+.terminal-command-completion.is-dark {
   --qt-app: #111113;
   --qt-bar: #171719;
   --qt-terminal: #0e0e10;

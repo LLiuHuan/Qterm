@@ -10,6 +10,9 @@ import * as ai$0 from '../ai/models.js'
 import * as applock$0 from '../applock/models.js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as clitool$0 from '../clitool/models.js'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as credential$0 from '../credential/models.js'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -119,12 +122,20 @@ export function AbortTrzszFile(token: string): $CancellablePromise<void> {
   return $Call.ByID(3093642247, token)
 }
 
+export function ApplyCLIToolSettings(settings: clitool$0.Settings): $CancellablePromise<clitool$0.State> {
+  return $Call.ByID(2485964399, settings)
+}
+
 export function ApplySFTPSettings(settings: sftp$0.Settings): $CancellablePromise<void> {
   return $Call.ByID(4027991754, settings)
 }
 
 export function ArchiveSessionHistory(id: string, archived: boolean): $CancellablePromise<void> {
   return $Call.ByID(4170568592, id, archived)
+}
+
+export function CLIToolState(): $CancellablePromise<clitool$0.State> {
+  return $Call.ByID(900594343)
 }
 
 export function CancelDroppedFiles(id: string): $CancellablePromise<void> {
@@ -658,6 +669,14 @@ export function ImportResourceBundleData(data: string | null, password: string):
   return $Call.ByID(2260233215, data, password)
 }
 
+export function InstallCLIToolBinary(): $CancellablePromise<clitool$0.State> {
+  return $Call.ByID(2519083382)
+}
+
+export function InstallCLIToolSkills(): $CancellablePromise<clitool$0.State> {
+  return $Call.ByID(2323509825)
+}
+
 export function KillTmuxSession(sessionID: string, name: string): $CancellablePromise<void> {
   return $Call.ByID(1605746620, sessionID, name)
 }
@@ -1157,6 +1176,10 @@ export function RebindSession(id: string): $CancellablePromise<session$0.OpenSes
   return $Call.ByID(2173601416, id)
 }
 
+export function ReleaseTrzszDownloadDirectory(token: string): $CancellablePromise<void> {
+  return $Call.ByID(1898881063, token)
+}
+
 export function ReleaseZmodemFile(token: string): $CancellablePromise<void> {
   return $Call.ByID(1943757433, token)
 }
@@ -1579,6 +1602,14 @@ export function TrustSessionHostKey(id: string): $CancellablePromise<session$0.O
 
 export function TypeCredentialIntoSession(sessionID: string, credentialID: string): $CancellablePromise<void> {
   return $Call.ByID(1258321875, sessionID, credentialID)
+}
+
+export function UninstallCLIToolBinary(): $CancellablePromise<clitool$0.State> {
+  return $Call.ByID(3397139601)
+}
+
+export function UninstallCLIToolSkills(): $CancellablePromise<clitool$0.State> {
+  return $Call.ByID(2335934638)
 }
 
 export function UnlockAutomatically(): $CancellablePromise<credential$0.CredentialVaultStatus> {

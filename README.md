@@ -84,27 +84,29 @@ Qterm 是基于 **Go、Wails v3、Vue 3 和 TypeScript** 构建的桌面连接�
 
 ### 外部 CLI
 
-桌面端会在本机启动一个只监听 `127.0.0.1` 的命令行服务，并把「端口 + 一次性 token」写进用户配置目录的 `cli.json`（权限 0600，退出时删除）。`qterm` 命令行读这个文件，用同一份资产与会话能力工作，适合被 Codex、Claude 这类外部工具调用。
+桌面端会在本机启动一个只监听 `127.0.0.1` 的命令行服务，并把「端口 + 一次性 token」写进用户配置目录的 `cli.json`（权限 0600，退出时删除）。`qterm-cli` 命令行读这个文件，用同一份资产与会话能力工作，适合被 Codex、Claude 这类外部工具调用。
+
+安装包会自带这个客户端；在设置 → 应用 → 命令行工具里可以一键装进 PATH（macOS/Linux 建符号链接，Windows 复制副本并登记用户 PATH），也可以顺手写出 `~/.agents/skills/qterm/SKILL.md` 供支持 skills 的智能体读取。
 
 ```sh
-go build -o bin/qterm ./cmd/qterm      # 构建客户端
+task common:build:cli                   # 从源码构建客户端（产物 bin/qterm-cli）
 
-qterm status                            # 服务是否可用、资产/会话计数
-qterm hosts --query web                 # 按关键字查资产（不含任何凭据）
-qterm sessions                          # 当前已打开的会话
-qterm open <hostID>                     # 打开一个会话
-qterm exec <sessionID> -- df -h         # 在会话上执行命令（仅 SSH）
-qterm sftp ls <sessionID> /etc          # 列远端目录
-qterm sftp read <sessionID> /etc/hosts  # 读远端文本
-qterm shell <sessionID>                 # 交互式终端（vim/top 等全屏程序可用）
-qterm close <sessionID>
+qterm-cli status                        # 服务是否可用、资产/会话计数
+qterm-cli hosts --query web             # 按关键字查资产（不含任何凭据）
+qterm-cli sessions                      # 当前已打开的会话
+qterm-cli open <hostID>                 # 打开一个会话
+qterm-cli exec <sessionID> -- df -h     # 在会话上执行命令（仅 SSH）
+qterm-cli sftp ls <sessionID> /etc      # 列远端目录
+qterm-cli sftp read <sessionID> /etc/hosts  # 读远端文本
+qterm-cli shell <sessionID>             # 交互式终端（vim/top 等全屏程序可用）
+qterm-cli close <sessionID>
 ```
 
 - `--json` 让 stdout 只输出 JSON，便于程序解析；`--timeout` 覆盖默认 130 秒。
 - 退出码：`0` 成功、`1` 用法错误、`2` 连接不到应用、`3` 握手文件缺失或过期、`4` 未授权、`5` 业务错误。
 - 服务端限制：请求体 1 MiB、命令 8 KiB、SFTP 读 64 KiB / 写 256 KiB、目录 300 条；写入用 `expectedHash` 做乐观并发，冲突时不覆盖。
 - 应用未运行、应用锁屏或握手文件被删除时，客户端会直接失败而不是排队等待。
-- `qterm shell` 走一条**独立的** PTY 通道，不会顶掉应用里正在看的那个终端；`Ctrl-D` 或远端 `exit` 结束，窗口缩放会自动同步（Windows 无缩放事件）。
+- `qterm-cli shell` 走一条**独立的** PTY 通道，不会顶掉应用里正在看的那个终端；`Ctrl-D` 或远端 `exit` 结束，窗口缩放会自动同步（Windows 无缩放事件）。
 
 ### AI 助手
 

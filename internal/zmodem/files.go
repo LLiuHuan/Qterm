@@ -13,8 +13,11 @@ import (
 	"changeme/internal/model"
 )
 
-const maxChunk = 64 << 10
-const maxDownload = 256 << 20
+const (
+	maxReadChunk  = 512 << 10
+	maxWriteChunk = 64 << 10
+	maxDownload   = 256 << 20
+)
 
 type LocalFile struct {
 	Conflict bool   `json:"conflict"`
@@ -43,6 +46,14 @@ type Manager struct {
 func NewManager() *Manager { return &Manager{files: make(map[string]*localFile)} }
 
 func (m *Manager) OpenUpload(ctx context.Context, path string) (LocalFile, error) {
+	return m.openUpload(ctx, path, 1<<32-1)
+}
+
+func (m *Manager) OpenTrzszUpload(ctx context.Context, path string) (LocalFile, error) {
+	return m.openUpload(ctx, path, 1<<53-1)
+}
+
+func (m *Manager) openUpload(ctx context.Context, path string, maxSize int64) (LocalFile, error) {
 	if err := ctx.Err(); err != nil {
 		return LocalFile{}, err
 	}
@@ -50,7 +61,7 @@ func (m *Manager) OpenUpload(ctx context.Context, path string) (LocalFile, error
 	if err != nil {
 		return LocalFile{}, fileError(err)
 	}
-	if !info.Mode().IsRegular() || info.Size() > 0xffffffff {
+	if !info.Mode().IsRegular() || info.Size() > maxSize {
 		return LocalFile{}, invalidFile()
 	}
 	f, err := os.Open(path)
@@ -91,7 +102,7 @@ func (m *Manager) Read(ctx context.Context, token string, offset int64, length i
 		return nil, err
 	}
 	defer release()
-	if f.target != "" || offset < 0 || offset > f.size || length <= 0 || length > maxChunk {
+	if f.target != "" || offset < 0 || offset > f.size || length <= 0 || length > maxReadChunk {
 		return nil, invalidFile()
 	}
 	data := make([]byte, min(int64(length), f.size-offset))
@@ -106,7 +117,7 @@ func (m *Manager) Read(ctx context.Context, token string, offset int64, length i
 }
 
 func (m *Manager) Write(ctx context.Context, token string, offset int64, data []byte) error {
-	if len(data) == 0 || len(data) > maxChunk {
+	if len(data) == 0 || len(data) > maxWriteChunk {
 		return invalidFile()
 	}
 	f, release, err := m.acquire(ctx, token)
