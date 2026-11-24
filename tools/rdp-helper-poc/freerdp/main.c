@@ -28,10 +28,42 @@
 // Windows 没有 unistd.h / poll.h：本文件跨平台只用到 fileno() 与 getppid()，
 // 前者在 Windows 上是 <io.h> 的 _fileno，后者在 Windows 上没有对应语义（见 helper_parent_gone）。
 #ifdef _WIN32
+// 必须先定义 WIN32_LEAN_AND_MEAN 再进 <winsock2.h>：winsock2.h 会先把完整的
+// <windows.h> 拽进来，而完整版会连带 <shellapi.h>，后者把 NIIF_NONE / NIIF_INFO /
+// NIIF_WARNING / NIIF_ERROR 定义成宏；随后 FreeRDP 的 freerdp/rail.h 里
+// TS_RAIL_NIIF 枚举用同名成员，宏展开后变成 "0x00000000 = 0x00000000"，
+// MSVC 直接报 rail.h(57,2): error C2059: syntax error: 'constant'。
+// WinPR 自己在 winpr/windows.h 里也是这么处理的（先 define 再 include <windows.h>），
+// 但我们这行 winsock2.h 排在它前面，把「第一次包含 windows.h」抢走了。
+// 保持 lean：PeekNamedPipe / Sleep / InterlockedCompareExchangePointer / WSAStartup
+// 都在 winbase.h 与 winsock2.h 里，不受影响。
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <winsock2.h>
 #include <fcntl.h>
 #include <io.h>
 #include <process.h>
+// 双保险：即便将来有别的头又把 <shellapi.h> 拽回来，也先把这几个与
+// freerdp/rail.h 的 TS_RAIL_NIIF 枚举成员同名的宏清掉，避免上面的 C2059 再次出现。
+#ifdef NIIF_NONE
+#undef NIIF_NONE
+#endif
+#ifdef NIIF_INFO
+#undef NIIF_INFO
+#endif
+#ifdef NIIF_WARNING
+#undef NIIF_WARNING
+#endif
+#ifdef NIIF_ERROR
+#undef NIIF_ERROR
+#endif
+#ifdef NIIF_NOSOUND
+#undef NIIF_NOSOUND
+#endif
+#ifdef NIIF_LARGE_ICON
+#undef NIIF_LARGE_ICON
+#endif
 #define HELPER_STDIN_FD() _fileno(stdin)
 #else
 #include <poll.h>
