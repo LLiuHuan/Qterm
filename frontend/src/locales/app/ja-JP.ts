@@ -76,7 +76,7 @@ export const appJa: Record<string, string> = {
     'qterm-cli コマンドを PATH に入れ、スクリプトや外部エージェントがデスクトップアプリ経由で保存済みホストを操作できるようにします。コマンド自体はデータベースも保管庫も読まず、すべての機能は実行中のアプリが代理します。',
   'application.cli.binary': 'CLI バイナリ',
   'application.cli.binaryHelp':
-    'アプリに同梱されます。インストールは PATH ディレクトリに接続します（macOS/Linux はシンボリックリンク、Windows はコピーとユーザー PATH への登録）。',
+    'アプリに同梱されます。インストールは PATH ディレクトリに接続します（macOS/Linux はシンボリックリンクで、ディレクトリが PATH にない場合はシェル設定に追記、Windows はコピーとユーザー PATH への登録）。',
   'application.cli.install': 'PATH にインストール',
   'application.cli.reinstall': '再インストール',
   'application.cli.uninstall': '削除',
@@ -111,6 +111,7 @@ export const appJa: Record<string, string> = {
     'インストール済みですが、そのディレクトリが PATH にありません。シェル設定に手動で追加してください。',
   'application.cli.hint.restartShell':
     'PATH に追加しましたが、このターミナルは古い環境のままです。新しいターミナルを開いてから使用してください。',
+  'application.cli.hint.shellPathUpdated': 'ディレクトリを {file} に追加しました。新しいターミナルを開くと使えます。',
   'application.cli.hint.packageManaged':
     'コマンドはシステムのパッケージマネージャーが提供しているため、ここでインストールする必要はありません。',
   'application.cli.toast.installed': 'コマンドラインツールをインストールしました',

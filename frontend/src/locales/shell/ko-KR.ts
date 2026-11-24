@@ -1761,7 +1761,7 @@ export const shellUiKo: Record<string, string> = {
   'shell.rdp.logState': '상태',
   'shell.rdp.logAction': '최근 작업',
   'shell.rdp.logEmpty': '(원격 데스크톱 구성 요소의 출력이 아직 없습니다)',
-  'shell.rdp.logCopy': '전체 복사',
+  'shell.rdp.logCopy': '복사',
   'shell.rdp.pasteToRemote': '원격에 붙여넣기',
   'shell.rdp.copyFromRemote': '원격에서 복사',
   'shell.rdp.openWindow': '별도 창에서 열기',

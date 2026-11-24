@@ -1788,7 +1788,7 @@ export const shellUiJa: Record<string, string> = {
   'shell.rdp.logState': '状態',
   'shell.rdp.logAction': '直近の操作',
   'shell.rdp.logEmpty': '（リモートデスクトップコンポーネントの出力はまだありません）',
-  'shell.rdp.logCopy': 'すべてコピー',
+  'shell.rdp.logCopy': 'コピー',
   'shell.rdp.pasteToRemote': 'リモートに貼り付け',
   'shell.rdp.copyFromRemote': 'リモートからコピー',
   'shell.rdp.openWindow': '別ウィンドウで開く',

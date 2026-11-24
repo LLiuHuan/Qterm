@@ -55,11 +55,23 @@ const installedPath = computed(() => {
 })
 
 const hintText = computed(() => {
-  const key = state.value?.hintKey ?? ''
-  return key ? t(`application.cli.hint.${key}`) : ''
+  const snapshot = state.value
+  const key = snapshot?.hintKey ?? ''
+  if (!key) return ''
+  return snapshot?.pathFile
+    ? t(`application.cli.hint.${key}`, { file: snapshot.pathFile })
+    : t(`application.cli.hint.${key}`)
 })
 
-const hintIsError = computed(() => state.value?.hintKey === 'binaryMissing')
+const HINT_ERROR_KEYS: readonly string[] = [
+  'binaryMissing',
+  'unsupportedPlatform',
+  'notOnPath',
+  'restartShell',
+  'shellPathUpdated',
+]
+
+const hintIsError = computed(() => HINT_ERROR_KEYS.includes(state.value?.hintKey ?? ''))
 
 function describeError(cause: unknown): string {
   const message = errorMessage(cause, '')

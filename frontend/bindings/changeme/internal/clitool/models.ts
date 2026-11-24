@@ -19,6 +19,8 @@ export interface State {
 
   onPath: boolean
 
+  pathFile?: string
+
   skillsPath: string
   skillsInstalled: boolean
 

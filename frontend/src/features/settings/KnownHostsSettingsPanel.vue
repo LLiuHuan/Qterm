@@ -160,7 +160,7 @@ onMounted(() => void load())
           class="settings-library-row flex min-w-0 items-center gap-3 rounded-md border-d px-3 py-2"
           data-known-host-row
         >
-          <ShieldAlert v-if="entry.marker" :size="18" class="shrink-0 text-qt-warning" aria-hidden="true" />
+          <ShieldAlert v-if="entry.marker" :size="18" class="shrink-0 text-qt-danger" aria-hidden="true" />
           <ShieldCheck v-else :size="18" class="shrink-0 text-qt-muted" aria-hidden="true" />
           <div class="flex min-w-0 flex-1 flex-col gap-0.5">
             <div class="flex min-w-0 items-center gap-2">
@@ -168,7 +168,7 @@ onMounted(() => void load())
               <span class="shrink-0 rounded-full border-d bg-qt-subtle px-2 text-xs leading-4 text-qt-muted">{{
                 entry.keyType
               }}</span>
-              <span v-if="entry.marker" class="shrink-0 rounded-full border-d px-2 text-xs leading-4 text-qt-warning">{{
+              <span v-if="entry.marker" class="shrink-0 rounded-full border-d px-2 text-xs leading-4 text-qt-danger">{{
                 entry.marker
               }}</span>
               <span

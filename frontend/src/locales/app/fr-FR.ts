@@ -78,7 +78,7 @@ export const appFr: Record<string, string> = {
     "Installez la commande qterm-cli dans le PATH pour que les scripts et agents externes pilotent les hôtes enregistrés via l'application. La commande ne lit ni la base de données ni le coffre : toutes les capacités sont fournies par l'application en cours d'exécution.",
   'application.cli.binary': 'Binaire CLI',
   'application.cli.binaryHelp':
-    "Fourni avec l'application ; l'installation la place dans un répertoire du PATH (lien symbolique sous macOS et Linux, copie et entrée PATH utilisateur sous Windows).",
+    "Fourni avec l'application ; l'installation la place dans un répertoire du PATH (lien symbolique sous macOS et Linux, avec ajout au profil du shell quand ce répertoire n'est pas dans le PATH ; copie et entrée PATH utilisateur sous Windows).",
   'application.cli.install': 'Installer dans le PATH',
   'application.cli.reinstall': 'Réinstaller',
   'application.cli.uninstall': 'Supprimer',
@@ -112,6 +112,8 @@ export const appFr: Record<string, string> = {
     "Installé, mais son répertoire n'est pas dans le PATH ; ajoutez-le manuellement à votre profil de shell.",
   'application.cli.hint.restartShell':
     'Ajouté au PATH, mais ce terminal utilise encore l’ancien environnement. Ouvrez un nouveau terminal avant de l’utiliser.',
+  'application.cli.hint.shellPathUpdated':
+    'Le répertoire a été ajouté à {file} ; ouvrez un nouveau terminal pour l’utiliser.',
   'application.cli.hint.packageManaged':
     'La commande est fournie par le gestionnaire de paquets du système, il n’y a rien à installer ici.',
   'application.cli.toast.installed': 'Outil en ligne de commande installé',

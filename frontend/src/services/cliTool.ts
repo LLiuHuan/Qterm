@@ -11,6 +11,8 @@ export interface CliToolState {
 
   removable: boolean
   onPath: boolean
+
+  pathFile?: string
   skillsPath: string
   skillsInstalled: boolean
   settings: CliToolSettings
@@ -44,6 +46,7 @@ function normalizeState(state: {
   installed?: boolean
   removable?: boolean
   onPath?: boolean
+  pathFile?: string
   skillsPath?: string
   skillsInstalled?: boolean
   settings?: { execGuard?: string }
@@ -59,6 +62,7 @@ function normalizeState(state: {
     installed: state.installed === true,
     removable: state.removable === true,
     onPath: state.onPath === true,
+    pathFile: state.pathFile ?? '',
     skillsPath: state.skillsPath ?? '',
     skillsInstalled: state.skillsInstalled === true,
     settings: { execGuard: normalizeGuard(state.settings?.execGuard) },

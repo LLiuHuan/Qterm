@@ -256,9 +256,10 @@ function providerLabel(provider: AIProvider): string {
               <span class="shrink-0 rounded-full border-d bg-qt-subtle px-2 text-xs leading-4 text-qt-muted">{{
                 typeLabel(provider.type)
               }}</span>
+
               <span
                 v-if="keyStatus[provider.id] === false"
-                class="shrink-0 rounded-full border-d px-2 text-xs leading-4 text-qt-warning"
+                class="shrink-0 rounded-full border-d px-2 text-xs leading-4 text-qt-danger"
                 data-ai-key-missing
                 >{{ t('settings.ai.keyMissing') }}</span
               >

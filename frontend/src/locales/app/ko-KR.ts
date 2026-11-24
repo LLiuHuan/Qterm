@@ -75,7 +75,7 @@ export const appKo: Record<string, string> = {
     'qterm-cli 명령을 PATH에 설치하여 스크립트와 외부 에이전트가 데스크톱 앱을 통해 저장된 호스트를 다룰 수 있게 합니다. 명령 자체는 데이터베이스나 보관소를 읽지 않고, 모든 기능은 실행 중인 앱이 대리합니다.',
   'application.cli.binary': 'CLI 실행 파일',
   'application.cli.binaryHelp':
-    '앱과 함께 배포됩니다. 설치는 PATH 디렉터리에 연결합니다(macOS/Linux는 심볼릭 링크, Windows는 복사본과 사용자 PATH 등록).',
+    '앱과 함께 배포됩니다. 설치는 PATH 디렉터리에 연결합니다(macOS/Linux는 심볼릭 링크이며 디렉터리가 PATH에 없으면 셸 시작 파일에 추가, Windows는 복사본과 사용자 PATH 등록).',
   'application.cli.install': 'PATH에 설치',
   'application.cli.reinstall': '다시 설치',
   'application.cli.uninstall': '제거',
@@ -108,6 +108,7 @@ export const appKo: Record<string, string> = {
   'application.cli.hint.notOnPath': '설치되었지만 해당 디렉터리가 PATH에 없습니다. 셸 설정에 직접 추가하세요.',
   'application.cli.hint.restartShell':
     'PATH에 추가되었지만 이 터미널은 이전 환경을 사용하고 있습니다. 새 터미널을 연 뒤 사용하세요.',
+  'application.cli.hint.shellPathUpdated': '디렉터리를 {file}에 추가했습니다. 새 터미널을 열면 사용할 수 있습니다.',
   'application.cli.hint.packageManaged': '명령은 시스템 패키지 관리자가 제공하므로 여기서 설치할 필요가 없습니다.',
   'application.cli.toast.installed': '명령줄 도구가 설치되었습니다',
   'application.cli.toast.uninstalled': '명령줄 도구가 제거되었습니다',

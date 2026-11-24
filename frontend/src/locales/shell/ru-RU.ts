@@ -1799,7 +1799,7 @@ export const shellUiRu: Record<string, string> = {
   'shell.rdp.logState': 'Состояние',
   'shell.rdp.logAction': 'Последнее действие',
   'shell.rdp.logEmpty': '(вывод компонента удалённого рабочего стола пока отсутствует)',
-  'shell.rdp.logCopy': 'Копировать всё',
+  'shell.rdp.logCopy': 'Копировать',
   'shell.rdp.pasteToRemote': 'Вставить на удалённой стороне',
   'shell.rdp.copyFromRemote': 'Копировать с удалённой стороны',
   'shell.rdp.openWindow': 'Открыть в отдельном окне',

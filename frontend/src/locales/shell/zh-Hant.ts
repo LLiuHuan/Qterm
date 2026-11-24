@@ -1688,7 +1688,7 @@ export const shellUiZhHant: Record<string, string> = {
   'shell.rdp.logState': '狀態',
   'shell.rdp.logAction': '最近操作',
   'shell.rdp.logEmpty': '（遠端桌面元件暫無輸出）',
-  'shell.rdp.logCopy': '複製全部',
+  'shell.rdp.logCopy': '複製',
   'shell.rdp.pasteToRemote': '貼上到遠端',
   'shell.rdp.copyFromRemote': '複製遠端',
   'shell.rdp.openWindow': '在獨立視窗開啟',

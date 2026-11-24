@@ -397,7 +397,7 @@ const previewRules = computed(() => props.rules)
         </div>
       </VueDraggable>
     </div>
-    <p v-if="importError && !importOpen" class="dialog-error text-xs" role="alert">{{ importError }}</p>
+    <p v-if="importError && !importOpen" class="dialog-error text-xs text-qt-danger" role="alert">{{ importError }}</p>
   </section>
 
   <QtermDialog :open="importOpen" @update:open="(open) => (importOpen = open)">
@@ -422,7 +422,7 @@ const previewRules = computed(() => props.rules)
           :aria-invalid="Boolean(importError)"
         />
         <p class="keyword-highlight-import-hint text-xs">{{ t('settings.keywordHighlight.dialog.hint') }}</p>
-        <p v-if="importError" class="dialog-error text-xs" role="alert">{{ importError }}</p>
+        <p v-if="importError" class="dialog-error text-xs text-qt-danger" role="alert">{{ importError }}</p>
       </div>
       <QtermDialogFooter>
         <QtermButton variant="outline" type="button" @click="importOpen = false">{{

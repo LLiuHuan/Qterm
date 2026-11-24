@@ -863,8 +863,10 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     isAdHocHostId(activeSession.value?.hostId) ? ADHOC_UNSUPPORTED_TOOL_PANELS : [],
   )
 
+  const PROTOCOL_AGNOSTIC_TOOL_PANELS: readonly ToolPanel[] = ['snippets', 'themes', 'ai']
+
   function canOpenToolPanel(tool: ToolPanel): boolean {
-    if (activeSession.value?.kind === 'local') return tool === 'snippets' || tool === 'themes'
+    if (activeSession.value?.kind === 'local') return PROTOCOL_AGNOSTIC_TOOL_PANELS.includes(tool)
     if (!sshCapable.value && SSH_ONLY_TOOL_PANELS.includes(tool)) return false
     if (unsupportedToolPanels.value.includes(tool)) return false
     return true
@@ -1129,13 +1131,8 @@ export function useQtermShell(options: QtermShellOptions = {}) {
     () => activeSession.value?.kind,
     (kind) => {
       if (activeTool.value === null) return
-      if (kind === 'local') {
-        if (activeTool.value !== 'snippets') activeTool.value = 'snippets'
-        return
-      }
-      if (kind === 'telnet' && SSH_ONLY_TOOL_PANELS.includes(activeTool.value)) {
-        activeTool.value = null
-      }
+      if (canOpenToolPanel(activeTool.value)) return
+      activeTool.value = kind === 'local' ? 'snippets' : null
     },
   )
 

@@ -594,7 +594,9 @@ function updateOpacity(kind: 'light' | 'dark', value: string | number): void {
             @scroll="handleUiFontScroll"
           >
             <template v-if="uiFontError" #footer>
-              <div class="terminal-font-status text-xs">{{ uiFontError }}</div>
+              <div class="terminal-font-status text-xs">
+                <span class="text-qt-danger">{{ uiFontError }}</span>
+              </div>
             </template>
           </QtermCombobox>
         </div>
@@ -706,7 +708,7 @@ function updateOpacity(kind: 'light' | 'dark', value: string | number): void {
             /></QtermButton>
             <small class="text-xs" v-if="selectedImageNames.light">{{ selectedImageNames.light }}</small>
           </div>
-          <p v-if="imageError" class="dialog-error text-xs">{{ imageError }}</p>
+          <p v-if="imageError" class="dialog-error text-xs text-qt-danger">{{ imageError }}</p>
           <label class="settings-field-label grid gap-1.5 text-qt-muted text-sm"
             ><span
               >{{ t('appearance.core.backgroundOpacity') }} <output>{{ props.lightBackgroundOpacity }}%</output></span
@@ -761,7 +763,7 @@ function updateOpacity(kind: 'light' | 'dark', value: string | number): void {
             /></QtermButton>
             <small class="text-xs" v-if="selectedImageNames.dark">{{ selectedImageNames.dark }}</small>
           </div>
-          <p v-if="imageError" class="dialog-error text-xs">{{ imageError }}</p>
+          <p v-if="imageError" class="dialog-error text-xs text-qt-danger">{{ imageError }}</p>
           <label class="settings-field-label grid gap-1.5 text-qt-muted text-sm"
             ><span
               >{{ t('appearance.core.backgroundOpacity') }} <output>{{ props.darkBackgroundOpacity }}%</output></span

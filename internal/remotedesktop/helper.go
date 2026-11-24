@@ -10,10 +10,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +46,10 @@ const (
 
 	helperExitReasonStdinEOF   = "stdin-eof"
 	helperExitReasonCloseEvent = "close-event"
+
+	helperExitReasonConnectFailedPrefix = "connect-failed:0x"
+
+	remoteConnectProbeTimeout = 2 * time.Second
 
 	helperClipboardMaxBytes = 1 << 20
 
@@ -171,7 +177,8 @@ func helperBinaryPath(engine HelperEngine) (string, error) {
 		}
 		return override, nil
 	}
-	for _, candidate := range helperCandidates(relative) {
+	candidates := helperCandidates(relative)
+	for _, candidate := range candidates {
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate, nil
 		}
@@ -183,7 +190,19 @@ func helperBinaryPath(engine HelperEngine) (string, error) {
 	if engine == HelperEngineFreeRDP {
 		hint = "cmake -S tools/rdp-helper-poc/freerdp -B tools/rdp-helper-poc/freerdp/build ... && cmake --build tools/rdp-helper-poc/freerdp/build"
 	}
-	return "", fmt.Errorf("%w：%s（请先构建：%s；或用 %s 指定路径）", ErrHelperMissing, engine, hint, envKey)
+	return "", helperMissingError(engine, name, candidates, envKey, hint)
+}
+
+func helperMissingError(engine HelperEngine, name string, candidates []string, envKey, hint string) error {
+	const limit = 6
+	searched := candidates
+	suffix := ""
+	if len(searched) > limit {
+		searched = searched[:limit]
+		suffix = "；…"
+	}
+	return fmt.Errorf("%w：%s（按顺序找过：%s%s；也在 PATH 里找 %s；或把路径写进环境变量 %s；本地构建：%s）",
+		ErrHelperMissing, engine, strings.Join(searched, "；"), suffix, name, envKey, hint)
 }
 
 func helperCandidates(relative string) []string {
@@ -292,8 +311,11 @@ type helperSession struct {
 	exitCode int
 
 	exitReason string
-	startedAt  time.Time
-	frameSeen  bool
+
+	host      string
+	port      int
+	startedAt time.Time
+	frameSeen bool
 
 	firstFrameTimeout time.Duration
 }
@@ -305,6 +327,8 @@ func openHelperSession(ctx context.Context, engine HelperEngine, options Session
 	}
 
 	command := exec.Command(path)
+
+	hideHelperProcessWindow(command)
 
 	command.Env = helperEnvironment(os.Environ(), options.CertificateFingerprint, options.DynamicResolutionDisabled, options.Clipboard)
 	stdin, err := command.StdinPipe()
@@ -327,6 +351,12 @@ func openHelperSession(ctx context.Context, engine HelperEngine, options Session
 		return nil, fmt.Errorf("启动 %s helper 失败: %w", engine, err)
 	}
 
+	slog.Info("remote desktop helper started", "event", "rdp.helper.started",
+		"engine", engine,
+		"helper", path,
+		"target", net.JoinHostPort(options.Host, strconv.Itoa(int(options.Port))),
+	)
+
 	session := &helperSession{
 		engine:    engine,
 		cmd:       command,
@@ -335,6 +365,8 @@ func openHelperSession(ctx context.Context, engine HelperEngine, options Session
 		height:    int(options.Height),
 		jsonInput: engine == HelperEngineIronRDP,
 		startedAt: time.Now(),
+		host:      options.Host,
+		port:      int(options.Port),
 
 		certificate: CertificateStatus{State: CertificateStateUnknown},
 		stderrDone:  make(chan struct{}),
@@ -386,7 +418,8 @@ func (s *helperSession) sendConnectionOptions(options SessionOptions) error {
 	}
 
 	arguments := []string{
-		fmt.Sprintf("/v:%s:%d", options.Host, options.Port),
+
+		fmt.Sprintf("/v:%s:%d", strings.TrimSpace(options.Host), options.Port),
 		"/u:" + options.Username,
 		"/p:" + options.Password,
 		fmt.Sprintf("/size:%dx%d", width, height),
@@ -441,7 +474,8 @@ func (s *helperSession) captureStderr(reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1<<20)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+
+		line := strings.TrimSpace(decodeHelperStderrLine(scanner.Bytes()))
 		if line == "" {
 			continue
 		}
@@ -685,10 +719,36 @@ func (s *helperSession) recordError(err error) {
 	if errors.Is(err, io.EOF) || errors.Is(err, os.ErrClosed) {
 		s.mu.Lock()
 		reason := s.exitReason
+		exitCode := s.exitCode
 		frames := s.frames
 		stderrTail := append([]string(nil), s.stderrTail...)
 		s.mu.Unlock()
-		err = errors.New(helperExitFailureDescription(reason, frames, stderrTail))
+		var description string
+		if code, ok := helperConnectFailureCode(reason, exitCode); ok {
+			if frames > 0 {
+
+				description = fmt.Sprintf("画面已出过 %d 帧后会话中断：%s（FreeRDP 最后错误 0x%08X）",
+					frames, freeRDPConnectFailureText(code), code)
+			} else {
+				description = helperConnectFailureForCode(code)
+			}
+
+			if target := s.quotedTarget(); target != "" {
+				description += "；目标 " + target
+			}
+			if cause := helperStderrCauseLine(stderrTail); cause != "" {
+				description += "；关键日志：" + cause
+			}
+
+			if frames == 0 {
+				description += s.connectProbeHint()
+			} else {
+				description += "；会话建立过、画面也出过，这个错误码可能只是重连阶段记录的最后错误，可直接重试"
+			}
+		} else {
+			description = helperExitFailureDescription(reason, frames, stderrTail)
+		}
+		err = errors.New(description)
 	}
 	s.mu.Lock()
 	if s.err == nil && !s.closed {
@@ -712,9 +772,115 @@ func helperExitDescription(reason string) string {
 		return "helper 进程已退出（未上报退出原因）"
 	case helperExitWasRequested(trimmed):
 		return fmt.Sprintf("helper 进程已退出（正常关闭：%s）", trimmed)
+	case helperIsConnectFailure(trimmed):
+		return helperConnectFailureDescription(trimmed)
 	default:
 		return fmt.Sprintf("helper 进程已退出（意外退出：%s）", trimmed)
 	}
+}
+
+func helperIsConnectFailure(reason string) bool {
+	return strings.HasPrefix(strings.TrimSpace(reason), helperExitReasonConnectFailedPrefix)
+}
+
+func helperConnectFailureDescription(reason string) string {
+	code, ok := parseFreeRDPConnectErrorCode(reason)
+	if !ok {
+		return fmt.Sprintf("连接远端失败（FreeRDP 错误码无法解析：%s）", reason)
+	}
+	return helperConnectFailureForCode(code)
+}
+
+func helperConnectFailureForCode(code uint32) string {
+	return fmt.Sprintf("连接远端失败：%s（FreeRDP 错误码 0x%08X）", freeRDPConnectFailureText(code), code)
+}
+
+func helperConnectFailureCode(reason string, exitCode int) (uint32, bool) {
+	if code, ok := parseFreeRDPConnectErrorCode(reason); ok {
+		return code, true
+	}
+	if strings.TrimSpace(reason) != "" || exitCode <= 0xFF {
+		return 0, false
+	}
+	value := uint32(exitCode)
+	if value>>16 != freeRDPConnectErrorClass {
+		return 0, false
+	}
+	return value, true
+}
+
+func parseFreeRDPConnectErrorCode(reason string) (uint32, bool) {
+	trimmed := strings.TrimSpace(reason)
+	if !strings.HasPrefix(trimmed, helperExitReasonConnectFailedPrefix) {
+		return 0, false
+	}
+	value, err := strconv.ParseUint(strings.TrimPrefix(trimmed, helperExitReasonConnectFailedPrefix), 16, 32)
+	if err != nil {
+		return 0, false
+	}
+	return uint32(value), true
+}
+
+const freeRDPConnectErrorClass = 2
+
+var freeRDPConnectFailureTexts = map[uint32]string{
+	0x00020001: "连接前的准备阶段就中断了（PRE_CONNECT_FAILED）",
+	0x00020002: "连接失败（CONNECT_UNDEFINED）",
+	0x00020003: "连接刚建立就被断开（POST_CONNECT_FAILED）",
+	0x00020004: "域名解析出错（DNS_ERROR）",
+	0x00020005: "域名解析没有结果（DNS_NAME_NOT_FOUND）：这台机器解析不出目标地址，通常是 DNS、代理或 VPN 的问题",
+	0x00020006: "TCP 连接失败（CONNECT_FAILED）：地址或端口不通，或被防火墙拦截",
+	0x00020007: "MCS 协商失败（MCS_CONNECT_INITIAL_ERROR）",
+	0x00020008: "TLS 握手失败（TLS_CONNECT_FAILED）：安全层设置与服务端不匹配，或连接被代理/中间设备替换",
+	0x00020009: "身份验证失败（AUTHENTICATION_FAILED）",
+	0x0002000A: "权限不足（INSUFFICIENT_PRIVILEGES）：该账号可能不允许远程登录",
+	0x0002000B: "连接被取消（CONNECT_CANCELLED）",
+	0x0002000C: "安全协商失败（SECURITY_NEGO_CONNECT_FAILED）",
+	0x0002000D: "传输层连接失败（CONNECT_TRANSPORT_FAILED）",
+	0x0002000E: "密码已过期（PASSWORD_EXPIRED）",
+	0x0002000F: "密码必须立即修改（PASSWORD_CERTAINLY_EXPIRED）",
+	0x00020011: "找不到域控制器（KDC_UNREACHABLE）",
+	0x00020012: "账号已被禁用（ACCOUNT_DISABLED）",
+	0x00020013: "密码必须先修改才能登录（PASSWORD_MUST_CHANGE）",
+	0x00020014: "用户名或密码错误（LOGON_FAILURE）",
+	0x00020015: "密码错误（WRONG_PASSWORD）",
+	0x00020016: "拒绝访问（ACCESS_DENIED）",
+	0x0002001B: "缺少凭据（NO_OR_MISSING_CREDENTIALS）",
+	0x0002001C: "激活超时（ACTIVATION_TIMEOUT）",
+	0x0002001D: "目标机正在启动（TARGET_BOOTING）：稍等再试",
+}
+
+func freeRDPConnectFailureText(code uint32) string {
+	if text, ok := freeRDPConnectFailureTexts[code]; ok {
+		return text
+	}
+	return "未收录的 FreeRDP 连接错误"
+}
+
+func (s *helperSession) quotedTarget() string {
+	host := strings.TrimSpace(s.host)
+	if host == "" {
+		return ""
+	}
+	return fmt.Sprintf("%q", net.JoinHostPort(host, strconv.Itoa(s.port)))
+}
+
+func (s *helperSession) connectProbeHint() string {
+	if s.host == "" || s.port <= 0 {
+		return ""
+	}
+
+	if _, err := net.LookupHost(strings.TrimSpace(s.host)); err != nil {
+		return fmt.Sprintf("（本机连 %q 都解析不了：%v；请检查主机名里是否混入了空格或全角字符）",
+			s.host, err)
+	}
+	address := net.JoinHostPort(s.host, strconv.Itoa(s.port))
+	connection, err := net.DialTimeout("tcp", address, remoteConnectProbeTimeout)
+	if err != nil {
+		return fmt.Sprintf("（本机直连 %s 失败：%v；请先确认网络、VPN 或系统代理再重试）", address, err)
+	}
+	_ = connection.Close()
+	return fmt.Sprintf("（本机直连 %s 成功：网络是通的，问题在 RDP 握手或凭据上，可重试或核对用户名密码）", address)
 }
 
 func helperExitFailureDescription(reason string, frames int, stderrTail []string) string {
@@ -722,7 +888,34 @@ func helperExitFailureDescription(reason string, frames int, stderrTail []string
 	if frames > 0 || len(stderrTail) == 0 || helperExitWasRequested(reason) {
 		return description
 	}
+	cause := helperStderrCauseLine(stderrTail)
+	if cause != "" {
+		description += "；关键日志：" + cause
+	}
 	return description + helperMissingLibraryHint(stderrTail) + helperStderrExcerpt(stderrTail)
+}
+
+var helperStderrCauseMarkers = []string{
+	"getaddrinfo(",
+	"Parsed proxy configuration",
+	"http_proxy_connect",
+	"Name or service not known",
+}
+
+func helperStderrCauseLine(lines []string) string {
+	for _, marker := range helperStderrCauseMarkers {
+		for _, raw := range lines {
+			line := strings.TrimSpace(raw)
+			if !strings.Contains(line, marker) {
+				continue
+			}
+			if len(line) > 300 {
+				line = line[:300] + "…"
+			}
+			return line
+		}
+	}
+	return ""
 }
 
 func helperMissingLibraryHint(lines []string) string {
@@ -757,7 +950,7 @@ func (s *helperSession) recordTerminalError(err error) {
 		s.reapProcessWithin(helperProcessReapTimeout)
 
 		s.mu.Lock()
-		rejected := s.exitCode == helperExitCertificateRejected
+		rejected := s.exitCode == helperExitCertificateRejected && !helperIsConnectFailure(s.exitReason)
 		s.mu.Unlock()
 		if rejected {
 

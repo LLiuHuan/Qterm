@@ -72,11 +72,26 @@ func (s *Service) binaryPath() (string, bool) {
 	return "", false
 }
 
+const homebrewBinDir = "/opt/homebrew/bin"
+
+const systemBinDir = "/usr/local/bin"
+
+func unixInstallCandidates(home, goos, goarch string) []string {
+	candidates := make([]string, 0, 3)
+	if goos == "darwin" && goarch == "arm64" {
+		candidates = append(candidates, homebrewBinDir)
+	}
+	candidates = append(candidates, systemBinDir)
+	if strings.TrimSpace(home) != "" {
+		candidates = append(candidates, filepath.Join(home, ".local", "bin"))
+	}
+	return candidates
+}
+
 func (s *Service) installDir() string {
 	if s != nil && s.installDirOverride != "" {
 		return s.installDirOverride
 	}
-	pathValue := s.pathValue()
 	if runtime.GOOS == "windows" {
 		base := strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
 		if base == "" {
@@ -84,18 +99,54 @@ func (s *Service) installDir() string {
 		}
 		return filepath.Join(base, "Qterm", "bin")
 	}
-	systemDir := "/usr/local/bin"
-	userDir := filepath.Join(s.homeDirectory(), ".local", "bin")
-	switch {
-	case pathContains(pathValue, systemDir) && dirWritable(systemDir):
-		return systemDir
-	case pathContains(pathValue, userDir):
-		return userDir
-	case dirWritable(systemDir):
-		return systemDir
-	default:
+	pathValue := s.pathValue()
+	candidates := unixInstallCandidates(s.homeDirectory(), runtime.GOOS, runtime.GOARCH)
+	userDir := candidates[len(candidates)-1]
+	for _, dir := range candidates {
+		if pathSearchesDir(dir, pathValue) && dirInstallable(dir) {
+			return dir
+		}
+	}
+	if dirInstallable(userDir) {
 		return userDir
 	}
+	for _, dir := range candidates {
+		if dirInstallable(dir) {
+			return dir
+		}
+	}
+	return userDir
+}
+
+func unixDirOnUserPath(dir, pathValue string) bool {
+	if dir == "" {
+		return false
+	}
+	if pathContains(pathValue, dir) {
+		return true
+	}
+	if dir == homebrewBinDir {
+		return fileExists(dir)
+	}
+	return false
+}
+
+func dirInstallable(dir string) bool {
+	if strings.TrimSpace(dir) == "" {
+		return false
+	}
+	info, err := os.Stat(dir)
+	if err == nil {
+		if !info.IsDir() {
+			return false
+		}
+		return dirWritable(dir)
+	}
+	parent := filepath.Dir(dir)
+	if parent == dir {
+		return false
+	}
+	return dirWritable(parent)
 }
 
 func (s *Service) skillsPath() string {
@@ -106,7 +157,7 @@ func (s *Service) dirOnPath(dir string) bool {
 	if strings.TrimSpace(dir) == "" {
 		return false
 	}
-	return pathContains(s.pathValue(), dir)
+	return pathSearchesDir(dir, s.pathValue())
 }
 
 func (s *Service) pathValue() string {

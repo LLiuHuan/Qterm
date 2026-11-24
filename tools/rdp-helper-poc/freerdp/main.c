@@ -28,6 +28,8 @@
 // Windows 没有 unistd.h / poll.h：本文件跨平台只用到 fileno() 与 getppid()，
 // 前者在 Windows 上是 <io.h> 的 _fileno，后者在 Windows 上没有对应语义（见 helper_parent_gone）。
 #ifdef _WIN32
+#include <winsock2.h>
+#include <fcntl.h>
 #include <io.h>
 #include <process.h>
 #define HELPER_STDIN_FD() _fileno(stdin)
@@ -412,15 +414,21 @@ static int helper_verify_x509_certificate(freerdp* instance, const BYTE* data, s
 //   2) stdin 还开着，但 getppid() 变成 1 —— 进程已被 launchd/init 收养，说明父进程没了。
 // stdout 只允许帧，所以退出原因用一行 stderr 契约行上报：QTERM-HELPER-EXIT <原因>。
 // 原因是下面几种之一：stdin-eof / stdin-error / parent-gone / close-event /
-// remote-disconnect / wait-failed。
-static const char* helper_exit_reason = NULL;
+// remote-disconnect / wait-failed / connect-failed:0xXXXXXXXX（连不上时带 FreeRDP 的
+// ERRCONNECT_* 错误码，见 run_client）。
+static void* volatile helper_exit_reason = NULL;
 static volatile LONG helper_exit_reported = 0;
+
+static const char* helper_get_exit_reason(void)
+{
+    return (const char*)InterlockedCompareExchangePointer(&helper_exit_reason, NULL, NULL);
+}
 
 static void helper_request_exit(const char* reason)
 {
     // 只记第一个原因：后续（例如断开时又发现 EOF）不覆盖，方便上层定位真实起因。
-    if (!helper_exit_reason)
-        helper_exit_reason = reason;
+    // 主线程和看门狗会同时请求退出，必须原子发布；reason 只允许指向静态存储。
+    (void)InterlockedCompareExchangePointer(&helper_exit_reason, (void*)reason, NULL);
 }
 
 // 只上报一次：主流程与看门狗线程都可能走到这里（用 WinPR 的原子交换避免打印两行）。
@@ -428,8 +436,8 @@ static void helper_report_exit(void)
 {
     if (InterlockedCompareExchange(&helper_exit_reported, 1, 0) != 0)
         return;
-    fprintf(stderr, "QTERM-HELPER-EXIT %s\n",
-            helper_exit_reason ? helper_exit_reason : "remote-disconnect");
+    const char* reason = helper_get_exit_reason();
+    fprintf(stderr, "QTERM-HELPER-EXIT %s\n", reason ? reason : "remote-disconnect");
     // 退出前把两条输出流都刷干净：stdout 里可能还有半帧没写出去。
     fflush(stderr);
     fflush(stdout);
@@ -447,6 +455,26 @@ static BOOL helper_parent_gone(void)
 #endif
 }
 
+#ifdef _WIN32
+// 同步管道上的 PeekNamedPipe 可能等待另一个线程的 ReadFile；用原子闸门让看门狗
+// 只在主循环没有读取输入时探测，绝不阻塞等待主线程读完半个输入包。
+static volatile LONG helper_stdin_busy = 0;
+
+// 调用方持有 helper_stdin_busy；1=有数据，0=空闲，-1=写端关闭，-2=探测失败。
+static int helper_windows_stdin_state(DWORD* error)
+{
+    const HANDLE pipe = (HANDLE)_get_osfhandle(HELPER_STDIN_FD());
+    DWORD available = 0;
+    if (PeekNamedPipe(pipe, NULL, 0, NULL, &available, NULL))
+        return available > 0 ? 1 : 0;
+    *error = GetLastError();
+    if (*error == ERROR_BROKEN_PIPE || *error == ERROR_PIPE_NOT_CONNECTED ||
+        *error == ERROR_NO_DATA)
+        return -1;
+    return -2;
+}
+#endif
+
 // stdin 是否已经到 EOF。这里只"探测"不读取：读一个字节就会抢走主循环的事件。
 // 管道写端全部关闭时 poll 会给出 POLLHUP；只要还有数据可读就让主循环先读完（那时它自己会看到 EOF）。
 static BOOL helper_stdin_closed(void)
@@ -460,7 +488,12 @@ static BOOL helper_stdin_closed(void)
         return FALSE;
     return ((probe.revents & POLLHUP) != 0) && ((probe.revents & POLLIN) == 0);
 #else
-    return FALSE;
+    if (InterlockedCompareExchange(&helper_stdin_busy, 1, 0) != 0)
+        return FALSE;
+    DWORD error = 0;
+    const int state = helper_windows_stdin_state(&error);
+    InterlockedExchange(&helper_stdin_busy, 0);
+    return state == -1;
 #endif
 }
 
@@ -538,6 +571,21 @@ static BOOL helper_watchdog_stop_and_join(HANDLE watchdog)
     return status == WAIT_OBJECT_0;
 }
 
+// 只有 stdin 的同步读取与看门狗探测需要互斥；不能包住事件派发，否则网络发送卡住时
+// 看门狗也会失去检查父进程的机会。参数读取发生在看门狗启动前，不需要这道闸门。
+static size_t helper_read_stdin(void* buffer, size_t length)
+{
+#ifdef _WIN32
+    while (InterlockedCompareExchange(&helper_stdin_busy, 1, 0) != 0)
+        Sleep(1);
+#endif
+    const size_t count = fread(buffer, 1, length, stdin);
+#ifdef _WIN32
+    InterlockedExchange(&helper_stdin_busy, 0);
+#endif
+    return count;
+}
+
 // 读到半个事件/半个负载时必须继续读：把短读当成新事件会让事件流永久错位。
 static BOOL read_exact(void* buffer, size_t length)
 {
@@ -545,7 +593,7 @@ static BOOL read_exact(void* buffer, size_t length)
     size_t remaining = length;
     while (remaining > 0)
     {
-        const size_t count = fread(cursor, 1, remaining, stdin);
+        const size_t count = helper_read_stdin(cursor, remaining);
         if (count == 0)
         {
             if (ferror(stdin))
@@ -1493,7 +1541,7 @@ static BOOL process_input(rdpContext* context)
 {
     BYTE event[INPUT_BYTES];
     // 先只读 1 字节：这样才能区分「对端在事件边界正常关闭」与「事件被截断」（半个事件）。
-    const size_t first = fread(event, 1, 1, stdin);
+    const size_t first = helper_read_stdin(event, 1);
     if (first == 0)
     {
         if (feof(stdin))
@@ -1645,7 +1693,7 @@ static int run_client(rdpContext* context)
     {
         // 看门狗为了回收孤儿会主动中止连接（freerdp_abort_connect_context）：
         // 这不是"连接失败"，而是"父进程没了、我们该收工了"，仍然按退出码 0 + 退出契约行处理。
-        if (helper_exit_reason)
+        if (helper_get_exit_reason())
         {
             helper_report_exit();
             return 0;
@@ -1655,12 +1703,33 @@ static int run_client(rdpContext* context)
         if (certificate_rejected)
             return EXIT_CERTIFICATE_REJECTED;
         const int status = (int)freerdp_get_last_error(context);
+        // 退出码单独用不足以下结论：POSIX 的进程退出码只有低 8 位，0x00020005 传到上层就只剩
+        // 5，正好和「证书被拒」的哨兵值撞车（Windows 虽然保留完整 32 位，但同样容易出现低 8 位
+        // 相同的不同错误）；而 stderr 摘要只留最近几行，是 WARN 还是 ERROR 全看运气。
+        // 所以把完整错误码再走一遍退出契约行（connect-failed:0x00020005），上层据此把
+        // ERRCONNECT_DNS_NAME_NOT_FOUND 这类码翻成能照着排查的中文。
+        // 注意 helper_request_exit 只存指针，这里必须用 static 缓冲，不能用栈上的数组。
+        if (status != 0)
+        {
+            static char connect_failed_reason[64];
+            snprintf(connect_failed_reason, sizeof(connect_failed_reason), "connect-failed:0x%08X",
+                     (unsigned)status);
+            helper_request_exit(connect_failed_reason);
+            helper_report_exit();
+        }
         return status != 0 ? status : 1;
     }
 
+#ifndef _WIN32
     HANDLE input_event = CreateFileDescriptorEvent(NULL, FALSE, FALSE, HELPER_STDIN_FD(), WINPR_FD_READ);
     if (!input_event)
-        return -1;
+    {
+        helper_request_exit("stdin-error");
+        freerdp_disconnect(instance);
+        helper_report_exit();
+        return 1;
+    }
+#endif
 
     // 到这里虚拟通道已经全部 post connect 完成：服务器没给剪贴板通道时留一条诊断，
     // 免得画面/输入正常却让人以为"剪贴板应该能用"。
@@ -1690,7 +1759,9 @@ static int run_client(rdpContext* context)
     {
         HANDLE handles[MAXIMUM_WAIT_OBJECTS] = { 0 };
         DWORD count = 0;
+#ifndef _WIN32
         handles[count++] = input_event;
+#endif
         const DWORD rdp_count =
             freerdp_get_event_handles(context, &handles[count], MAXIMUM_WAIT_OBJECTS - count);
         if (rdp_count == 0)
@@ -1700,7 +1771,36 @@ static int run_client(rdpContext* context)
         }
         count += rdp_count;
 
-        const DWORD status = WaitForMultipleObjects(count, handles, FALSE, parent_check_ms);
+        DWORD wait_ms = parent_check_ms;
+#ifdef _WIN32
+        // WinPR 的 CreateFileDescriptorEvent 在 Windows 恒返回 NULL，匿名同步管道也
+        // 不能当成可等待的输入事件。只等待 RDP 句柄，最多每 10ms 探测一次 stdin。
+        // 已消费输入时不额外等待，避免连续键鼠/粘贴事件被限制成每秒 100 个。
+        wait_ms = 10;
+        if (InterlockedCompareExchange(&helper_stdin_busy, 1, 0) == 0)
+        {
+            DWORD pipe_error = 0;
+            const int state = helper_windows_stdin_state(&pipe_error);
+            InterlockedExchange(&helper_stdin_busy, 0);
+            BOOL input_ok = TRUE;
+            if (state > 0)
+            {
+                input_ok = process_input(context);
+                wait_ms = 0;
+            }
+            else if (state < 0)
+            {
+                if (state == -2)
+                    fprintf(stderr, "FreeRDP helper 输入管道探测失败: %lu\n",
+                            (unsigned long)pipe_error);
+                helper_request_exit(state == -1 ? "stdin-eof" : "stdin-error");
+                input_ok = FALSE;
+            }
+            if (!input_ok)
+                break;
+        }
+#endif
+        const DWORD status = WaitForMultipleObjects(count, handles, FALSE, wait_ms);
         if (status == WAIT_FAILED)
         {
             helper_request_exit("wait-failed");
@@ -1720,8 +1820,10 @@ static int run_client(rdpContext* context)
             }
         }
 
+#ifndef _WIN32
         if ((status == WAIT_OBJECT_0) && !process_input(context))
             break;
+#endif
         if (!freerdp_check_event_handles(context))
         {
             helper_request_exit("remote-disconnect");
@@ -1744,7 +1846,9 @@ static int run_client(rdpContext* context)
         }
     }
 
+#ifndef _WIN32
     CloseHandle(input_event);
+#endif
     freerdp_disconnect(instance);
     // 统一在这里上报退出原因：stdout 只能是帧，所以走 stderr。
     helper_report_exit();
@@ -1839,7 +1943,7 @@ static char** read_arguments(int* count)
     return arguments;
 }
 
-int main(void)
+static int helper_main(void)
 {
     // 避免读取参数时预取后续二进制输入事件。
     setvbuf(stdin, NULL, _IONBF, 0);
@@ -1922,5 +2026,37 @@ int main(void)
         _exit(result);
     }
     freerdp_client_context_free(context);
+    return result;
+}
+
+int main(void)
+{
+#ifdef _WIN32
+    // 管道承载像素和固定长度输入包；CRT 文本模式会改写 CR/LF，并把 0x1A 当 EOF。
+    // 必须在读取首行参数之前切换，setvbuf 只控制缓冲，不能关闭这些转换。
+    if (_setmode(_fileno(stdin), _O_BINARY) == -1 ||
+        _setmode(_fileno(stdout), _O_BINARY) == -1)
+    {
+        fprintf(stderr, "FreeRDP helper 二进制管道初始化失败: errno=%d\n", errno);
+        return 1;
+    }
+
+    // Winsock 是进程内资源，Go 父进程的初始化不会传给 helper。FreeRDP 库把初始化
+    // 留给客户端；漏掉时连数字 IP 的 getaddrinfo 都会失败，并被归类成 DNS 错误。
+    WSADATA wsa_data;
+    const int startup_status = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+    if (startup_status != 0)
+    {
+        fprintf(stderr, "FreeRDP helper Winsock 初始化失败: %d\n", startup_status);
+        return 1;
+    }
+#endif
+
+    const int result = helper_main();
+#ifdef _WIN32
+    // 包住全部普通返回路径，等看门狗停止、FreeRDP 上下文释放后再清理网络。
+    // 看门狗异常的 _exit 路径由操作系统回收，不能在仍有线程访问时提前清理。
+    WSACleanup();
+#endif
     return result;
 }

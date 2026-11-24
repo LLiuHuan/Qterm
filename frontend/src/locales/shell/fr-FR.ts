@@ -1823,7 +1823,7 @@ export const shellUiFr: Record<string, string> = {
   'shell.rdp.logState': 'État',
   'shell.rdp.logAction': 'Dernière action',
   'shell.rdp.logEmpty': '(aucune sortie du composant de bureau à distance pour l’instant)',
-  'shell.rdp.logCopy': 'Tout copier',
+  'shell.rdp.logCopy': 'Copier',
   'shell.rdp.pasteToRemote': 'Coller sur le distant',
   'shell.rdp.copyFromRemote': 'Copier depuis le distant',
   'shell.rdp.openWindow': 'Ouvrir dans une fenêtre séparée',

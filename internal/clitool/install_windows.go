@@ -60,7 +60,7 @@ func entryOwned(linkPath string) (owned bool, exists bool) {
 
 func managesSearchPath() bool { return true }
 
-func ensureSearchPath(dir string) error {
+func ensureSearchPath(dir, _ string) error {
 	dir = strings.TrimSpace(dir)
 	if dir == "" {
 		return errors.New("empty search path entry")
@@ -81,7 +81,7 @@ func ensureSearchPath(dir string) error {
 	return writeUserPath(next, valueType)
 }
 
-func removeSearchPath(dir string) error {
+func removeSearchPath(dir, _ string) error {
 	dir = strings.TrimSpace(dir)
 	if dir == "" {
 		return nil
@@ -109,6 +109,16 @@ func removeSearchPath(dir string) error {
 	}
 	return writeUserPath(strings.Join(kept, ";"), valueType)
 }
+
+func removeStaleEntries(string, string) error {
+	return nil
+}
+
+func pathSearchesDir(dir, pathValue string) bool {
+	return pathContains(pathValue, dir)
+}
+
+func shellPathFile(string, string) string { return "" }
 
 func searchPathValue(fallback string) string {
 	raw, _, err := userPathRaw()

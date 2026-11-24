@@ -381,7 +381,8 @@ async function downloadLog(): Promise<void> {
           <template v-else>
             <div>{{ t('about.debug.status.path') }}: {{ debugStatus.path }}</div>
             <div>{{ t('about.debug.status.size') }}: {{ debugSizeText }}</div>
-            <div v-if="debugStatus.dropped > 0" class="text-qt-warning" data-debug-dropped>
+
+            <div v-if="debugStatus.dropped > 0" class="text-qt-danger" data-debug-dropped>
               {{ t('about.debug.status.dropped') }}: {{ debugStatus.dropped }}
             </div>
           </template>

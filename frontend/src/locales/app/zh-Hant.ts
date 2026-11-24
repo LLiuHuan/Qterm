@@ -65,7 +65,7 @@ export const appZhHant: Record<string, string> = {
     '把 qterm-cli 命令裝進 PATH，讓腳本與外部智慧體透過桌面應用操作已儲存的主機。命令本身不讀資料庫、不碰保險庫，所有能力都由執行中的應用代理。',
   'application.cli.binary': '命令列程式',
   'application.cli.binaryHelp':
-    '隨應用分發；「安裝」把它接到 PATH 目錄裡（macOS/Linux 建立符號連結，Windows 複製副本並登記使用者 PATH）。',
+    '隨應用分發；「安裝」把它接到 PATH 目錄裡（macOS/Linux 建立符號連結，目錄不在 PATH 時寫入 shell 啟動設定；Windows 複製副本並登記使用者 PATH）。',
   'application.cli.install': '安裝到 PATH',
   'application.cli.reinstall': '重新安裝',
   'application.cli.uninstall': '移除',
@@ -95,6 +95,7 @@ export const appZhHant: Record<string, string> = {
   'application.cli.hint.unsupportedPlatform': '目前平台暫不支援一鍵安裝，請手動把程式複製到 PATH 目錄。',
   'application.cli.hint.notOnPath': '已安裝，但所在目錄不在 PATH 中，需要手動加入 shell 設定。',
   'application.cli.hint.restartShell': '已加入 PATH，但目前終端機的環境是舊的，請新開一個終端機後再使用。',
+  'application.cli.hint.shellPathUpdated': '已將該目錄加入 {file}，重新開啟終端機後即可使用。',
   'application.cli.hint.packageManaged': '指令由系統套件管理員提供，無需在這裡安裝。',
   'application.cli.toast.installed': '命令列工具已安裝',
   'application.cli.toast.uninstalled': '命令列工具已移除',

@@ -1782,7 +1782,7 @@ export const shellUiEn: Record<string, string> = {
   'shell.rdp.logState': 'Status',
   'shell.rdp.logAction': 'Last action',
   'shell.rdp.logEmpty': '(no output from the remote desktop component yet)',
-  'shell.rdp.logCopy': 'Copy all',
+  'shell.rdp.logCopy': 'Copy',
   'shell.rdp.pasteToRemote': 'Paste to remote',
   'shell.rdp.copyFromRemote': 'Copy from remote',
   'shell.rdp.openWindow': 'Open in a separate window',

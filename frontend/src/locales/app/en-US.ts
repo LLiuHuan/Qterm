@@ -74,7 +74,7 @@ export const appEn: Record<string, string> = {
     'Put the qterm-cli command on PATH so scripts and external agents can drive saved hosts through the desktop app. The command never reads the database or the vault — every capability is proxied by the running app.',
   'application.cli.binary': 'CLI binary',
   'application.cli.binaryHelp':
-    'Shipped with the app; installing puts it in a PATH directory (a symlink on macOS and Linux, a copy plus a user PATH entry on Windows).',
+    'Shipped with the app; installing puts it in a PATH directory (a symlink on macOS and Linux, plus a shell profile entry when that directory is not on PATH; a copy plus a user PATH entry on Windows).',
   'application.cli.install': 'Install to PATH',
   'application.cli.reinstall': 'Reinstall',
   'application.cli.uninstall': 'Remove',
@@ -108,6 +108,7 @@ export const appEn: Record<string, string> = {
     'Installed, but its directory is not on PATH; add it to your shell profile manually.',
   'application.cli.hint.restartShell':
     'Added to PATH, but this terminal still has the old environment. Open a new terminal before using it.',
+  'application.cli.hint.shellPathUpdated': 'Added the directory to {file}; open a new terminal to use it.',
   'application.cli.hint.packageManaged':
     'The command is provided by the system package manager, so there is nothing to install here.',
   'application.cli.toast.installed': 'Command line tool installed',

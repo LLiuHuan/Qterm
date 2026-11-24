@@ -211,6 +211,8 @@ const x11DetectionText = computed(() => {
   return t('application.x11.detected', { display, authority })
 })
 
+const x11DetectionUnavailable = computed(() => x11Detection.value?.available === false)
+
 async function detectX11(): Promise<void> {
   if (x11Detecting.value) return
   x11Detecting.value = true
@@ -621,7 +623,9 @@ function updateDragFolderUploadMode(value: string): void {
       </QtermSettingsRow>
       <div class="settings-card-row flex-cb gap-4 pt-3 pr-3.5 pb-3 pl-3.5 border-b border-b-qt-divider">
         <div>
-          <small class="text-xs">{{ x11DetectionText || t('application.x11.notDetected') }}</small>
+          <small class="text-xs" :class="x11DetectionUnavailable ? 'text-qt-danger' : ''">{{
+            x11DetectionText || t('application.x11.notDetected')
+          }}</small>
           <QtermFormMessage v-if="x11DetectError" as="small" variant="error">{{ x11DetectError }}</QtermFormMessage>
         </div>
         <QtermButton variant="outline" type="button" :disabled="x11Detecting" @click="detectX11">

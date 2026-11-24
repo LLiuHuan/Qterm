@@ -75,7 +75,8 @@ watch(
         <div class="flex items-center gap-2">
           <QtermButton variant="outline" type="button" @click="copyAll">
             <component :is="copied ? Check : Copy" :size="13" aria-hidden="true" />
-            <span class="ml-1">{{ copied ? t('shell.rdp.certCopied') : t('shell.rdp.logCopy') }}</span>
+
+            <span>{{ copied ? t('shell.rdp.certCopied') : t('shell.rdp.logCopy') }}</span>
           </QtermButton>
           <QtermButton type="button" @click="emit('close')">{{ t('shell.rdp.certCancel') }}</QtermButton>
         </div>

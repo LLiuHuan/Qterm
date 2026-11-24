@@ -678,6 +678,14 @@ function statusTone(item: SessionHistoryRecord): string {
   return 'status-dot--idle'
 }
 
+function statusTextTone(item: SessionHistoryRecord): string {
+  return item.status === 'failed' || item.status === 'interrupted' ? 'text-qt-danger' : ''
+}
+
+function recordingStatusTextTone(status: string): string {
+  return status === 'interrupted' ? 'text-qt-danger' : ''
+}
+
 function openExportDialog(items: TerminalRecording[]): void {
   if (!items.length) return
   exportItems.value = items
@@ -998,7 +1006,8 @@ onBeforeUnmount(() => {
               >{{ item.address }}</span
             >
             <span class="settings-history-status inline-flex flex-none ml-auto items-center gap-1.25 text-qt-muted">
-              <span class="status-dot" :class="statusTone(item)" aria-hidden="true"></span>{{ statusLabel(item) }}
+              <span class="status-dot" :class="statusTone(item)" aria-hidden="true"></span>
+              <span :class="statusTextTone(item)">{{ statusLabel(item) }}</span>
             </span>
           </div>
           <div class="settings-history-dates flex min-w-0 flex-wrap items-center gap-[0.25rem_0.75rem] text-qt-muted">
@@ -1200,9 +1209,11 @@ onBeforeUnmount(() => {
                 @update:model-value="toggleRecordingSelection(item.id)"
               />
               <strong class="text-sm">{{ recordingHostLabel(item) }}</strong>
-              <span class="settings-history-status inline-flex flex-none ml-auto items-center gap-1.25 text-qt-muted">{{
-                recordingStatusLabel(item.status)
-              }}</span>
+              <span class="settings-history-status inline-flex flex-none ml-auto items-center gap-1.25 text-qt-muted"
+                ><span :class="recordingStatusTextTone(item.status)">{{
+                  recordingStatusLabel(item.status)
+                }}</span></span
+              >
             </div>
             <div class="settings-history-dates flex min-w-0 flex-wrap items-center gap-[0.25rem_0.75rem] text-qt-muted">
               <span

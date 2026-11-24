@@ -33,6 +33,8 @@ const (
 
 	HintRestartShell = "restartShell"
 
+	HintShellPathUpdated = "shellPathUpdated"
+
 	HintPackageManaged = "packageManaged"
 )
 
@@ -77,6 +79,8 @@ type State struct {
 	Removable bool `json:"removable"`
 
 	OnPath bool `json:"onPath"`
+
+	PathFile string `json:"pathFile,omitempty"`
 
 	SkillsPath      string `json:"skillsPath"`
 	SkillsInstalled bool   `json:"skillsInstalled"`
@@ -148,6 +152,11 @@ func (s *Service) State() (State, error) {
 	managedByPath := available && s.binaryOnPath(binary)
 	installed := ownEntry || managedByPath
 	onPath := s.dirOnPath(installDir) || managedByPath
+
+	pathFile := ""
+	if installed && !onPath {
+		pathFile = shellPathFile(installDir, s.homeDirectory())
+	}
 	skillsPath := s.skillsPath()
 	skillsInstalled := fileExists(skillsPath)
 
@@ -161,6 +170,7 @@ func (s *Service) State() (State, error) {
 		Installed:       installed,
 		Removable:       ownEntry,
 		OnPath:          onPath,
+		PathFile:        pathFile,
 		SkillsPath:      skillsPath,
 		SkillsInstalled: skillsInstalled,
 		Settings:        settings,
@@ -174,6 +184,9 @@ func (s *Service) State() (State, error) {
 	case installed && !state.Removable:
 
 		state.HintKey = HintPackageManaged
+	case installed && !onPath && pathFile != "":
+
+		state.HintKey = HintShellPathUpdated
 	case installed && !onPath:
 		state.HintKey = HintNotOnPath
 	case managesSearchPath() && installed && !pathContains(processPath(), installDir):
@@ -213,8 +226,10 @@ func (s *Service) InstallBinary() (State, error) {
 		return s.StateOrZero(), newError("settings.cli.error.installFailed", linkPath)
 	}
 
-	if err := ensureSearchPath(installDir); err != nil {
-		return s.StateOrZero(), newError("settings.cli.error.pathFailed", installDir)
+	if !s.dirOnPath(installDir) {
+		if err := ensureSearchPath(installDir, s.homeDirectory()); err != nil {
+			return s.StateOrZero(), newError("settings.cli.error.pathFailed", installDir)
+		}
 	}
 	state, err := s.State()
 	if err != nil {
@@ -246,8 +261,12 @@ func (s *Service) UninstallBinary() (State, error) {
 		}
 	}
 
-	if err := removeSearchPath(installDir); err != nil {
+	if err := removeSearchPath(installDir, s.homeDirectory()); err != nil {
 		return s.StateOrZero(), newError("settings.cli.error.pathFailed", installDir)
+	}
+
+	if err := removeStaleEntries(installDir, s.homeDirectory()); err != nil {
+		return s.StateOrZero(), newError("settings.cli.error.uninstallFailed", installDir)
 	}
 	return s.State()
 }

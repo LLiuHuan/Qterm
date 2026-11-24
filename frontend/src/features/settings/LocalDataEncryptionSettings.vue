@@ -294,7 +294,12 @@ function submitResetVault(): void {
       <div class="min-w-0 grow">
         <strong class="block text-sm font-medium">{{ modeTitle }}</strong>
         <small class="mt-1 block text-xs leading-5 text-qt-muted">{{ modeDescription }}</small>
-        <small v-if="props.status?.keychainAvailable === false" class="mt-1 block text-xs leading-5 text-qt-warning">
+
+        <small
+          v-if="props.status?.keychainAvailable === false"
+          class="mt-1 block text-xs leading-5 text-qt-danger"
+          data-keychain-unavailable
+        >
           {{ t('security.core.keychainUnavailable') }}
         </small>
       </div>

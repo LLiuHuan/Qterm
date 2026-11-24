@@ -135,6 +135,10 @@ if ($LASTEXITCODE -ne 0) { throw "cmake 构建失败：$LASTEXITCODE" }
 $Helper = Join-Path $HelperBuild 'Release/qterm-freerdp-helper.exe'
 if (-not (Test-Path $Helper)) { throw "未找到产物：$Helper" }
 
+# 应用的开发期查找和 Windows 打包任务都读取 build 根目录；VS 多配置生成器却把
+# 新产物放在 Release 下。同步一份，避免重建后仍找不到 helper，或误用根目录的旧版本。
+Copy-Item -LiteralPath $Helper -Destination (Join-Path $HelperBuild 'qterm-freerdp-helper.exe') -Force
+
 Write-Host "==> 检查动态依赖（只应出现系统 DLL）"
 if (Get-Command dumpbin -ErrorAction SilentlyContinue) {
   & dumpbin /dependents $Helper

@@ -538,10 +538,16 @@ const ICON_FILE = '\u{F15B}'
       >
         {{ t('terminal.core.currentFont')
         }}<strong class="text-sm">{{ effectiveFont || t('terminal.core.unknownFont') }}</strong>
-        <template v-if="storedFontMissing">{{ t('terminal.core.fontFallback', { font: props.fontFamily }) }}</template>
-        <template v-else-if="selectedFamily && !selectedFamily.monospace">
-          {{ t('terminal.core.nonMonospaceWarning') }}
-        </template>
+
+        <span v-if="storedFontMissing" class="text-qt-danger" data-terminal-font-fallback>{{
+          t('terminal.core.fontFallback', { font: props.fontFamily })
+        }}</span>
+        <span
+          v-else-if="selectedFamily && !selectedFamily.monospace"
+          class="text-qt-danger"
+          data-terminal-font-nonmonospace
+          >{{ t('terminal.core.nonMonospaceWarning') }}</span
+        >
       </p>
     </div>
 
