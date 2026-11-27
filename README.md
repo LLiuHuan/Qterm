@@ -382,7 +382,3 @@ Taskfile.yml             开发、验证与构建任务入口
 ```
 
 更细的目录职责见 [`internal/README.md`](internal/README.md) 与 [`frontend/README.md`](frontend/README.md)。
-
-## 社区支持
-
-- [LINUX DO](https://linux.do)：交流使用经验、反馈问题与建议。
