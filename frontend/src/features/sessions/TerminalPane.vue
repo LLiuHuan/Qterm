@@ -1435,25 +1435,53 @@ function requestTerminalFontStep(deltaY: number, deltaMode = 0): void {
   if (pixels === 0) return
   fontZoomPendingDelta += pixels
   restartFontZoomGestureWindow()
-  if (fontZoomFrame !== null) return
-  fontZoomFrame = window.requestAnimationFrame(flushFontZoomStep)
+  scheduleFontZoomStep()
+}
+
+function scheduleFontZoomStep(): void {
+  if (fontZoomTimer !== null) return
+  const elapsed = performance.now() - fontZoomLastApplyAt
+  if (elapsed >= FONT_ZOOM_APPLY_INTERVAL_MS) {
+    flushFontZoomStep()
+    return
+  }
+  fontZoomTimer = window.setTimeout(() => {
+    fontZoomTimer = null
+    flushFontZoomStep()
+  }, FONT_ZOOM_APPLY_INTERVAL_MS - elapsed)
 }
 
 function flushFontZoomStep(): void {
-  fontZoomFrame = null
-  const accumulated = fontZoomPendingDelta
-  fontZoomPendingDelta = 0
-  const steps = Math.trunc(accumulated / FONT_ZOOM_DELTA_PER_STEP)
-  if (steps === 0) {
-    fontZoomPendingDelta = accumulated
+  const outstanding = Math.trunc(fontZoomPendingDelta / FONT_ZOOM_DELTA_PER_STEP)
+  if (outstanding === 0) return
+  const budget = FONT_ZOOM_MAX_STEPS_PER_GESTURE - fontZoomStepsInGesture
+  if (budget <= 0) {
+    fontZoomPendingDelta = 0
     return
   }
+  const want = Math.min(Math.abs(outstanding), budget)
+  const perTick = want > FONT_ZOOM_CATCH_UP_STEPS ? want : Math.min(want, FONT_ZOOM_MAX_STEPS_PER_TICK)
+  const applied = Math.sign(outstanding) * perTick
+  fontZoomPendingDelta -= applied * FONT_ZOOM_DELTA_PER_STEP
+  fontZoomStepsInGesture += perTick
+  fontZoomLastApplyAt = performance.now()
+  applyFontZoomSteps(-applied)
 
-  fontZoomPendingDelta = accumulated - steps * FONT_ZOOM_DELTA_PER_STEP
-  const remaining = Math.max(0, FONT_ZOOM_MAX_STEPS_PER_GESTURE - fontZoomStepsInGesture)
-  if (remaining === 0) return
-  const applied = Math.abs(steps) > remaining ? Math.sign(steps) * remaining : steps
-  fontZoomStepsInGesture += Math.abs(applied)
+  if (Math.abs(fontZoomPendingDelta) >= FONT_ZOOM_DELTA_PER_STEP) scheduleFontZoomStep()
+}
+
+function settleFontZoomTail(): void {
+  if (fontZoomTimer !== null) {
+    window.clearTimeout(fontZoomTimer)
+    fontZoomTimer = null
+  }
+  const outstanding = Math.trunc(fontZoomPendingDelta / FONT_ZOOM_DELTA_PER_STEP)
+  if (outstanding === 0) return
+  const budget = FONT_ZOOM_MAX_STEPS_PER_GESTURE - fontZoomStepsInGesture
+  if (budget <= 0) return
+  const applied = Math.sign(outstanding) * Math.min(Math.abs(outstanding), budget)
+  fontZoomPendingDelta = 0
+  fontZoomLastApplyAt = performance.now()
   applyFontZoomSteps(-applied)
 }
 
@@ -1469,6 +1497,8 @@ function restartFontZoomGestureWindow(): void {
   if (fontZoomIdleTimer !== null) window.clearTimeout(fontZoomIdleTimer)
   fontZoomIdleTimer = window.setTimeout(() => {
     fontZoomIdleTimer = null
+
+    settleFontZoomTail()
     fontZoomPendingDelta = 0
     fontZoomStepsInGesture = 0
   }, FONT_ZOOM_GESTURE_IDLE_MS)
@@ -1527,16 +1557,24 @@ const translateGateway = createTranslateGateway()
 const FONT_ZOOM_DELTA_PER_STEP = 40
 const FONT_ZOOM_LINE_PIXELS = 40
 const FONT_ZOOM_PAGE_PIXELS = 400
+
+const FONT_ZOOM_APPLY_INTERVAL_MS = 60
+
+const FONT_ZOOM_MAX_STEPS_PER_TICK = 2
+
+const FONT_ZOOM_CATCH_UP_STEPS = 4
 const FONT_ZOOM_GESTURE_IDLE_MS = 240
 
 const FONT_ZOOM_MAX_STEPS_PER_GESTURE = 24
 
 const BROWSER_GESTURE_EVENTS = ['gesturestart', 'gesturechange', 'gestureend'] as const
 
-let fontZoomFrame: number | null = null
+let fontZoomTimer: number | null = null
 let fontZoomIdleTimer: number | null = null
 let fontZoomPendingDelta = 0
 let fontZoomStepsInGesture = 0
+
+let fontZoomLastApplyAt = 0
 
 let lastPresentedFontFamily = ''
 let lastPresentedFontWeight = 0
@@ -2065,6 +2103,19 @@ let resizeFreezeTimer: ReturnType<typeof setTimeout> | null = null
 let resizeObservationSeen = false
 let resizeFrozen = false
 
+function settleSizeFreeze(): void {
+  resizeFreezeTimer = null
+
+  if (sidebarWidthAnimating()) {
+    resizeFreezeTimer = setTimeout(settleSizeFreeze, RESIZE_FREEZE_IDLE_MS)
+    return
+  }
+  releaseTerminalSizeFreeze()
+
+  terminalElement.value?.getBoundingClientRect()
+  applyFit()
+}
+
 function freezeTerminalSize(): boolean {
   const element = terminalElement.value
   if (!element) return false
@@ -2078,13 +2129,7 @@ function freezeTerminalSize(): boolean {
     element.style.flex = 'none'
   }
   if (resizeFreezeTimer !== null) clearTimeout(resizeFreezeTimer)
-  resizeFreezeTimer = setTimeout(() => {
-    resizeFreezeTimer = null
-    releaseTerminalSizeFreeze()
-
-    terminalElement.value?.getBoundingClientRect()
-    applyFit()
-  }, RESIZE_FREEZE_IDLE_MS)
+  resizeFreezeTimer = setTimeout(settleSizeFreeze, RESIZE_FREEZE_IDLE_MS)
   return true
 }
 
@@ -2097,13 +2142,22 @@ function releaseTerminalSizeFreeze(): void {
   element.style.flex = ''
 }
 
+function sidebarWidthAnimating(): boolean {
+  return document.body.classList.contains('qterm-sidebar-animating')
+}
+
+function layoutWidthGestureActive(): boolean {
+  return (
+    document.body.classList.contains('qterm-resizing-vertical') ||
+    document.body.classList.contains('qterm-resizing-horizontal') ||
+    sidebarWidthAnimating()
+  )
+}
+
 function queueFit(): void {
   if (!isVisible.value || !terminal || !fitAddon) return
 
-  if (
-    document.body.classList.contains('qterm-resizing-vertical') ||
-    document.body.classList.contains('qterm-resizing-horizontal')
-  ) {
+  if (layoutWidthGestureActive()) {
     fitAfterLayoutResize = true
     return
   }
@@ -2117,11 +2171,10 @@ function handleResizeObservation(): void {
     resizeObservationSeen = true
     return
   }
-  if (
-    document.body.classList.contains('qterm-resizing-vertical') ||
-    document.body.classList.contains('qterm-resizing-horizontal')
-  ) {
+  if (layoutWidthGestureActive()) {
     fitAfterLayoutResize = true
+
+    if (sidebarWidthAnimating()) freezeTerminalSize()
     return
   }
 
@@ -3785,12 +3838,13 @@ onBeforeUnmount(() => {
   }
   clearCredentialInputState()
   resizeObserver?.disconnect()
-  if (fontZoomFrame !== null) window.cancelAnimationFrame(fontZoomFrame)
-  fontZoomFrame = null
+  if (fontZoomTimer !== null) window.clearTimeout(fontZoomTimer)
+  fontZoomTimer = null
   if (fontZoomIdleTimer !== null) window.clearTimeout(fontZoomIdleTimer)
   fontZoomIdleTimer = null
   fontZoomPendingDelta = 0
   fontZoomStepsInGesture = 0
+  fontZoomLastApplyAt = 0
   window.removeEventListener('resize', handleWindowResize)
   window.removeEventListener('focus', refreshAfterWindowResume)
   document.removeEventListener('visibilitychange', handleVisibilityResume)

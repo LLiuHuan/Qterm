@@ -1334,6 +1334,63 @@ function sendTerminalPaneCommand(command: Parameters<typeof terminalPaneCommandB
   terminalPaneCommandBus.send(sessionId, command)
 }
 
+const SIDEBAR_ANIMATION_MS = 180
+
+const SIDEBAR_ANIMATION_FALLBACK_MS = SIDEBAR_ANIMATION_MS + 220
+const SIDEBAR_ANIMATION_CLASS = 'qterm-sidebar-animating'
+let sidebarAnimationTimer: number | null = null
+let sidebarAnimationTarget: HTMLElement | null = null
+
+function handleSidebarTransitionEnd(event: TransitionEvent): void {
+  if (event.target !== sidebarAnimationTarget) return
+  if (event.propertyName !== 'grid-template-columns') return
+  finishSidebarAnimation()
+}
+
+function finishSidebarAnimation(): void {
+  if (sidebarAnimationTimer !== null) {
+    window.clearTimeout(sidebarAnimationTimer)
+    sidebarAnimationTimer = null
+  }
+  if (sidebarAnimationTarget !== null) {
+    sidebarAnimationTarget.removeEventListener('transitionend', handleSidebarTransitionEnd)
+    sidebarAnimationTarget = null
+  }
+  if (!document.body.classList.contains(SIDEBAR_ANIMATION_CLASS)) return
+  document.body.classList.remove(SIDEBAR_ANIMATION_CLASS)
+  window.dispatchEvent(new CustomEvent('qterm:layout-resize-end'))
+}
+
+function setSidebarCollapsed(next: boolean): void {
+  if (sidebarCollapsed.value === next) return
+  sidebarCollapsed.value = next
+  if (sidebarAnimationTimer !== null) {
+    window.clearTimeout(sidebarAnimationTimer)
+    sidebarAnimationTimer = null
+  }
+
+  const animating = settingsReady.value && !suppressToolTransition.value
+  if (!animating) {
+    document.body.classList.add(SIDEBAR_ANIMATION_CLASS)
+    sidebarAnimationTimer = window.setTimeout(finishSidebarAnimation, 0)
+    return
+  }
+  const appBody = document.querySelector<HTMLElement>('.app-body')
+  if (!appBody) return
+  document.body.classList.add(SIDEBAR_ANIMATION_CLASS)
+  sidebarAnimationTarget = appBody
+  appBody.addEventListener('transitionend', handleSidebarTransitionEnd)
+  sidebarAnimationTimer = window.setTimeout(finishSidebarAnimation, SIDEBAR_ANIMATION_FALLBACK_MS)
+}
+
+function toggleSidebar(): void {
+  if (supportsAssetLibrary.value) {
+    toggleAssetLibrary()
+    return
+  }
+  setSidebarCollapsed(!sidebarCollapsed.value)
+}
+
 const shortcutDispatch = createShortcutDispatch({
   nextTab: () => {
     workspace.value?.activateAdjacentTab(1)
@@ -1382,13 +1439,7 @@ const shortcutDispatch = createShortcutDispatch({
   splitBottom: () => {
     requestSplit(activeSessionId.value, 'bottom')
   },
-  toggleSidebar: () => {
-    if (supportsAssetLibrary.value) {
-      toggleAssetLibrary()
-      return
-    }
-    sidebarCollapsed.value = !sidebarCollapsed.value
-  },
+  toggleSidebar: () => toggleSidebar(),
   remoteFileSave: () => {
     remoteEditorFocus.requestSave()
   },
@@ -2460,6 +2511,12 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  if (sidebarAnimationTimer !== null) {
+    window.clearTimeout(sidebarAnimationTimer)
+    sidebarAnimationTimer = null
+  }
+  document.body.classList.remove(SIDEBAR_ANIMATION_CLASS)
+
   disposeSessionWindowHandover()
   stopEvenDialogHeights?.()
   window.removeEventListener('resize', handleWindowResize)
@@ -2560,7 +2617,7 @@ onBeforeUnmount(() => {
       :asset-library-active="showAssetLibrary"
       :app-lock-enabled="appLockEnabled"
       @lock-app="lockAppNow"
-      @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
+      @toggle-sidebar="toggleSidebar"
       @toggle-asset-library="toggleAssetLibrary"
       @create-terminal="openCreateDialog"
       @create-local-terminal="openLocalSession"

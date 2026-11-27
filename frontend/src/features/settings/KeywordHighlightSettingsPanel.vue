@@ -472,6 +472,8 @@ const previewRules = computed(() => props.rules)
 .keyword-highlight-rules {
   overflow: hidden;
   padding: 0 10px;
+  container-type: inline-size;
+  container-name: keyword-highlight-rules;
 }
 
 .keyword-highlight-rule-list {
@@ -482,7 +484,8 @@ const previewRules = computed(() => props.rules)
 .keyword-highlight-rule-head,
 .keyword-highlight-rule-row {
   display: grid;
-  grid-template-columns: 20px 42px minmax(140px, 1.3fr) minmax(100px, 0.9fr) minmax(150px, 1fr) minmax(140px, 1fr) 30px;
+
+  grid-template-columns: 20px 30px minmax(120px, 1.4fr) minmax(80px, 0.85fr) minmax(110px, 1fr) minmax(110px, 1fr) 28px;
   align-items: center;
   gap: 8px;
 }
@@ -624,18 +627,13 @@ const previewRules = computed(() => props.rules)
   color: var(--qt-muted);
 }
 
-@media (max-width: 1180px) {
-  .keyword-highlight-rules-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
+@container keyword-highlight-rules (max-width: 560px) {
   .keyword-highlight-rule-head {
     display: none;
   }
 
   .keyword-highlight-rule-row {
-    grid-template-columns: 20px 30px minmax(0, 1fr) 30px;
+    grid-template-columns: 20px 30px minmax(0, 1fr) 28px;
     gap: 8px;
     padding: 8px 0;
   }
@@ -650,6 +648,13 @@ const previewRules = computed(() => props.rules)
   .keyword-highlight-rule-row > :nth-child(7) {
     grid-column: 4;
     grid-row: 1;
+  }
+}
+
+@media (max-width: 1180px) {
+  .keyword-highlight-rules-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
